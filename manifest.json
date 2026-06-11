@@ -1,0 +1,29 @@
+{
+  "name": "Simple Profile And Roleplay Kit",
+  "version": "1.0.0",
+  "namespace": "rp.spark",
+  "package": "Blish HUD SPARK.dll",
+  "manifest_version": 1,
+
+  "description": "This module allows you to create character profiles for roleplaying, advertise to other module users you're looking for RP, and view other player profiles.",
+  "dependencies": {
+    "bh.blishhud": ">=1.3.0"
+  },
+  "url": "TBD",
+  "contributors": [
+    {
+      "name": "Taw / Bat.8570"
+    }
+  ],
+  "directories": [ "spark" ],
+  "api_permissions": {
+    "account": {
+      "optional": false,
+      "details": "Required in order to attach your roleplay profiles to your account to prevent impersonation."
+    },
+    "characters": {
+      "optional": false,
+      "details": "Required in order to verify that your roleplay profile belongs to the current character on your account."
+    }
+  }
+}
