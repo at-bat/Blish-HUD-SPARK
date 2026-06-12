@@ -76,6 +76,7 @@ namespace rp.spark.Services
             return new ProfileViewData(profile, presence);
         }
 
+        // Adjusting online list to load your own presence without waiting for server.
         public async Task<IReadOnlyList<PlayerPresence>> LoadOnlineAsync()
         {
             var rows = new List<PlayerPresence>();
@@ -90,10 +91,20 @@ namespace rp.spark.Services
                 Logger.Warn(ex, "Failed to load SPARK online profiles from the server.");
             }
 
-            foreach (var localPresence in GetOwnPresenceRows())
+            foreach (var localPresence in await GetOwnPresenceRowsAsync())
                 UpdatePresence(rows, localPresence);
 
-            return rows
+            return NormalizePresenceRows(rows);
+        }
+
+        public IReadOnlyList<PlayerPresence> LoadCachedOnlineRows()
+        {
+            return NormalizePresenceRows(GetOwnPresenceRows());
+        }
+
+        private IReadOnlyList<PlayerPresence> NormalizePresenceRows(IEnumerable<PlayerPresence> rows)
+        {
+            return (rows ?? Enumerable.Empty<PlayerPresence>())
                 .Where(CanShowPresence)
                 .GroupBy(presence => presence?.Key() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())
@@ -191,11 +202,42 @@ namespace rp.spark.Services
             return new ProfileViewData(profile, presence);
         }
 
+        private async Task<IReadOnlyList<PlayerPresence>> GetOwnPresenceRowsAsync()
+        {
+            try
+            {
+                var presence = _presenceLoop == null
+                    ? await _presenceService.GetCurrentPresenceAsync()
+                    : await _presenceLoop.RefreshAsync();
+
+                return ToOwnPresenceRows(presence);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to refresh local SPARK presence for the online list.");
+                return GetOwnPresenceRows();
+            }
+        }
+
         private IReadOnlyList<PlayerPresence> GetOwnPresenceRows()
         {
-            var presence = _presenceLoop?.CurrentPresence
-                           ?? _presenceService.GetCurrentPresence();
+            try
+            {
+                var presence = _presenceService.GetCurrentPresence();
 
+                if (CanShowPresence(presence))
+                    return ToOwnPresenceRows(presence);
+            }
+            catch
+            {
+                // Fall back to the last presence.
+            }
+
+            return ToOwnPresenceRows(_presenceLoop?.CurrentPresence);
+        }
+
+        private IReadOnlyList<PlayerPresence> ToOwnPresenceRows(PlayerPresence presence)
+        {
             if (!CanShowPresence(presence))
                 return new List<PlayerPresence>();
 

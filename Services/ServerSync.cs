@@ -55,7 +55,7 @@ namespace rp.spark.Services
             _presenceLoop = presenceLoop;
             _profileRepository = profileRepository;
             _tokens = tokens;
-            CurrentStatus = ServerSyncStatus.Disconnected("Server sync is not connected.");
+            CurrentStatus = ServerSyncStatus.Disconnected("Server sync is unavailable.");
         }
 
         public ServerSyncStatus CurrentStatus { get; private set; }
@@ -187,7 +187,7 @@ namespace rp.spark.Services
 
             if (result.Succeeded)
             {
-                Success("Online list refreshed.");
+                Success("Online list updated.");
                 return result.Value?.Entries ?? new List<PlayerPresence>();
             }
 
@@ -321,7 +321,7 @@ namespace rp.spark.Services
 
             if (presence == null)
             {
-                SetStatus(ServerSyncStatus.Disconnected("Waiting for local presence."));
+                SetStatus(ServerSyncStatus.Disconnected("Connecting, please wait."));
                 return false;
             }
 
@@ -344,7 +344,7 @@ namespace rp.spark.Services
             var isReady = await _privacyReadyAsync(cancellationToken);
 
             if (!isReady)
-                SetInfoStatus("Waiting for block list sync.");
+                SetInfoStatus("Waiting for block list to sync with SPARK.");
 
             return isReady;
         }
@@ -358,7 +358,7 @@ namespace rp.spark.Services
 
             if (profile == null)
             {
-                SetStatus(ServerSyncStatus.Disconnected("Active profile could not be loaded."));
+                SetStatus(ServerSyncStatus.Disconnected("Active profile not detected. Please set a profile to be your active one."));
                 return false;
             }
 
@@ -385,7 +385,7 @@ namespace rp.spark.Services
 
             if (!result.Succeeded)
             {
-                Fail(result, "Could not publish presence.");
+                Fail(result, "Could not establish connection.");
                 return;
             }
 
@@ -393,7 +393,7 @@ namespace rp.spark.Services
             _lastPublishedPresence = PresenceMapper.ClonePresence(presence);
             _lastRemovedPresenceKey = string.Empty;
             LastPublishedAt = DateTime.UtcNow;
-            Success("Presence published.");
+            Success("Connected to SPARK.");
         }
 
         // Clear the player's public online entries when needed (invisible, offline)
@@ -638,7 +638,7 @@ namespace rp.spark.Services
                 && string.Equals(CurrentStatus.Message, status.Message, StringComparison.Ordinal))
                 return;
 
-            CurrentStatus = status ?? ServerSyncStatus.Disconnected("Unable to connect to the Spark service.");
+            CurrentStatus = status ?? ServerSyncStatus.Disconnected("Unable to connect to SPARK.");
             StatusChanged?.Invoke(CurrentStatus);
         }
 

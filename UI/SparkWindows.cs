@@ -65,13 +65,21 @@ namespace rp.spark.UI
         public string ViewedOfficialCharacterName { get; private set; }
 
         public bool IsProfileViewerVisible => _profileViewerWindow != null && _profileViewerWindow.Visible;
+        private static readonly TimeSpan LoadingScreenTickDelay = TimeSpan.FromSeconds(1.5);
 
         private static readonly Logger Logger = Logger.GetLogger<SparkWindows>();
         private bool _isDisposed;
 
+        internal static bool IsLoadingScreen()
+        {
+            return GameService.Gw2Mumble.IsAvailable
+                && GameService.Gw2Mumble.TimeSinceTick >= LoadingScreenTickDelay;
+        }
+
         internal bool ShouldHideGameplayWindows()
         {
             return !GameService.GameIntegration.Gw2Instance.IsInGame
+                || IsLoadingScreen()
                 || ShouldHideForGameUi();
         }
 
@@ -122,6 +130,7 @@ namespace rp.spark.UI
 
             _onlineListWindow.Show(new OnlineProfilesView(
                 _profileLoader.LoadOnlineAsync,
+                _profileLoader.LoadCachedOnlineRows,
                 OpenPresence,
                 _profileActions.IsPresenceBookmarked,
                 _profileActions.WatchSavedProfiles,

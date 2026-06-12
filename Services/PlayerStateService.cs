@@ -205,6 +205,7 @@ namespace rp.spark.Services
             }
         }
 
+        // Fix for new presence cache so location doesn't cache bad map names (Map 139 instead of Rata Sum, etc.)
         private async Task<string> GetLocationNameAsync(int mapId, CancellationToken cancellationToken)
         {
             if (mapId <= 0)
@@ -222,9 +223,13 @@ namespace rp.spark.Services
                     return GetLocationFallback(mapId);
 
                 var map = await GameService.Gw2WebApi.AnonymousConnection.Client.V2.Maps.GetAsync(mapId, cancellationToken);
-                var mapName = string.IsNullOrWhiteSpace(map?.Name)
-                    ? $"Map {mapId}"
-                    : map.Name.Trim();
+                var mapName = map?.Name?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(mapName))
+                {
+                    SetMapRetry(mapId);
+                    return GetLocationFallback(mapId);
+                }
 
                 lock (_mapNameCache)
                 {

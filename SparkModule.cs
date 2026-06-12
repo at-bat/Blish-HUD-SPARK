@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
 using TokenPermission = Gw2Sharp.WebApi.V2.Models.TokenPermission;
 // SPARK Module General Details:
 // The name stands for Simple Profile and Roleplay Kit. It's also a slight nod towards the first legendary I made, Incinerator, since Spark is the precursor.
@@ -27,6 +28,13 @@ namespace rp.spark
     public class SparkModule : Blish_HUD.Modules.Module
     {
         private static readonly Logger Logger = Logger.GetLogger<SparkModule>();
+        private static readonly TimeSpan GameplayVisibilityCheckInterval = TimeSpan.FromMilliseconds(250);
+
+        // Right now these are functionally the same since the separation between them is a bit ugly UX-wise
+        // Will try to clean this up so the designation between character select and loading between maps is better
+        private const string LoadingScreenMessage = "Load into a map first!";
+        private const string CharacterSelectMessage = "Load into a map first!";
+        private TimeSpan _gameplayVisibilityCheckElapsed;
 
         internal SettingsManager SettingsManager => this.ModuleParameters.SettingsManager;
         internal ContentsManager ContentsManager => this.ModuleParameters.ContentsManager;
@@ -123,6 +131,23 @@ namespace rp.spark
         protected override async Task LoadAsync()
         {
             await _iconIndex.LoadAsync();
+        }
+
+        // Doing a small check to track the UITick, if it halts, assume we're on a map load
+        protected override void Update(GameTime gameTime)
+        {
+            if (_windows == null || gameTime == null)
+                return;
+
+            _gameplayVisibilityCheckElapsed += gameTime.ElapsedGameTime;
+
+            if (_gameplayVisibilityCheckElapsed < GameplayVisibilityCheckInterval)
+                return;
+
+            _gameplayVisibilityCheckElapsed = TimeSpan.Zero;
+
+            if (_windows.ShouldHideGameplayWindows())
+                _windows.CloseGameplayWindows();
         }
 
         protected override void OnModuleLoaded(EventArgs e)
@@ -439,9 +464,10 @@ namespace rp.spark
                 return "SPARK windows closed due to in-game UI (map, vista, etc.)";
 
             var state = _playerState?.GetCached();
+            var unavailableReason = GetUnavailableReason(state);
 
-            if (state == null || !state.CanEditProfile)
-                return "Please log in to a character to use SPARK.";
+            if (!string.IsNullOrWhiteSpace(unavailableReason))
+                return unavailableReason;
 
             return HasValidApiKey()
                 ? string.Empty
@@ -465,15 +491,15 @@ namespace rp.spark
 
         private static string GetUnavailableReason(PlayerState state)
         {
-            if (state == null 
-                || !state.IsMumbleAvailable 
-                || !state.IsInGame 
-                || string.IsNullOrWhiteSpace(state.OfficialCharacterName))
-            {
-                return "Choose a character first!";
-            }
+            if (state == null)
+                return CharacterSelectMessage;
 
-            return string.Empty;
+            if (state.CanEditProfile)
+                return string.Empty;
+
+            return SparkWindows.IsLoadingScreen()
+                ? LoadingScreenMessage
+                : CharacterSelectMessage;
         }
 
         protected override void Unload()

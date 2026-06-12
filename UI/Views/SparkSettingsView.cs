@@ -4,6 +4,8 @@ using Blish_HUD.Graphics.UI;
 using rp.spark.Models;
 using rp.spark.Services;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace rp.spark.UI.Views
 {
@@ -26,6 +28,11 @@ namespace rp.spark.UI.Views
         private bool _isUnloaded;
         private Label _serverStatusLabel;
         private Label _apiKeyWarning;
+
+        private static readonly TimeSpan NoticeRefreshInterval = TimeSpan.FromMilliseconds(500);
+
+        private CancellationTokenSource _noticeRefreshCancel;
+        private Task _noticeRefreshTask;
 
         public SparkSettingsView(
             Action openProfileManager,
@@ -81,6 +88,7 @@ namespace rp.spark.UI.Views
             BuildSettings(buildPanel);
             WatchServer();
             WatchGameState();
+            StartNoticeRefresh();
             RefreshServerStatus();
         }
 
@@ -226,6 +234,50 @@ namespace rp.spark.UI.Views
             _unwatchServerSyncStatus?.Invoke(OnServerStatus);
         }
 
+        private void StartNoticeRefresh()
+        {
+            StopNoticeRefresh();
+
+            _noticeRefreshCancel = new CancellationTokenSource();
+            _noticeRefreshTask = RefreshNoticeLoopAsync(_noticeRefreshCancel.Token);
+        }
+
+        private async Task RefreshNoticeLoopAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(NoticeRefreshInterval, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                {
+                    if (!_isUnloaded)
+                        RefreshApiKeyWarning();
+                });
+            }
+        }
+
+        private void StopNoticeRefresh()
+        {
+            var cancellation = _noticeRefreshCancel;
+            var task = _noticeRefreshTask;
+
+            _noticeRefreshCancel = null;
+            _noticeRefreshTask = null;
+
+            if (cancellation == null)
+                return;
+
+            cancellation.Cancel();
+            TaskCleanup.DisposeWhenComplete(task, cancellation);
+        }
+
         private void OnServerStatus(ServerSyncStatus status)
         {
             GameService.Overlay.QueueMainThreadUpdate(gameTime =>
@@ -310,6 +362,7 @@ namespace rp.spark.UI.Views
         protected override void Unload()
         {
             _isUnloaded = true;
+            StopNoticeRefresh();
             _buttons.Dispose();
             _blocklist.Dispose();
             UnwatchServer();

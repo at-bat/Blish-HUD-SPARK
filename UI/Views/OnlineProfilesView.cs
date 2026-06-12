@@ -25,6 +25,7 @@ namespace rp.spark.UI.Views
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
 
         private readonly Func<Task<IReadOnlyList<PlayerPresence>>> _loadRows;
+        private readonly Func<IReadOnlyList<PlayerPresence>> _loadCachedRows;
         private readonly Action<PlayerPresence> _openProfile;
         private readonly Func<PlayerPresence, bool> _isBookmarked;
         private readonly Action<Action> _watchBookmarks;
@@ -43,12 +44,14 @@ namespace rp.spark.UI.Views
 
         public OnlineProfilesView(
             Func<Task<IReadOnlyList<PlayerPresence>>> getPresenceRows,
+            Func<IReadOnlyList<PlayerPresence>> getCachedPresenceRows,
             Action<PlayerPresence> openProfile,
             Func<PlayerPresence, bool> isBookmarked = null,
             Action<Action> watchBookmarksChanged = null,
             Action<Action> unwatchBookmarksChanged = null)
         {
             _loadRows = getPresenceRows;
+            _loadCachedRows = getCachedPresenceRows;
             _openProfile = openProfile;
             _isBookmarked = isBookmarked;
             _watchBookmarks = watchBookmarksChanged;
@@ -172,12 +175,15 @@ namespace rp.spark.UI.Views
             if (!await _refreshGate.WaitAsync(0))
                 return;
 
+            var showedCachedRows = false;
+
             try
             {
                 if (_isUnloaded || _profileList == null)
                     return;
 
-                SetStatusText("Loading profiles...");
+                showedCachedRows = ShowCachedRows(resetScroll);
+                SetStatusText(showedCachedRows ? "Refreshing profiles..." : "Loading profiles...");
 
                 var rows = _loadRows == null
                     ? new List<PlayerPresence>()
@@ -205,6 +211,12 @@ namespace rp.spark.UI.Views
                     if (_profileList == null || _status == null || _isUnloaded)
                         return;
 
+                    if (showedCachedRows)
+                    {
+                        _status.Text = "Showing local profile. Server list unavailable.";
+                        return;
+                    }
+
                     _profileList.ShowEmptyMessage("Could not load online profiles.");
                     _status.Text = "Server list unavailable.";
                 });
@@ -213,6 +225,37 @@ namespace rp.spark.UI.Views
             {
                 _refreshGate.Release();
             }
+        }
+        // Adding cache to online list so previous entries will remain when reopening view until refresh replaces them per feedback
+        private bool ShowCachedRows(bool resetScroll)
+        {
+            if (_loadCachedRows == null || _isUnloaded || _profileList == null)
+                return false;
+
+            IReadOnlyList<PlayerPresence> cachedRows;
+
+            try
+            {
+                cachedRows = _loadCachedRows();
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (cachedRows == null || cachedRows.Count == 0)
+                return false;
+
+            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            {
+                if (_profileList == null || _status == null || _isUnloaded)
+                    return;
+
+                _rows = cachedRows;
+                RefreshVisibleRows(resetScroll);
+            });
+
+            return true;
         }
 
         private void ShowRows(IReadOnlyList<PlayerPresence> presenceRows, bool resetScroll)
