@@ -1,3 +1,4 @@
+using Blish_HUD;
 using Blish_HUD.Controls;
 using Microsoft.Xna.Framework;
 using rp.spark.Models;
@@ -64,6 +65,9 @@ namespace rp.spark.UI
         public string ViewedOfficialCharacterName { get; private set; }
 
         public bool IsProfileViewerVisible => _profileViewerWindow != null && _profileViewerWindow.Visible;
+
+        private static readonly Logger Logger = Logger.GetLogger<SparkWindows>();
+        private bool _isDisposed;
 
         public void OpenProfileManager()
         {
@@ -283,15 +287,45 @@ namespace rp.spark.UI
 
         private async void OpenPresence(PlayerPresence presence)
         {
-            var viewData = await _profileLoader.LoadOnlineProfileAsync(presence);
-            ShowProfileViewer(viewData);
+            try
+            {
+                var viewData = await _profileLoader.LoadOnlineProfileAsync(presence);
+
+                if (_isDisposed)
+                    return;
+
+                ShowProfileViewer(viewData);
+            }
+            catch (OperationCanceledException)
+            {
+                // Window or module closed while profile was loading probably
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to open SPARK profile");
+            }
         }
 
         private async void OpenSavedProfile(SavedProfileSummary summary)
         {
-            var record = _profileCache.Load(summary?.CacheKey);
-            var viewData = await _profileLoader.LoadSavedProfileAsync(record);
-            ShowProfileViewer(viewData);
+            try
+            {
+                var record = _profileCache.Load(summary?.CacheKey);
+                var viewData = await _profileLoader.LoadSavedProfileAsync(record);
+
+                if (_isDisposed)
+                    return;
+
+                ShowProfileViewer(viewData);
+            }
+            catch (OperationCanceledException)
+            {
+                // Window/module closed while profile was loading probably
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to open saved SPARK profile");
+            }
         }
 
         private void CreateAboutWindow()
@@ -304,6 +338,7 @@ namespace rp.spark.UI
 
         public void Dispose()
         {
+            _isDisposed = true;
             _windowBuilder.DisposeWindow(_profileWindow);
             _profileWindow = null;
             _profileEditorSession = null;

@@ -30,6 +30,8 @@ namespace rp.spark.UI.Views
         private Label _status;
         private int _headerOffset;
 
+        private static readonly Logger Logger = Logger.GetLogger<ProfileViewerView>();
+
         public ProfileViewerView(
             CharacterProfile profile,
             PlayerPresence presence,
@@ -627,7 +629,7 @@ namespace rp.spark.UI.Views
                 text => popupStatus.Text = text ?? string.Empty,
                 "Report failed.");
 
-            reasonBox.EnterPressed += async (s, e) => await SubmitReportAsync(reasonBox.Text, popupStatus);
+            reasonBox.EnterPressed += (s, e) => _ = SubmitReportSafelyAsync(reasonBox.Text, popupStatus);
         }
 
         private async Task SubmitReportAsync(string reason, Label popupStatus)
@@ -646,6 +648,25 @@ namespace rp.spark.UI.Views
 
             SetStatusText(message);
             CloseReportPanel();
+        }
+
+        // Forgot to fix this earlier when adding in report button functionality. Enter bypassed failures previously.
+        private async Task SubmitReportSafelyAsync(string reason, Label popupstatus)
+        {
+            try
+            {
+                await SubmitReportAsync(reason, popupstatus);
+            }
+            catch (OperationCanceledException)
+            {
+                //
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Spark report failed");
+                if (popupstatus != null)
+                    popupstatus.Text = "Report failed. Please try again.";
+            }
         }
 
         private void CloseReportPanel()
