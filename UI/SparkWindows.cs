@@ -129,7 +129,7 @@ namespace rp.spark.UI
                 CreateOnlineListWindow();
 
             _onlineListWindow.Show(new OnlineProfilesView(
-                _profileLoader.LoadOnlineAsync,
+                cancellationToken => _profileLoader.LoadOnlineAsync(cancellationToken),
                 _profileLoader.LoadCachedOnlineRows,
                 OpenPresence,
                 _profileActions.IsPresenceBookmarked,

@@ -24,7 +24,7 @@ namespace rp.spark.UI.Views
         // Server-side throttling may be added depending on performance.
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
 
-        private readonly Func<Task<IReadOnlyList<PlayerPresence>>> _loadRows;
+        private readonly Func<CancellationToken, Task<IReadOnlyList<PlayerPresence>>> _loadRows;
         private readonly Func<IReadOnlyList<PlayerPresence>> _loadCachedRows;
         private readonly Action<PlayerPresence> _openProfile;
         private readonly Func<PlayerPresence, bool> _isBookmarked;
@@ -33,8 +33,9 @@ namespace rp.spark.UI.Views
         private readonly SemaphoreSlim _refreshGate = new SemaphoreSlim(1, 1);
 
         private bool _isUnloaded;
-        private CancellationTokenSource _autoRefreshCancellation;
+        private CancellationTokenSource _refreshCancellation;
         private Task _autoRefreshWorker;
+        private Task _refreshWorker;
         private IReadOnlyList<PlayerPresence> _rows = new List<PlayerPresence>();
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
@@ -43,7 +44,7 @@ namespace rp.spark.UI.Views
         private Label _status;
 
         public OnlineProfilesView(
-            Func<Task<IReadOnlyList<PlayerPresence>>> getPresenceRows,
+            Func<CancellationToken, Task<IReadOnlyList<PlayerPresence>>> getPresenceRows,
             Func<IReadOnlyList<PlayerPresence>> getCachedPresenceRows,
             Action<PlayerPresence> openProfile,
             Func<PlayerPresence, bool> isBookmarked = null,
@@ -79,9 +80,9 @@ namespace rp.spark.UI.Views
 
             _status = ProfileListViewUI.AddStatusLabel(buildPanel);
 
-            _ = RefreshAsync(true);
             _watchBookmarks?.Invoke(HandleBookmarksChanged);
             StartRefresh();
+            _ = RefreshAsync(true);
         }
 
         private static void BuildHeader(Container parent)
@@ -133,22 +134,27 @@ namespace rp.spark.UI.Views
         private void StartRefresh()
         {
             StopRefresh();
-            _autoRefreshCancellation = new CancellationTokenSource();
-            _autoRefreshWorker = AutoRefreshAsync(_autoRefreshCancellation.Token);
+            _refreshCancellation = new CancellationTokenSource();
+            _autoRefreshWorker = AutoRefreshAsync(_refreshCancellation.Token);
         }
 
         private void StopRefresh()
         {
-            var cancellation = _autoRefreshCancellation;
-            var worker = _autoRefreshWorker;
-            _autoRefreshCancellation = null;
+            var cancellation = _refreshCancellation;
+            var autoWorker = _autoRefreshWorker;
+            var refreshWorker = _refreshWorker;
+
+            _refreshCancellation = null;
             _autoRefreshWorker = null;
+            _refreshWorker = null;
 
             if (cancellation == null)
                 return;
 
             cancellation.Cancel();
-            TaskCleanup.DisposeWhenComplete(worker, cancellation);
+
+            var cleanupWorker = Task.WhenAll(new[] { autoWorker, refreshWorker }.Where(task => task != null));
+            TaskCleanup.DisposeWhenComplete(cleanupWorker, cancellation);
         }
 
         private async Task AutoRefreshAsync(CancellationToken cancellationToken)
@@ -158,7 +164,7 @@ namespace rp.spark.UI.Views
                 try
                 {
                     await Task.Delay(RefreshInterval, cancellationToken);
-                    await RefreshAsync(false);
+                    await RefreshAsync(false, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -169,17 +175,30 @@ namespace rp.spark.UI.Views
 
         private async Task RefreshAsync(bool resetScroll)
         {
-            if (_isUnloaded || _profileList == null)
+            var refreshTask = RefreshAsync(
+                resetScroll,
+                _refreshCancellation?.Token ?? CancellationToken.None);
+
+            _refreshWorker = refreshTask;
+            await refreshTask;
+        }
+
+        private async Task RefreshAsync(bool resetScroll, CancellationToken cancellationToken)
+        {
+            if (_isUnloaded || _profileList == null || cancellationToken.IsCancellationRequested)
                 return;
 
-            if (!await _refreshGate.WaitAsync(0))
-                return;
-
+            var hasRefreshLock = false;
             var showedCachedRows = false;
 
             try
             {
-                if (_isUnloaded || _profileList == null)
+                hasRefreshLock = await _refreshGate.WaitAsync(0, cancellationToken);
+
+                if (!hasRefreshLock)
+                    return;
+
+                if (_isUnloaded || _profileList == null || cancellationToken.IsCancellationRequested)
                     return;
 
                 showedCachedRows = ShowCachedRows(resetScroll);
@@ -187,7 +206,9 @@ namespace rp.spark.UI.Views
 
                 var rows = _loadRows == null
                     ? new List<PlayerPresence>()
-                    : await _loadRows();
+                    : await _loadRows(cancellationToken);
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (_isUnloaded)
                     return;
@@ -200,6 +221,10 @@ namespace rp.spark.UI.Views
                     _rows = rows ?? new List<PlayerPresence>();
                     RefreshVisibleRows(resetScroll);
                 });
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || _isUnloaded)
+            {
+                return;
             }
             catch
             {
@@ -223,9 +248,11 @@ namespace rp.spark.UI.Views
             }
             finally
             {
-                _refreshGate.Release();
+                if (hasRefreshLock)
+                    _refreshGate.Release();
             }
         }
+
         // Adding cache to online list so previous entries will remain when reopening view until refresh replaces them per feedback
         private bool ShowCachedRows(bool resetScroll)
         {

@@ -77,21 +77,27 @@ namespace rp.spark.Services
         }
 
         // Adjusting online list to load your own presence without waiting for server.
-        public async Task<IReadOnlyList<PlayerPresence>> LoadOnlineAsync()
+        public async Task<IReadOnlyList<PlayerPresence>> LoadOnlineAsync(CancellationToken cancellationToken = default)
         {
             var rows = new List<PlayerPresence>();
 
             try
             {
                 if (_serverSync != null)
-                    rows.AddRange(await _serverSync.GetOnlinePresenceAsync(_settings.RegionFilter.Value));
+                    rows.AddRange(await _serverSync.GetOnlinePresenceAsync(_settings.RegionFilter.Value, cancellationToken));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Failed to load SPARK online profiles from the server.");
             }
 
-            foreach (var localPresence in await GetOwnPresenceRowsAsync())
+            cancellationToken.ThrowIfCancellationRequested();
+
+            foreach (var localPresence in await GetOwnPresenceRowsAsync(cancellationToken))
                 UpdatePresence(rows, localPresence);
 
             return NormalizePresenceRows(rows);
@@ -202,15 +208,19 @@ namespace rp.spark.Services
             return new ProfileViewData(profile, presence);
         }
 
-        private async Task<IReadOnlyList<PlayerPresence>> GetOwnPresenceRowsAsync()
+        private async Task<IReadOnlyList<PlayerPresence>> GetOwnPresenceRowsAsync(CancellationToken cancellationToken)
         {
             try
             {
                 var presence = _presenceLoop == null
-                    ? await _presenceService.GetCurrentPresenceAsync()
-                    : await _presenceLoop.RefreshAsync();
+                    ? await _presenceService.GetCurrentPresenceAsync(cancellationToken)
+                    : await _presenceLoop.RefreshAsync(cancellationToken);
 
                 return ToOwnPresenceRows(presence);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
