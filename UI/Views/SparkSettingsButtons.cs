@@ -27,6 +27,9 @@ namespace rp.spark.UI.Views
         private Task _statePollTask;
         private StandardButton _openButton;
         private StandardButton _viewButton;
+        private StandardButton _onlineListButton;
+        private StandardButton _savedProfilesButton;
+        private readonly Func<bool> _shouldHideGameplayWindows;
 
         public SparkSettingsButtons(
             Action openProfileManager,
@@ -36,7 +39,8 @@ namespace rp.spark.UI.Views
             Action openAbout,
             Func<Task<string>> waitForPlayerStateMessageAsync,
             Func<string> getPlayerStateMessage,
-            Action reloadPlayerState)
+            Action reloadPlayerState,
+            Func<bool> shouldHideGameplayWindows)
         {
             _openProfileManager = openProfileManager;
             _openProfileViewer = openProfileViewer;
@@ -46,6 +50,7 @@ namespace rp.spark.UI.Views
             _waitForPlayerStateMessageAsync = waitForPlayerStateMessageAsync;
             _getPlayerStateMessage = getPlayerStateMessage;
             _reloadPlayerState = reloadPlayerState;
+            _shouldHideGameplayWindows = shouldHideGameplayWindows;
         }
 
         public void Build(Container buildPanel)
@@ -58,11 +63,11 @@ namespace rp.spark.UI.Views
             _viewButton = SparkViewUI.AddButton(buildPanel, "Loading...", 0, 85, 200, enabled: false);
             _viewButton.Click += (s, e) => _openProfileViewer();
 
-            var onlineListButton = SparkViewUI.AddButton(buildPanel, "Open Online List", 220, 40, 200);
-            onlineListButton.Click += (s, e) => _openOnlineList();
+            _onlineListButton = SparkViewUI.AddButton(buildPanel, "Open Online List", 220, 40, 200);
+            _onlineListButton.Click += (s, e) => _openOnlineList();
 
-            var savedProfilesButton = SparkViewUI.AddButton(buildPanel, "Open Saved Profiles", 220, 85, 200);
-            savedProfilesButton.Click += (s, e) => _openSavedProfiles();
+            _savedProfilesButton = SparkViewUI.AddButton(buildPanel, "Open Saved Profiles", 220, 85, 200);
+            _savedProfilesButton.Click += (s, e) => _openSavedProfiles();
 
             var aboutButton = SparkViewUI.AddButton(buildPanel, "About", 440, 40, 200);
             aboutButton.Click += (s, e) => _openAbout();
@@ -105,6 +110,7 @@ namespace rp.spark.UI.Views
             GameService.Gw2Mumble.FinishedLoading += OnGameStateChanged;
             GameService.Gw2Mumble.PlayerCharacter.NameChanged += OnGameStateChanged;
             GameService.Gw2Mumble.CurrentMap.MapChanged += OnGameStateChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged += OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.Gw2Started += OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.Gw2Closed += OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.IsInGameChanged += OnGameStateChanged;
@@ -116,6 +122,7 @@ namespace rp.spark.UI.Views
             GameService.Gw2Mumble.FinishedLoading -= OnGameStateChanged;
             GameService.Gw2Mumble.PlayerCharacter.NameChanged -= OnGameStateChanged;
             GameService.Gw2Mumble.CurrentMap.MapChanged -= OnGameStateChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged -= OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.Gw2Started -= OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.Gw2Closed -= OnGameStateChanged;
             GameService.GameIntegration.Gw2Instance.IsInGameChanged -= OnGameStateChanged;
@@ -151,17 +158,47 @@ namespace rp.spark.UI.Views
             if (_openButton == null || _viewButton == null)
                 return;
 
+            var hideGameplayWindows = ShouldHideGameplayWindows();
             var unavailableMessage = resultText ?? string.Empty;
-            var canUseProfileTools = string.IsNullOrWhiteSpace(unavailableMessage);
+            var buttonMessage = hideGameplayWindows && string.IsNullOrWhiteSpace(unavailableMessage)
+                ? "Profile tools unavailable"
+                : unavailableMessage;
+            var canUseProfileTools = !hideGameplayWindows && string.IsNullOrWhiteSpace(buttonMessage);
 
             _lastMessage = unavailableMessage;
             _openButton.Text = canUseProfileTools
                 ? "Open Profile Editor"
-                : unavailableMessage;
+                : buttonMessage;
             _openButton.Enabled = canUseProfileTools;
 
             _viewButton.Text = "View Your Profile";
             _viewButton.Enabled = canUseProfileTools;
+
+            if (_onlineListButton != null)
+                _onlineListButton.Enabled = !hideGameplayWindows;
+
+            if (_savedProfilesButton != null)
+                _savedProfilesButton.Enabled = !hideGameplayWindows;
+        }
+
+        private bool ShouldHideGameplayWindows()
+        {
+            try
+            {
+                return _shouldHideGameplayWindows?.Invoke() == true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void Refresh()
+        {
+            if (_isDisposed)
+                return;
+
+            RefreshButtonState(false);
         }
 
         private void RefreshButtonState(bool reloadPlayerState)

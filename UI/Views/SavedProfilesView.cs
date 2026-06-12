@@ -329,15 +329,13 @@ namespace rp.spark.UI.Views
             {
                 ProfileText.SavedCharacterName(savedProfile),
                 ProfileText.SavedCharacterDetails(savedProfile),
-                $"Account: {ProfileText.SavedAccountName(savedProfile)}"
+                $"Account: {ProfileText.SavedAccountName(savedProfile)}",
+                $"Status: {GetCachedStatusText(savedProfile)}",
+                $"Location: {GetCachedLocationText(savedProfile)}",
+                _mode == SavedProfilesMode.Bookmarks
+                    ? $"Bookmarked: {ProfileText.FormatShortTime(savedProfile.BookmarkedAt ?? savedProfile.CachedAt, "-")}"
+                    : $"Viewed: {ProfileText.FormatShortTime(savedProfile.CachedAt, "-")}"
             };
-
-            lines.Add($"Status: {GetCachedStatusText(savedProfile)}");
-
-            lines.Add($"Location: {GetCachedLocationText(savedProfile)}");
-            lines.Add(_mode == SavedProfilesMode.Bookmarks
-                ? $"Bookmarked: {ProfileText.FormatShortTime(savedProfile.BookmarkedAt ?? savedProfile.CachedAt, "-")}"
-                : $"Viewed: {ProfileText.FormatShortTime(savedProfile.CachedAt, "-")}");
 
             if (!string.IsNullOrWhiteSpace(savedProfile.StatusMessage))
                 lines.Add($"Status message: {savedProfile.StatusMessage.Trim()}");

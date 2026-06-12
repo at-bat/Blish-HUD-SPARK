@@ -69,8 +69,28 @@ namespace rp.spark.UI
         private static readonly Logger Logger = Logger.GetLogger<SparkWindows>();
         private bool _isDisposed;
 
+        internal bool ShouldHideGameplayWindows()
+        {
+            return !GameService.GameIntegration.Gw2Instance.IsInGame
+                || ShouldHideForGameUi();
+        }
+
+        private bool ShouldHideForGameUi()
+        {
+            return (_settings?.AutoHideGameUi.Value ?? true)
+                && GameService.Gw2Mumble.UI.IsMapOpen;
+        }
+
+        private bool CanShowGameplayWindow()
+        {
+            return !ShouldHideGameplayWindows();
+        }
+
         public void OpenProfileManager()
         {
+            if (!CanShowGameplayWindow())
+                return;
+
             var state = _playerState.GetCached();
 
             if (_profileWindow != null && _profileWindow.Visible)
@@ -86,11 +106,17 @@ namespace rp.spark.UI
 
         public void OpenMyProfile()
         {
+            if (!CanShowGameplayWindow())
+                return;
+
             ShowProfileViewer(_profileLoader.LoadMyProfile());
         }
 
         public void OpenOnlineList()
         {
+            if (!CanShowGameplayWindow())
+                return;
+
             if (_onlineListWindow == null)
                 CreateOnlineListWindow();
 
@@ -104,6 +130,9 @@ namespace rp.spark.UI
 
         public void OpenSavedProfiles()
         {
+            if (!CanShowGameplayWindow())
+                return;
+
             if (_savedProfilesWindow != null && _savedProfilesWindow.Visible)
             {
                 _savedProfilesWindow.BringWindowToFront();
@@ -140,6 +169,9 @@ namespace rp.spark.UI
 
         public void ShowProfileViewer(CharacterProfile profile, PlayerPresence presence)
         {
+            if (!CanShowGameplayWindow())
+                return;
+
             if (profile == null)
                 profile = new CharacterProfile();
 
@@ -336,9 +368,8 @@ namespace rp.spark.UI
                 new Rectangle(70, 60, 760, 520));
         }
 
-        public void Dispose()
+        public void CloseGameplayWindows()
         {
-            _isDisposed = true;
             _windowBuilder.DisposeWindow(_profileWindow);
             _profileWindow = null;
             _profileEditorSession = null;
@@ -354,12 +385,21 @@ namespace rp.spark.UI
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
 
-            _windowBuilder.DisposeWindow(_aboutWindow);
-            _aboutWindow = null;
-
+            _viewedProfile = null;
+            _viewedPresence = null;
             ViewedProfileId = null;
             ViewedOfficialCharacterName = null;
+        }
 
+        public void Dispose()
+        {
+            _isDisposed = true;
+
+            CloseGameplayWindows();
+
+            _windowBuilder.DisposeWindow(_aboutWindow);
+            _aboutWindow = null;
+            
             _windowBuilder.Clear();
         }
     }

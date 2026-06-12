@@ -155,16 +155,15 @@ namespace rp.spark.Services
             var results = new List<Gw2IconSearchResult>(limit);
             var seenAssetIds = new HashSet<int>();
 
-            AddMatches(entries, terms, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.NameSearch, terms));
-            AddMatches(entries, terms, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.KeywordSearch, terms));
-            AddMatches(entries, terms, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.FullSearch, terms));
+            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.NameSearch, terms));
+            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.KeywordSearch, terms));
+            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.FullSearch, terms));
 
             return results;
         }
 
         private static void AddMatches(
             IReadOnlyList<SearchableIcons> entries,
-            string[] terms,
             int limit,
             List<Gw2IconSearchResult> results,
             HashSet<int> seenAssetIds,

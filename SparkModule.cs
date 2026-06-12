@@ -129,6 +129,9 @@ namespace rp.spark
         {
             base.OnModuleLoaded(e);
             this.Gw2ApiManager.SubtokenUpdated += HandleSubtokenUpdated;
+            GameService.Gw2Mumble.IsAvailableChanged += HandleMumbleAvailableChanged;
+            GameService.GameIntegration.Gw2Instance.IsInGameChanged += HandleIsInGameChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged += HandleMapOpenChanged;
             EnsurePlayerStateLoad();
             _serviceHost.Start();
         }
@@ -151,7 +154,9 @@ namespace rp.spark
                 WatchServerSyncStatus,
                 UnwatchServerSyncStatus,
                 RefreshPresenceSoon,
-                HasValidApiKey,
+                GetImportantSettingsNotice,
+                _windows.ShouldHideGameplayWindows,
+                CloseGameplayWindowsIfUnavailableSoon,
                 _profileActions.BlockAccount,
                 _profileActions.UnblockAccount,
                 _profileActions.WatchBlockedAccounts,
@@ -282,6 +287,32 @@ namespace rp.spark
             }
         }
 
+        private void HandleMumbleAvailableChanged(object sender, ValueEventArgs<bool> e)
+        {
+            CloseGameplayWindowsIfUnavailableSoon();
+            ReloadPlayerState();
+        }
+
+        private void HandleIsInGameChanged(object sender, ValueEventArgs<bool> e)
+        {
+            CloseGameplayWindowsIfUnavailableSoon();
+            ReloadPlayerState();
+        }
+
+        private void HandleMapOpenChanged(object sender, ValueEventArgs<bool> e)
+        {
+            CloseGameplayWindowsIfUnavailableSoon();
+        }
+
+        private void CloseGameplayWindowsIfUnavailableSoon()
+        {
+            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            {
+                if (_windows?.ShouldHideGameplayWindows() == true)
+                    _windows.CloseGameplayWindows();
+            });
+        }
+
         private static bool LoadedNoCharacter(Task<PlayerState> task)
         {
             return task != null
@@ -402,6 +433,36 @@ namespace rp.spark
             }
         }
 
+        private string GetImportantSettingsNotice()
+        {
+            if (IsGameplayUiBlockingSpark())
+                return "SPARK windows closed due to in-game UI (map, vista, etc.)";
+
+            var state = _playerState?.GetCached();
+
+            if (state == null || !state.CanEditProfile)
+                return "Please log in to a character to use SPARK.";
+
+            return HasValidApiKey()
+                ? string.Empty
+                : SparkViewUI.MissingApiKeyWarning;
+        }
+
+        private bool IsGameplayUiBlockingSpark()
+        {
+            if (_windows?.ShouldHideGameplayWindows() != true)
+                return false;
+
+            if (GameService.Gw2Mumble.UI.IsMapOpen)
+                return true;
+
+            var state = _playerState?.GetCached();
+
+            return state != null
+                && state.IsMumbleAvailable
+                && !string.IsNullOrWhiteSpace(state.OfficialCharacterName);
+        }
+
         private static string GetUnavailableReason(PlayerState state)
         {
             if (state == null 
@@ -409,7 +470,7 @@ namespace rp.spark
                 || !state.IsInGame 
                 || string.IsNullOrWhiteSpace(state.OfficialCharacterName))
             {
-                return "Please log in to a character to use SPARK";
+                return "Choose a character first!";
             }
 
             return string.Empty;
@@ -418,6 +479,9 @@ namespace rp.spark
         protected override void Unload()
         {
             this.Gw2ApiManager.SubtokenUpdated -= HandleSubtokenUpdated;
+            GameService.Gw2Mumble.IsAvailableChanged -= HandleMumbleAvailableChanged;
+            GameService.GameIntegration.Gw2Instance.IsInGameChanged -= HandleIsInGameChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged -= HandleMapOpenChanged;
             CancelPlayerStateLoad();
             _initialStateTask = null;
             _windows?.Dispose();

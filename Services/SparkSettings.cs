@@ -14,7 +14,9 @@ namespace rp.spark.Services
         private const string SharingSettingsKey = "profile-sharing";
         private const string DiscoverySettingsKey = "profile-discovery";
         private const string PrivacySettingsKey = "privacy";
+        private const string UiSettingsKey = "ui";
         private const string BroadcastProfileKey = "BroadcastProfile";
+        private const string AutoHideGameUiKey = "AutoHideGameUi";
         private const string HideLocationKey = "HideLocation";
         private const string CurrentStatusKey = "CurrentStatus";
         private const string StatusMessageKey = "StatusMessage";
@@ -24,21 +26,15 @@ namespace rp.spark.Services
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
         public SettingCollection SharingSettings { get; }
-
         public SettingCollection DiscoverySettings { get; }
-
         public SettingCollection PrivacySettings { get; }
-
+        public SettingCollection UiSettings { get; }
         public SettingEntry<bool> BroadcastProfile { get; }
-
         public SettingEntry<bool> HideLocation { get; }
-
+        public SettingEntry<bool> AutoHideGameUi { get; }
         public SettingEntry<RPStatus> CurrentStatus { get; }
-
         public SettingEntry<string> StatusMessage { get; }
-
         public SettingEntry<ProfileRegion> RegionFilter { get; }
-
         public SettingEntry<string> BlockedAccounts { get; }
 
         public SparkSettings(SettingCollection settings)
@@ -58,6 +54,11 @@ namespace rp.spark.Services
                 true,
                 () => "Privacy");
 
+            UiSettings = settings.AddSubCollection(
+                UiSettingsKey,
+                true,
+                () => "Interface");
+
             BroadcastProfile = SharingSettings.DefineSetting(
                 BroadcastProfileKey,
                 false,
@@ -69,6 +70,12 @@ namespace rp.spark.Services
                 false,
                 () => "Hide my location",
                 () => "When enabled, SPARK will show your location as Hidden instead of showing where you are.");
+
+            AutoHideGameUi = UiSettings.DefineSetting(
+                AutoHideGameUiKey,
+                true,
+                () => "Auto-hide SPARK windows during in-game UI",
+                () => "When enabled, SPARK closes profile windows during the fullscreen map and other GW2 UI states where overlays are not relevant.");
 
             CurrentStatus = SharingSettings.DefineSetting(
                 CurrentStatusKey,

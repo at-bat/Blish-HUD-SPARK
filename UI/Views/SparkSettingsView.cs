@@ -17,7 +17,8 @@ namespace rp.spark.UI.Views
         private readonly Action<Action<ServerSyncStatus>> _watchServerSyncStatus;
         private readonly Action<Action<ServerSyncStatus>> _unwatchServerSyncStatus;
         private readonly Action _requestServerSync;
-        private readonly Func<bool> _hasValidApiKey;
+        private readonly Action _enforceGameplayWindowVisibility;
+        private readonly Func<string> _getImportantNotice;
         private readonly SparkSettingsButtons _buttons;
         private readonly SparkStatusMessage _statusMessage;
         private readonly SparkBlocklist _blocklist;
@@ -40,7 +41,9 @@ namespace rp.spark.UI.Views
             Action<Action<ServerSyncStatus>> watchServerSyncStatus,
             Action<Action<ServerSyncStatus>> unwatchServerSyncStatus,
             Action requestServerSync,
-            Func<bool> hasValidApiKey,
+            Func<string> getImportantNotice,
+            Func<bool> shouldHideGameplayWindows,
+            Action enforceGameplayWindowVisibility,
             Func<string, string> blockAccount,
             Func<string, string> unblockAccount,
             Action<Action> watchBlockedAccountsChanged,
@@ -51,7 +54,8 @@ namespace rp.spark.UI.Views
             _watchServerSyncStatus = watchServerSyncStatus;
             _unwatchServerSyncStatus = unwatchServerSyncStatus;
             _requestServerSync = requestServerSync;
-            _hasValidApiKey = hasValidApiKey;
+            _getImportantNotice = getImportantNotice;
+            _enforceGameplayWindowVisibility = enforceGameplayWindowVisibility;
             _buttons = new SparkSettingsButtons(
                 openProfileManager,
                 openProfileViewer,
@@ -60,7 +64,8 @@ namespace rp.spark.UI.Views
                 openAbout,
                 waitForInitialState,
                 getCurrentStateMessage,
-                requestStateRefresh);
+                requestStateRefresh,
+                shouldHideGameplayWindows);
             _statusMessage = new SparkStatusMessage(settings, requestServerSync);
             _blocklist = new SparkBlocklist(
                 settings,
@@ -75,6 +80,7 @@ namespace rp.spark.UI.Views
             _buttons.Build(buildPanel);
             BuildSettings(buildPanel);
             WatchServer();
+            WatchGameState();
             RefreshServerStatus();
         }
 
@@ -90,6 +96,7 @@ namespace rp.spark.UI.Views
 
             BuildApiKeyWarning(settingsStack);
             BuildServerStatus(settingsStack);
+            BuildInterfaceOptions(settingsStack);
             BuildSharing(settingsStack);
             _statusMessage.Build(settingsStack, ContentWidth);
             BuildDiscovery(settingsStack);
@@ -130,6 +137,23 @@ namespace rp.spark.UI.Views
                 24,
                 GameService.Content.DefaultFont12,
                 SparkViewUI.SecondaryTextColor);
+        }
+
+        private void BuildInterfaceOptions(FlowPanel settingsStack)
+        {
+            var autoHideCheckbox = SparkFormLayout.AddCheckbox(
+                settingsStack,
+                "Auto-hide SPARK windows if map/vistas are viewed",
+                _settings.AutoHideGameUi.Value,
+                380);
+
+            autoHideCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoHideGameUi.Value = autoHideCheckbox.Checked;
+                RefreshApiKeyWarning();
+                _buttons.Refresh();
+                _enforceGameplayWindowVisibility?.Invoke();
+            };
         }
 
         private void BuildSharing(FlowPanel settingsStack)
@@ -220,26 +244,53 @@ namespace rp.spark.UI.Views
             RefreshApiKeyWarning();
         }
 
+        private void WatchGameState()
+        {
+            GameService.Gw2Mumble.IsAvailableChanged += OnGameStateChanged;
+            GameService.Gw2Mumble.FinishedLoading += OnGameStateChanged;
+            GameService.Gw2Mumble.PlayerCharacter.NameChanged += OnGameStateChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged += OnGameStateChanged;
+            GameService.GameIntegration.Gw2Instance.IsInGameChanged += OnGameStateChanged;
+        }
+
+        private void UnwatchGameState()
+        {
+            GameService.Gw2Mumble.IsAvailableChanged -= OnGameStateChanged;
+            GameService.Gw2Mumble.FinishedLoading -= OnGameStateChanged;
+            GameService.Gw2Mumble.PlayerCharacter.NameChanged -= OnGameStateChanged;
+            GameService.Gw2Mumble.UI.IsMapOpenChanged -= OnGameStateChanged;
+            GameService.GameIntegration.Gw2Instance.IsInGameChanged -= OnGameStateChanged;
+        }
+
+        private void OnGameStateChanged(object sender, EventArgs e)
+        {
+            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            {
+                if (!_isUnloaded)
+                    RefreshApiKeyWarning();
+            });
+        }
+
+        // Reserving space for the API key message since dynamic height isn't working on this bit
         private void RefreshApiKeyWarning()
         {
             if (_apiKeyWarning == null)
                 return;
 
-            var showWarning = !HasValidApiKey();
-            _apiKeyWarning.Text = showWarning ? SparkViewUI.MissingApiKeyWarning : string.Empty;
-            _apiKeyWarning.Height = showWarning ? ApiKeyWarningHeight : 0;
-            _apiKeyWarning.Visible = showWarning;
+            _apiKeyWarning.Text = GetImportantNotice();
+            _apiKeyWarning.Height = ApiKeyWarningHeight;
+            _apiKeyWarning.Visible = true;
         }
 
-        private bool HasValidApiKey()
+        private string GetImportantNotice()
         {
             try
             {
-                return _hasValidApiKey?.Invoke() == true;
+                return _getImportantNotice?.Invoke() ?? string.Empty;
             }
             catch
             {
-                return false;
+                return string.Empty;
             }
         }
 
@@ -262,6 +313,7 @@ namespace rp.spark.UI.Views
             _buttons.Dispose();
             _blocklist.Dispose();
             UnwatchServer();
+            UnwatchGameState();
         }
     }
 }
