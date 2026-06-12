@@ -21,7 +21,7 @@ namespace rp.spark.UI.Views
         private const string SortLocation = "Location";
 
         // The open online list refreshes periodically; players can still refresh manually if they want it sooner
-        // TODO: Add some throttling on the server for people who spam the button
+        // Server-side throttling may be added depending on performance.
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
 
         private readonly Func<Task<IReadOnlyList<PlayerPresence>>> _loadRows;

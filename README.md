@@ -30,7 +30,7 @@ To share your RP profile with other players, this module relays your data throug
 
 - **Strictly for syncing**: Your data is only used to send your profile to others.
 - **Automatic Deletion**: If you do not appear online for 24 hours, your profile data is automatically removed from the server.
-- **No tracking or AI**: SPARK does not use profile data for analytics, machine learning, or AI tools. Reported profiles may be reviewed for moderation purposely only.
+- **No tracking or AI**: SPARK does not use profile data for analytics, machine learning, or AI tools. Reported profiles may be reviewed only for moderation purposes.
 
 When you view someone's profile, you save a copy of their profile to your PC.
 
@@ -101,4 +101,4 @@ Once it's added, start Guild Wars 2 and Blish HUD and you should see it in the B
 
 ## LICENSE
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](COPYING) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the [COPYING](COPYING) file for license details.

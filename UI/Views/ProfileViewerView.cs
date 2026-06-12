@@ -29,6 +29,7 @@ namespace rp.spark.UI.Views
         private Layout _layout;
         private Label _status;
         private int _headerOffset;
+        private bool _isSubmittingReport;
 
         private static readonly Logger Logger = Logger.GetLogger<ProfileViewerView>();
 
@@ -642,12 +643,31 @@ namespace rp.spark.UI.Views
                 return;
             }
 
-            var message = _reportProfile == null
-                ? "Report failed."
-                : await _reportProfile(_profile, _presence, reason);
+            if (_isSubmittingReport)
+            {
+                if (popupStatus != null)
+                    popupStatus.Text = "Report is already being submitted.";
+                return;
+            }
 
-            SetStatusText(message);
-            CloseReportPanel();
+            _isSubmittingReport = true;
+
+            try
+            {
+                if (popupStatus != null)
+                    popupStatus.Text = "Submitting report...";
+
+                var message = _reportProfile == null
+                    ? "Report failed."
+                    : await _reportProfile(_profile, _presence, reason);
+
+                SetStatusText(message);
+                CloseReportPanel();
+            }
+            finally
+            {
+                _isSubmittingReport = false;
+            }
         }
 
         // Forgot to fix this earlier when adding in report button functionality. Enter bypassed failures previously.
@@ -659,7 +679,7 @@ namespace rp.spark.UI.Views
             }
             catch (OperationCanceledException)
             {
-                //
+                // Closing this while in flight is fine.
             }
             catch (Exception ex)
             {

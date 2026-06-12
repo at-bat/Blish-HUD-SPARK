@@ -12,6 +12,7 @@ namespace rp.spark.UI.Views
     public class ProfileNotesView : View
     {
         private const int MaxNoteLength = 8000;
+        private static readonly Logger Logger = Logger.GetLogger<ProfileNotesView>();
 
         private readonly ProfileNotes _notesRepository;
 
@@ -133,8 +134,9 @@ namespace rp.spark.UI.Views
                 _isDirty = false;
                 SetStatusText(GetLoadedStatusText(note));
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn(ex, "Failed to load SPARK private notes for this profile.");
                 SetStatusText("Couldn't load notes for this profile.");
             }
             finally
@@ -154,8 +156,9 @@ namespace rp.spark.UI.Views
                 _isDirty = false;
                 SetStatusText(GetSavedStatusText(note));
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn(ex, "Failed to save SPARK private notes for this profile.");
                 SetStatusText("Couldn't save notes for this profile.");
             }
         }
