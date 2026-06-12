@@ -671,11 +671,11 @@ namespace rp.spark.UI.Views
         }
 
         // Forgot to fix this earlier when adding in report button functionality. Enter bypassed failures previously.
-        private async Task SubmitReportSafelyAsync(string reason, Label popupstatus)
+        private async Task SubmitReportSafelyAsync(string reason, Label popupStatus)
         {
             try
             {
-                await SubmitReportAsync(reason, popupstatus);
+                await SubmitReportAsync(reason, popupStatus);
             }
             catch (OperationCanceledException)
             {
@@ -684,8 +684,8 @@ namespace rp.spark.UI.Views
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Spark report failed");
-                if (popupstatus != null)
-                    popupstatus.Text = "Report failed. Please try again.";
+                if (popupStatus != null)
+                    popupStatus.Text = "Report failed. Please try again.";
             }
         }
 
