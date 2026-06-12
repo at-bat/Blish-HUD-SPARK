@@ -58,10 +58,12 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="COPYING" />
     <None Include="manifest.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\AtAGlanceEntry.cs" />

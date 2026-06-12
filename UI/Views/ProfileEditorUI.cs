@@ -82,7 +82,7 @@ namespace rp.spark.UI.Views
 
             new Label
             {
-                Text = "Please log into the character you want to edit a profile for and try again. Sorry!",
+                Text = "Please log in to a character to use SPARK.",
                 Font = GameService.Content.DefaultFont16,
                 TextColor = Color.White,
                 WrapText = true,

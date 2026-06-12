@@ -387,6 +387,12 @@ namespace rp.spark
         {
             try
             {
+                var state = _playerState?.GetCached();
+
+                // Suppress message if you aren't loaded onto a character to prevent confusion
+                if (state == null || !state.CanEditProfile)
+                    return true;
+
                 return _tokens?.HasValidApiKey() == true;
             }
             catch (Exception ex)
@@ -398,11 +404,13 @@ namespace rp.spark
 
         private static string GetUnavailableReason(PlayerState state)
         {
-            if (state == null || !state.IsMumbleAvailable)
-                return "Unable to load character info.";
-
-            if (string.IsNullOrWhiteSpace(state.OfficialCharacterName))
-                return "No character detected";
+            if (state == null 
+                || !state.IsMumbleAvailable 
+                || !state.IsInGame 
+                || !string.IsNullOrWhiteSpace(state.OfficialCharacterName))
+            {
+                return "Please log in to a character to use SPARK";
+            }
 
             return string.Empty;
         }
