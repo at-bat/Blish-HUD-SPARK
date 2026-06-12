@@ -145,19 +145,23 @@ namespace rp.spark.UI.Views
             }
         }
 
+        // Enhancing UX here to disable buttons when you can't access things yet based on feedback
         private void ApplyButtonState(string resultText)
         {
             if (_openButton == null || _viewButton == null)
                 return;
 
-            _lastMessage = resultText ?? string.Empty;
-            _openButton.Text = string.IsNullOrWhiteSpace(resultText)
+            var unavailableMessage = resultText ?? string.Empty;
+            var canUseProfileTools = string.IsNullOrWhiteSpace(unavailableMessage);
+
+            _lastMessage = unavailableMessage;
+            _openButton.Text = canUseProfileTools
                 ? "Open Profile Editor"
-                : resultText;
-            _openButton.Enabled = true;
+                : unavailableMessage;
+            _openButton.Enabled = canUseProfileTools;
 
             _viewButton.Text = "View Your Profile";
-            _viewButton.Enabled = true;
+            _viewButton.Enabled = canUseProfileTools;
         }
 
         private void RefreshButtonState(bool reloadPlayerState)

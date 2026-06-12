@@ -55,7 +55,7 @@ namespace rp.spark.UI.Views
             AddHeading(contentStack, "Questions / Feedback");
             AddParagraph(
                 contentStack,
-                "Any feedback can be sent to Bat.8570 in-game, or to taw@a-bat.com. Online profiles can be reported from the profile viewer, which sends a short reason and snapshots the profile on the SPARK server for review.");
+                "Any feedback can be sent to Bat.8570 in-game, or emailed to taw@a-bat.com. Online profiles can be reported from the profile viewer, which sends a short reason and snapshots the profile on the SPARK server for review.");
         }
 
         private static void AddHeading(FlowPanel parent, string text)

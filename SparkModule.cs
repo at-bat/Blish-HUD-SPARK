@@ -407,7 +407,7 @@ namespace rp.spark
             if (state == null 
                 || !state.IsMumbleAvailable 
                 || !state.IsInGame 
-                || !string.IsNullOrWhiteSpace(state.OfficialCharacterName))
+                || string.IsNullOrWhiteSpace(state.OfficialCharacterName))
             {
                 return "Please log in to a character to use SPARK";
             }
