@@ -393,7 +393,7 @@ namespace rp.spark.Services
             _lastPublishedPresence = PresenceMapper.ClonePresence(presence);
             _lastRemovedPresenceKey = string.Empty;
             LastPublishedAt = DateTime.UtcNow;
-            Success("Connected to SPARK.");
+            Success("SPARK available.");
         }
 
         // Clear the player's public online entries when needed (invisible, offline)

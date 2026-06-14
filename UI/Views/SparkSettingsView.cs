@@ -6,6 +6,7 @@ using rp.spark.Services;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
 
 namespace rp.spark.UI.Views
 {
@@ -84,7 +85,6 @@ namespace rp.spark.UI.Views
 
         protected override void Build(Container buildPanel)
         {
-            _buttons.Build(buildPanel);
             BuildSettings(buildPanel);
             WatchServer();
             WatchGameState();
@@ -97,33 +97,39 @@ namespace rp.spark.UI.Views
             var settingsStack = SparkFormLayout.AddVerticalStack(
                 buildPanel,
                 0,
-                130,
+                0,
                 ContentWidth,
                 620,
-                10);
+                6);
 
-            BuildApiKeyWarning(settingsStack);
             BuildServerStatus(settingsStack);
-            BuildInterfaceOptions(settingsStack);
-            BuildSharing(settingsStack);
-            _statusMessage.Build(settingsStack, ContentWidth);
-            BuildDiscovery(settingsStack);
+            BuildImportantNotice(settingsStack);
+
+            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            _buttons.Build(settingsStack);
+
+            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            BuildPresence(settingsStack);
+
+            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            BuildGlobalSettings(settingsStack);
+
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 5);
             _blocklist.Build(settingsStack, ContentWidth);
         }
 
-        private void BuildApiKeyWarning(FlowPanel settingsStack)
+        private void BuildImportantNotice(FlowPanel settingsStack)
         {
             _apiKeyWarning = SparkFormLayout.AddLabel(
                 settingsStack,
                 string.Empty,
                 ContentWidth,
-                ApiKeyWarningHeight,
-                GameService.Content.DefaultFont16,
+                24,
+                GameService.Content.DefaultFont14,
                 SparkViewUI.WarningTextColor,
                 true);
-            _apiKeyWarning.WrapText = true;
 
+            _apiKeyWarning.WrapText = true;
             RefreshApiKeyWarning();
         }
 
@@ -147,81 +153,35 @@ namespace rp.spark.UI.Views
                 SparkViewUI.SecondaryTextColor);
         }
 
-        private void BuildInterfaceOptions(FlowPanel settingsStack)
+        private void BuildPresence(FlowPanel settingsStack)
         {
-            var autoHideCheckbox = SparkFormLayout.AddCheckbox(
-                settingsStack,
-                "Auto-hide SPARK windows if map/vistas are viewed",
-                _settings.AutoHideGameUi.Value,
-                380);
-
-            autoHideCheckbox.CheckedChanged += (s, e) =>
-            {
-                _settings.AutoHideGameUi.Value = autoHideCheckbox.Checked;
-                RefreshApiKeyWarning();
-                _buttons.Refresh();
-                _enforceGameplayWindowVisibility?.Invoke();
-            };
-        }
-
-        private void BuildSharing(FlowPanel settingsStack)
-        {
-            var broadcastCheckbox = SparkFormLayout.AddCheckbox(
-                settingsStack,
-                "Share my profile online",
-                _settings.BroadcastProfile.Value,
-                260);
-
-            broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
-            broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
-
-            var hideLocationCheckbox = SparkFormLayout.AddCheckbox(
-                settingsStack,
-                "Hide my location",
-                _settings.HideLocation.Value,
-                260);
-
-            hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
-            hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
-
             var currentStatus = _settings.CurrentStatus.Value == RPStatus.Offline
                 ? RPStatus.Online
                 : _settings.CurrentStatus.Value;
 
-            var statusRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 35, 10);
-            SparkFormLayout.AddLabel(statusRow, "Status:", 60, 35);
+            var statusRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 8);
+
+            SparkFormLayout.AddLabel(
+                statusRow,
+                "Status:",
+                60,
+                30,
+                GameService.Content.DefaultFont14);
+
             var statusDropdown = SparkFormLayout.AddDropdown(
                 statusRow,
                 ProfileLabels.RpStatusOptions,
                 ProfileLabels.StatusLabel(currentStatus),
-                180);
+                170,
+                30);
 
             statusDropdown.ValueChanged += (s, e) =>
             {
                 _settings.CurrentStatus.Value = ProfileLabels.ParseStatus(statusDropdown.SelectedItem?.ToString());
                 _requestServerSync?.Invoke();
             };
-        }
 
-        private void BuildDiscovery(FlowPanel settingsStack)
-        {
-            var regionRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 35, 5);
-            SparkFormLayout.AddLabel(regionRow, "Region Filter:", 100, 35);
-
-            var regionDropdown = SparkFormLayout.AddDropdown(
-                regionRow,
-                new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
-                _settings.RegionFilter.Value.ToString(),
-                160);
-
-            regionDropdown.ValueChanged += (s, e) =>
-            {
-                if (Enum.TryParse(regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
-                {
-                    _settings.RegionFilter.Value = selectedRegion;
-                    _requestServerSync?.Invoke();
-                }
-            };
+            _statusMessage.Build(settingsStack, ContentWidth);
         }
 
         private void WatchServer()
@@ -329,9 +289,81 @@ namespace rp.spark.UI.Views
             if (_apiKeyWarning == null)
                 return;
 
-            _apiKeyWarning.Text = GetImportantNotice();
-            _apiKeyWarning.Height = ApiKeyWarningHeight;
+            var notice = GetImportantNotice();
+
+            _apiKeyWarning.Text = string.IsNullOrWhiteSpace(notice)
+                ? "SPARK ready."
+                : notice;
+
+            _apiKeyWarning.TextColor = string.IsNullOrWhiteSpace(notice)
+                ? new Color(140, 220, 140)
+                : SparkViewUI.WarningTextColor;
+
+            _apiKeyWarning.Height = string.IsNullOrWhiteSpace(notice)
+                ? 24
+                : ApiKeyWarningHeight;
+
             _apiKeyWarning.Visible = true;
+        }
+
+        private void BuildGlobalSettings(FlowPanel settingsStack)
+        {
+            var sharingRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 20);
+
+            var broadcastCheckbox = SparkFormLayout.AddCheckbox(
+                sharingRow,
+                "Share my profile online",
+                _settings.BroadcastProfile.Value,
+                260,
+                30);
+
+            broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
+            broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
+
+            var hideLocationCheckbox = SparkFormLayout.AddCheckbox(
+                sharingRow,
+                "Hide my location",
+                _settings.HideLocation.Value,
+                220,
+                30);
+
+            hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
+            hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
+
+            var optionsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 20);
+
+            SparkFormLayout.AddLabel(optionsRow, "Region:", 60, 30);
+
+            var regionDropdown = SparkFormLayout.AddDropdown(
+                optionsRow,
+                new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
+                _settings.RegionFilter.Value.ToString(),
+                100,
+                30);
+
+            regionDropdown.ValueChanged += (s, e) =>
+            {
+                if (Enum.TryParse(regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
+                {
+                    _settings.RegionFilter.Value = selectedRegion;
+                    _requestServerSync?.Invoke();
+                }
+            };
+
+            var autoHideCheckbox = SparkFormLayout.AddCheckbox(
+                optionsRow,
+                "Auto-hide during map/UI",
+                _settings.AutoHideGameUi.Value,
+                260,
+                30);
+
+            autoHideCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoHideGameUi.Value = autoHideCheckbox.Checked;
+                RefreshApiKeyWarning();
+                _buttons.Refresh();
+                _enforceGameplayWindowVisibility?.Invoke();
+            };
         }
 
         private string GetImportantNotice()

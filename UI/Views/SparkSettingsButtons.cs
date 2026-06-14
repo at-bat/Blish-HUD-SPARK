@@ -53,23 +53,31 @@ namespace rp.spark.UI.Views
             _shouldHideGameplayWindows = shouldHideGameplayWindows;
         }
 
+        // Rebuilding to be a single view
         public void Build(Container buildPanel)
         {
-            SparkViewUI.AddLabel(buildPanel, "SPARK profile tools", 0, 0, 300, 30);
+            var buttonRow = new FlowPanel
+            {
+                Parent = buildPanel,
+                Width = 660,
+                Height = 30,
+                FlowDirection = ControlFlowDirection.SingleLeftToRight,
+                ControlPadding = new Vector2(8, 0)
+            };
 
-            _openButton = SparkViewUI.AddButton(buildPanel, "Loading...", 0, 40, 200, enabled: false);
+            _openButton = SparkFormLayout.AddButton(buttonRow, "Profile Editor", 122, 30, false);
             _openButton.Click += (s, e) => _openProfileManager();
 
-            _viewButton = SparkViewUI.AddButton(buildPanel, "Loading...", 0, 85, 200, enabled: false);
+            _viewButton = SparkFormLayout.AddButton(buttonRow, "My Profile", 110, 30, false);
             _viewButton.Click += (s, e) => _openProfileViewer();
 
-            _onlineListButton = SparkViewUI.AddButton(buildPanel, "Open Online List", 220, 40, 200);
+            _onlineListButton = SparkFormLayout.AddButton(buttonRow, "Online List", 110, 30);
             _onlineListButton.Click += (s, e) => _openOnlineList();
 
-            _savedProfilesButton = SparkViewUI.AddButton(buildPanel, "Open Saved Profiles", 220, 85, 200);
+            _savedProfilesButton = SparkFormLayout.AddButton(buttonRow, "Saved Profiles", 126, 30);
             _savedProfilesButton.Click += (s, e) => _openSavedProfiles();
 
-            var aboutButton = SparkViewUI.AddButton(buildPanel, "About", 440, 40, 200);
+            var aboutButton = SparkFormLayout.AddButton(buttonRow, "About", 80, 30);
             aboutButton.Click += (s, e) => _openAbout();
 
             WatchGameState();
@@ -88,7 +96,7 @@ namespace rp.spark.UI.Views
             }
             catch
             {
-                resultText = "Profile tools unavailable";
+                resultText = "Unavailable";
             }
 
             if (_isDisposed)
@@ -146,7 +154,7 @@ namespace rp.spark.UI.Views
             }
             catch
             {
-                const string unavailableMessage = "Profile tools unavailable";
+                const string unavailableMessage = "Unavailable";
                 ApplyButtonState(unavailableMessage);
                 return unavailableMessage;
             }
@@ -160,18 +168,14 @@ namespace rp.spark.UI.Views
 
             var hideGameplayWindows = ShouldHideGameplayWindows();
             var unavailableMessage = resultText ?? string.Empty;
-            var buttonMessage = hideGameplayWindows && string.IsNullOrWhiteSpace(unavailableMessage)
-                ? "Profile tools unavailable"
-                : unavailableMessage;
-            var canUseProfileTools = !hideGameplayWindows && string.IsNullOrWhiteSpace(buttonMessage);
+            var canUseProfileTools = !hideGameplayWindows && string.IsNullOrWhiteSpace(unavailableMessage);
 
             _lastMessage = unavailableMessage;
-            _openButton.Text = canUseProfileTools
-                ? "Open Profile Editor"
-                : buttonMessage;
+
+            _openButton.Text = "Profile Editor";
             _openButton.Enabled = canUseProfileTools;
 
-            _viewButton.Text = "View Your Profile";
+            _viewButton.Text = "My Profile";
             _viewButton.Enabled = canUseProfileTools;
 
             if (_onlineListButton != null)

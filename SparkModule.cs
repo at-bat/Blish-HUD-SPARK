@@ -29,11 +29,8 @@ namespace rp.spark
     {
         private static readonly Logger Logger = Logger.GetLogger<SparkModule>();
         private static readonly TimeSpan GameplayVisibilityCheckInterval = TimeSpan.FromMilliseconds(250);
-
-        // Right now these are functionally the same since the separation between them is a bit ugly UX-wise
-        // Will try to clean this up so the designation between character select and loading between maps is better
-        private const string LoadingScreenMessage = "Load into a map first!";
-        private const string CharacterSelectMessage = "Load into a map first!";
+        
+        // This is to check UI ticks, if they stop, game is likely on a load screen.
         private TimeSpan _gameplayVisibilityCheckElapsed;
 
         internal SettingsManager SettingsManager => this.ModuleParameters.SettingsManager;
@@ -461,7 +458,7 @@ namespace rp.spark
         private string GetImportantSettingsNotice()
         {
             if (IsGameplayUiBlockingSpark())
-                return "SPARK windows closed due to in-game UI (map, vista, etc.)";
+                return "SPARK windows closed due to map, vista, or other game UI.";
 
             var state = _playerState?.GetCached();
             var unavailableReason = GetUnavailableReason(state);
@@ -471,7 +468,7 @@ namespace rp.spark
 
             return HasValidApiKey()
                 ? string.Empty
-                : SparkViewUI.MissingApiKeyWarning;
+                : "Add your GW2 API key to Blish HUD to use SPARK!";
         }
 
         private bool IsGameplayUiBlockingSpark()
@@ -492,14 +489,14 @@ namespace rp.spark
         private static string GetUnavailableReason(PlayerState state)
         {
             if (state == null)
-                return CharacterSelectMessage;
+                return "Load into the game on a character to use SPARK.";
 
             if (state.CanEditProfile)
                 return string.Empty;
 
             return SparkWindows.IsLoadingScreen()
-                ? LoadingScreenMessage
-                : CharacterSelectMessage;
+                ? "SPARK profile tools are unavailable during loading screens."
+                : "Load into the game on a character to use SPARK.";
         }
 
         protected override void Unload()
