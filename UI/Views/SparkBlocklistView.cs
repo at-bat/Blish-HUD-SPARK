@@ -81,11 +81,11 @@ namespace rp.spark.UI.Views
 
             AddInfoParagraph(
                 infoStack,
-                "If someone you blocked has already seen your profile, they may have a local copy of your profile in bookmarks or recently viewed windows. They will not receive a new copy of your profile any further than that copy, however. SPARK does this on purpose so someone cannot tell that they have been blocked..");
+                "Someone you blocked might have a copy of your profile in bookmarks or in recently viewed. Once blocked, they will not receive a new copy of your profile anymore. SPARK does this on purpose so someone cannot tell that they have been blocked.");
 
             AddInfoParagraph(
                 infoStack,
-                "If someone has hateful language/messaging on their profile, please report them for moderation. Accounts can be banned from accessing the service.");
+                "If someone's profile breaks any of SPARK's content policies, please report them for moderation. Users who misuse SPARK will be banned from accessing the service.");
         }
 
         private static void AddInfoParagraph(Container parent, string text)

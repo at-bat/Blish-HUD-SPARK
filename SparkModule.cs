@@ -238,11 +238,11 @@ namespace rp.spark
             }
             catch (OperationCanceledException)
             {
-                // Module unload or new tick, this is fine
+                // This should be fine
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Failed to refresh SPARK presence after a profile change.");
+                Logger.Warn(ex, "Failed to refresh SPARK data after a profile change.");
             }
         }
 

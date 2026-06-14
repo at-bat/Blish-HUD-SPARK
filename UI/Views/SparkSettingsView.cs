@@ -15,7 +15,6 @@ namespace rp.spark.UI.Views
         private const int ContentWidth = 660;
         private const int ControlHeight = 30;
         private const int RowGap = 8;
-        private const int ApiKeyWarningHeight = 44;
 
         private readonly SparkSettings _settings;
         private readonly Func<ServerSyncStatus> _getServerSyncStatus;
@@ -344,10 +343,7 @@ namespace rp.spark.UI.Views
                 ? new Color(140, 220, 140)
                 : SparkViewUI.WarningTextColor;
 
-            _apiKeyWarning.Height = string.IsNullOrWhiteSpace(notice)
-                ? 24
-                : ApiKeyWarningHeight;
-
+            _apiKeyWarning.Height = 24;
             _apiKeyWarning.Visible = true;
         }
 
@@ -357,7 +353,7 @@ namespace rp.spark.UI.Views
 
             var broadcastCheckbox = SparkFormLayout.AddCheckbox(
                 sharingRow,
-                "Share my profile online",
+                "Share my profile",
                 _settings.BroadcastProfile.Value,
                 230,
                 ControlHeight);
@@ -402,7 +398,7 @@ namespace rp.spark.UI.Views
 
             var autoHideCheckbox = SparkFormLayout.AddCheckbox(
                 optionsRow,
-                "Auto-hide during map/UI",
+                "Auto-hide UI",
                 _settings.AutoHideGameUi.Value,
                 230,
                 ControlHeight);
