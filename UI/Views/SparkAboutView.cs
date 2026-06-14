@@ -54,7 +54,7 @@ namespace rp.spark.UI.Views
                 "SPARK Content Guidelines / Policies",
                 false,
                 "SPARK offers a report function and a block function to help curate your experience when using the tool.",
-                "By using SPARK, you agree to the following rules:",
+                "By using SPARK, you agree to the following:",
                 " ",
                 "1. No hate speech or bigotry",
                 "Profiles may not include racist, sexist, homophobic, transphobic, ableist, or otherwise discriminatory content.",

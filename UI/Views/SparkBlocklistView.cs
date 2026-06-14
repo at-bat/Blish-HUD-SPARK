@@ -77,7 +77,7 @@ namespace rp.spark.UI.Views
 
             AddInfoParagraph(
                 infoStack,
-                "Blocks are done locally first, then sent to SPARK when you are online. This lets the server prevent blocked accounts from seeing your profiles, online status, and location. You also will not see them in SPARK.");
+                "Blocks first happen locally before they are sent to SPARK when you are online. This lets the server prevent blocked accounts from seeing your profiles, online status, and location. You also will not see them in SPARK.");
 
             AddInfoParagraph(
                 infoStack,
@@ -85,7 +85,7 @@ namespace rp.spark.UI.Views
 
             AddInfoParagraph(
                 infoStack,
-                "If someone's profile breaks any of SPARK's content policies, please report them for moderation. Users who misuse SPARK will be banned from accessing the service.");
+                "If someone's profile breaks any of SPARK's content policies, please report them for moderation. Users who misuse SPARK will be banned from accessing the service. You can find SPARK's content policies in the About' window on the main page.");
         }
 
         private static void AddInfoParagraph(Container parent, string text)
