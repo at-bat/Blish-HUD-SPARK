@@ -13,7 +13,7 @@ namespace rp.spark.Services
     public sealed class ProfileActions : IDisposable
     {
         private static readonly Logger Logger = Logger.GetLogger<ProfileActions>();
-        private const string BlockRemovalHelp = "You can remove blocks at the bottom of your settings menu.";
+        private const string BlockRemovalHelp = "You can remove blocks using the 'Manage Blocks' in the settings menu.";
         private const string ReportUnavailableMessage = "Report failed. Profile not found on SPARK server. Profiles only exist for 24h on the server at a time.";
 
         private readonly ProfileCache _profileCache;
@@ -203,7 +203,7 @@ namespace rp.spark.Services
             var result = BlockAccount(accountName);
 
             return _settings.IsBlockedAccount(accountName)
-                ? BlockedMessage(GetProfileBlockSubject(profile, presence, accountName))
+                ? BlockedMessage(GetProfileBlockSubject(profile, presence, accountName), true)
                 : result;
         }
 
@@ -562,9 +562,13 @@ namespace rp.spark.Services
                     .Select(account => account.ToLowerInvariant()));
         }
 
-        private static string BlockedMessage(string subject)
+        private static string BlockedMessage(string subject, bool includeRemovalHelp = false)
         {
-            return $"{TextUtil.FirstNonEmpty(subject, "Account")} blocked. {BlockRemovalHelp}";
+            var message = $"{TextUtil.FirstNonEmpty(subject, "Account")} blocked.";
+
+            return includeRemovalHelp
+                ? $"{message} {BlockRemovalHelp}"
+                : message;
         }
 
         private static string GetProfileBlockSubject(

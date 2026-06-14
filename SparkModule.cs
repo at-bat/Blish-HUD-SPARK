@@ -168,6 +168,7 @@ namespace rp.spark
                 _windows.OpenOnlineList,
                 _windows.OpenSavedProfiles,
                 _windows.OpenAbout,
+                _windows.OpenBlocklist,
                 WaitForPlayerStateAsync,
                 GetPlayerStateMessage,
                 ReloadPlayerState,
@@ -179,8 +180,6 @@ namespace rp.spark
                 GetImportantSettingsNotice,
                 _windows.ShouldHideGameplayWindows,
                 CloseGameplayWindowsIfUnavailableSoon,
-                _profileActions.BlockAccount,
-                _profileActions.UnblockAccount,
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts);
         }

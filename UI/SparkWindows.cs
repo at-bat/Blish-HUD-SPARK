@@ -35,6 +35,7 @@ namespace rp.spark.UI
         private ProfileNotesView _profileNotesView;
         private StandardWindow _onlineListWindow;
         private StandardWindow _aboutWindow;
+        private StandardWindow _blocklistWindow;
         private CharacterProfile _viewedProfile;
         private PlayerPresence _viewedPresence;
 
@@ -166,6 +167,25 @@ namespace rp.spark.UI
                 CreateAboutWindow();
 
             _aboutWindow.Show(new SparkAboutView());
+        }
+
+        public void OpenBlocklist()
+        {
+            if (_blocklistWindow != null && _blocklistWindow.Visible)
+            {
+                _blocklistWindow.BringWindowToFront();
+                return;
+            }
+
+            if (_blocklistWindow == null)
+                CreateBlocklistWindow();
+
+            _blocklistWindow.Show(new SparkBlocklistView(
+                _settings,
+                _profileActions.BlockAccount,
+                _profileActions.UnblockAccount,
+                _profileActions.WatchBlockedAccounts,
+                _profileActions.UnwatchBlockedAccounts));
         }
 
         public void ShowProfileViewer(ProfileViewData viewData)
@@ -377,6 +397,14 @@ namespace rp.spark.UI
                 new Rectangle(70, 60, 760, 520));
         }
 
+        private void CreateBlocklistWindow()
+        {
+            _blocklistWindow = _windowBuilder.MakeWindow(
+                "Blocked Accounts",
+                "rp.spark.blocklist-window",
+                new Rectangle(70, 60, 760, 610));
+        }
+
         public void CloseGameplayWindows()
         {
             _windowBuilder.DisposeWindow(_profileWindow);
@@ -408,7 +436,11 @@ namespace rp.spark.UI
 
             _windowBuilder.DisposeWindow(_aboutWindow);
             _aboutWindow = null;
-            
+
+            // Keeping this out of the gameplay windows (for auto hide) as it's more of a setting view and more important
+            _windowBuilder.DisposeWindow(_blocklistWindow);
+            _blocklistWindow = null;
+
             _windowBuilder.Clear();
         }
     }

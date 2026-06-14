@@ -25,7 +25,11 @@ namespace rp.spark.UI.Views
         private readonly Action _enforceGameplayWindowVisibility;
         private readonly Func<string> _getImportantNotice;
         private readonly SparkSettingsButtons _buttons;
-        private readonly SparkBlocklist _blocklist;
+        private readonly Action _openBlocklist;
+        private readonly Action<Action> _watchBlockedAccountsChanged;
+        private readonly Action<Action> _unwatchBlockedAccountsChanged;
+
+        private Label _blockedAccountsLabel;
 
         private bool _isUnloaded;
         private Label _serverStatusLabel;
@@ -42,6 +46,7 @@ namespace rp.spark.UI.Views
             Action openOnlineList,
             Action openSavedProfiles,
             Action openAbout,
+            Action openBlocklist,
             Func<System.Threading.Tasks.Task<string>> waitForInitialState,
             Func<string> getCurrentStateMessage,
             Action requestStateRefresh,
@@ -53,8 +58,6 @@ namespace rp.spark.UI.Views
             Func<string> getImportantNotice,
             Func<bool> shouldHideGameplayWindows,
             Action enforceGameplayWindowVisibility,
-            Func<string, string> blockAccount,
-            Func<string, string> unblockAccount,
             Action<Action> watchBlockedAccountsChanged,
             Action<Action> unwatchBlockedAccountsChanged)
         {
@@ -75,12 +78,9 @@ namespace rp.spark.UI.Views
                 getCurrentStateMessage,
                 requestStateRefresh,
                 shouldHideGameplayWindows);
-            _blocklist = new SparkBlocklist(
-                settings,
-                blockAccount,
-                unblockAccount,
-                watchBlockedAccountsChanged,
-                unwatchBlockedAccountsChanged);
+            _openBlocklist = openBlocklist;
+            _watchBlockedAccountsChanged = watchBlockedAccountsChanged;
+            _unwatchBlockedAccountsChanged = unwatchBlockedAccountsChanged;
         }
 
         protected override void Build(Container buildPanel)
@@ -94,12 +94,9 @@ namespace rp.spark.UI.Views
 
         private void BuildSettings(Container buildPanel)
         {
-            var settingsStack = SparkFormLayout.AddVerticalStack(
+            var settingsStack = SparkFormLayout.AddAutoStack(
                 buildPanel,
-                0,
-                0,
                 ContentWidth,
-                620,
                 6);
 
             BuildServerStatus(settingsStack);
@@ -114,8 +111,8 @@ namespace rp.spark.UI.Views
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildGlobalSettings(settingsStack);
 
-            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 5);
-            _blocklist.Build(settingsStack, ContentWidth);
+            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            BuildBlockSummary(settingsStack);
         }
 
         private void BuildImportantNotice(FlowPanel settingsStack)
@@ -182,6 +179,56 @@ namespace rp.spark.UI.Views
             };
         }
 
+        private void BuildBlockSummary(FlowPanel settingsStack)
+        {
+            var blockRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
+
+            SparkFormLayout.AddLabel(
+                blockRow,
+                "Blocked accounts:",
+                125,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
+
+            _blockedAccountsLabel = SparkFormLayout.AddLabel(
+                blockRow,
+                string.Empty,
+                90,
+                ControlHeight,
+                GameService.Content.DefaultFont14,
+                SparkViewUI.SecondaryTextColor);
+
+            var manageButton = SparkFormLayout.AddButton(
+                blockRow,
+                "Manage Blocks",
+                130,
+                ControlHeight);
+
+            manageButton.Click += (s, e) => _openBlocklist?.Invoke();
+
+            _watchBlockedAccountsChanged?.Invoke(OnBlockedAccountsChanged);
+            RefreshBlockedAccountCount();
+        }
+
+        private void OnBlockedAccountsChanged()
+        {
+            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            {
+                if (!_isUnloaded)
+                    RefreshBlockedAccountCount();
+            });
+        }
+
+        private void RefreshBlockedAccountCount()
+        {
+            if (_blockedAccountsLabel == null)
+                return;
+
+            var count = _settings?.GetBlockedAccountNames().Count ?? 0;
+            _blockedAccountsLabel.Text = count == 1
+                ? "1 blocked"
+                : $"{count} blocked";
+        }
         private void WatchServer()
         {
             _watchServerSyncStatus?.Invoke(OnServerStatus);
@@ -399,7 +446,7 @@ namespace rp.spark.UI.Views
             _isUnloaded = true;
             StopNoticeRefresh();
             _buttons.Dispose();
-            _blocklist.Dispose();
+            _unwatchBlockedAccountsChanged?.Invoke(OnBlockedAccountsChanged);
             UnwatchServer();
             UnwatchGameState();
         }
