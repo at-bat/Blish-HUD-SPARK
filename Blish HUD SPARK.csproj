@@ -124,7 +124,6 @@
     <Compile Include="UI\Views\SparkFormLayout.cs" />
     <Compile Include="UI\Views\SparkBlocklist.cs" />
     <Compile Include="UI\Views\SparkSettingsButtons.cs" />
-    <Compile Include="UI\Views\SparkStatusMessage.cs" />
     <Compile Include="UI\Views\SparkUiActions.cs" />
     <Compile Include="UI\Views\SparkViewUI.cs" />
     <Compile Include="UI\Views\SparkSettingsView.cs" />

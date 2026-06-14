@@ -26,8 +26,6 @@ namespace rp.spark.Models
 
         public RPStatus Status { get; set; } = RPStatus.Online;
 
-        public string StatusMessage { get; set; } = string.Empty;
-
         public string Currently { get; set; } = string.Empty;
 
         public string OutOfCharacterInfo { get; set; } = string.Empty;

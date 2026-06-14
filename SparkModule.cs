@@ -17,7 +17,7 @@ using TokenPermission = Gw2Sharp.WebApi.V2.Models.TokenPermission;
 // SPARK Module General Details:
 // The name stands for Simple Profile and Roleplay Kit. It's also a slight nod towards the first legendary I made, Incinerator, since Spark is the precursor.
 // This module uses an external webserver to save profile and presence data, as well as pull other data from other players using SPARK
-// Presence = a snippet of your profile for tooltips on the online list. This is things like status messages, out of character (OOC) info, character name, race, etc.
+// Presence = a snippet of your profile for tooltips on the online list. This is things like status, out of character (OOC) info, character name, race, etc.
 // Players can make multiple profiles tied to each of their characters.
 // SPARK makes use of subtokens to identify someone with GW2's API based on Account+Character before uploading or transmitting data to them.
 

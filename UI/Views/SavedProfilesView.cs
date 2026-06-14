@@ -337,9 +337,6 @@ namespace rp.spark.UI.Views
                     : $"Viewed: {ProfileText.FormatShortTime(savedProfile.CachedAt, "-")}"
             };
 
-            if (!string.IsNullOrWhiteSpace(savedProfile.StatusMessage))
-                lines.Add($"Status message: {savedProfile.StatusMessage.Trim()}");
-
             if (!string.IsNullOrWhiteSpace(savedProfile.Currently))
             {
                 lines.Add("----------------");

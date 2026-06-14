@@ -330,7 +330,6 @@ namespace rp.spark.UI.Views
                 WrapText = false,
                 Location = bounds.Location,
                 Size = bounds.Size,
-                BasicTooltipText = _presence.StatusMessage ?? string.Empty,
                 Parent = buildPanel
             };
         }

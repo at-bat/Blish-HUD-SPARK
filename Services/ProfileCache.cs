@@ -362,7 +362,6 @@ namespace rp.spark.Services
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(record.Presence?.ActiveProfileId, record.Profile?.ProfileId)),
                 ActiveProfileName = Clean(TextUtil.FirstNonEmpty(record.Presence?.ActiveProfileName, record.Profile?.ProfileName)),
                 Status = record.Presence?.Status ?? RPStatus.Online,
-                StatusMessage = Clean(record.Presence?.StatusMessage),
                 Currently = Clean(TextUtil.FirstNonEmpty(record.Presence?.Currently, record.Profile?.Currently)),
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(record.Presence?.OutOfCharacterInfo, record.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(record.Presence?.LocationName),
@@ -393,7 +392,6 @@ namespace rp.spark.Services
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.ActiveProfileId, snapshot.Profile?.ProfileId)),
                 ActiveProfileName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.ActiveProfileName, snapshot.Profile?.ProfileName)),
                 Status = snapshot.Presence?.Status ?? RPStatus.Online,
-                StatusMessage = Clean(snapshot.Presence?.StatusMessage),
                 Currently = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.Currently, snapshot.Profile?.Currently)),
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OutOfCharacterInfo, snapshot.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(snapshot.Presence?.LocationName),
@@ -425,7 +423,6 @@ namespace rp.spark.Services
                 ActiveProfileId = summary.ActiveProfileId,
                 ActiveProfileName = summary.ActiveProfileName,
                 Status = summary.Status,
-                StatusMessage = summary.StatusMessage,
                 Currently = summary.Currently,
                 OutOfCharacterInfo = summary.OutOfCharacterInfo,
                 LocationName = summary.LocationName,
@@ -526,8 +523,6 @@ namespace rp.spark.Services
             public string ActiveProfileName { get; set; } = string.Empty;
 
             public RPStatus Status { get; set; } = RPStatus.Online;
-
-            public string StatusMessage { get; set; } = string.Empty;
 
             public string Currently { get; set; } = string.Empty;
 

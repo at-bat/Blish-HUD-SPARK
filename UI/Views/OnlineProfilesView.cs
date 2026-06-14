@@ -441,9 +441,6 @@ namespace rp.spark.UI.Views
                 $"Location: {ProfileText.PresenceLocation(presence)}"
             };
 
-            if (!string.IsNullOrWhiteSpace(presence.StatusMessage))
-                lines.Add($"Status message: {presence.StatusMessage.Trim()}");
-
             if (!string.IsNullOrWhiteSpace(presence.Currently))
             {
                 lines.Add("----------------");

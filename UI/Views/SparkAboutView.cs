@@ -44,7 +44,7 @@ namespace rp.spark.UI.Views
             AddHeading(contentStack, "Saved Data");
             AddParagraph(
                 contentStack,
-                "Your profiles and viewed profiles get saved locally to your PC. When your profile syncs to the server, it only transmits the information in the profile, plus your status message (if set), account name, character name, and location (if not hidden).");
+                "Your profiles and viewed profiles get saved locally to your PC. When your profile syncs to the server, it only transmits the information in the profile, plus your RP status, account name, character name, and location (if not hidden).");
             AddParagraph(
                 contentStack,
                 "Your profile data is removed from the SPARK server after 24 hours of being offline. The webserver does not retain user data, nor does SPARK do any tracking of any kind. The information stored is temporary and only used to transmit profiles from one another.");

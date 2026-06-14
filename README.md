@@ -6,7 +6,6 @@ SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers
 
 - Multiple profiles for each character
 - RP Statuses (Online, Looking for RP, Busy, Invisible (appear offline))
-- Status Messages (140 character message added when people see your profile in the online list)
 - 'At a Glance' icons with custom tooltips including a built-in icon search with over 57,000 icons from the game to use
 - Bookmarks for your favourite RP profiles
 - Private notes that you can save to any profile you view

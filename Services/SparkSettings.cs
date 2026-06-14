@@ -9,8 +9,6 @@ namespace rp.spark.Services
 {
     public class SparkSettings
     {
-        public const int MaxStatusLength = 140;
-
         private const string SharingSettingsKey = "profile-sharing";
         private const string DiscoverySettingsKey = "profile-discovery";
         private const string PrivacySettingsKey = "privacy";
@@ -19,7 +17,6 @@ namespace rp.spark.Services
         private const string AutoHideGameUiKey = "AutoHideGameUi";
         private const string HideLocationKey = "HideLocation";
         private const string CurrentStatusKey = "CurrentStatus";
-        private const string StatusMessageKey = "StatusMessage";
         private const string RegionFilterKey = "RegionFilter";
         private const string BlockedAccountsKey = "BlockedAccounts";
 
@@ -33,7 +30,6 @@ namespace rp.spark.Services
         public SettingEntry<bool> HideLocation { get; }
         public SettingEntry<bool> AutoHideGameUi { get; }
         public SettingEntry<RPStatus> CurrentStatus { get; }
-        public SettingEntry<string> StatusMessage { get; }
         public SettingEntry<ProfileRegion> RegionFilter { get; }
         public SettingEntry<string> BlockedAccounts { get; }
 
@@ -82,12 +78,6 @@ namespace rp.spark.Services
                 RPStatus.Online,
                 () => "Status",
                 () => "Your RP status for profile sharing.");
-
-            StatusMessage = SharingSettings.DefineSetting(
-                StatusMessageKey,
-                string.Empty,
-                () => "Status message",
-                () => "A short message shown in online list when someone hovers over your profile");
 
             RegionFilter = DiscoverySettings.DefineSetting(
                 RegionFilterKey,
@@ -166,16 +156,6 @@ namespace rp.spark.Services
 
             BlockedAccounts.Value = string.Join(Environment.NewLine, accounts);
         }
-
-        public string GetStatusMessage()
-        {
-            var statusMessage = StatusMessage.Value?.Trim() ?? string.Empty;
-
-            return statusMessage.Length <= MaxStatusLength
-                ? statusMessage
-                : statusMessage.Substring(0, MaxStatusLength);
-        }
-
         public string GetServerBaseUrl()
         {
             return SparkServiceConfig.ServerURL;

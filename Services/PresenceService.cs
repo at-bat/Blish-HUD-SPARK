@@ -71,7 +71,6 @@ namespace rp.spark.Services
                 ActiveProfileName = hasActiveProfile ? activeProfile.ProfileName?.Trim() ?? string.Empty : string.Empty,
                 ProfileUpdatedAtTime = hasActiveProfile ? activeProfile.UpdatedAt : default,
                 Status = status,
-                StatusMessage = _settings?.GetStatusMessage() ?? string.Empty,
                 Currently = hasActiveProfile ? activeProfile.Currently?.Trim() ?? string.Empty : string.Empty,
                 OutOfCharacterInfo = hasActiveProfile ? activeProfile.OutOfCharacterInfo?.Trim() ?? string.Empty : string.Empty,
                 LocationName = GetLocationName(state, locationHidden),

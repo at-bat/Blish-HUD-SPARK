@@ -13,6 +13,8 @@ namespace rp.spark.UI.Views
     public class SparkSettingsView : View
     {
         private const int ContentWidth = 660;
+        private const int ControlHeight = 30;
+        private const int RowGap = 8;
         private const int ApiKeyWarningHeight = 44;
 
         private readonly SparkSettings _settings;
@@ -23,7 +25,6 @@ namespace rp.spark.UI.Views
         private readonly Action _enforceGameplayWindowVisibility;
         private readonly Func<string> _getImportantNotice;
         private readonly SparkSettingsButtons _buttons;
-        private readonly SparkStatusMessage _statusMessage;
         private readonly SparkBlocklist _blocklist;
 
         private bool _isUnloaded;
@@ -74,7 +75,6 @@ namespace rp.spark.UI.Views
                 getCurrentStateMessage,
                 requestStateRefresh,
                 shouldHideGameplayWindows);
-            _statusMessage = new SparkStatusMessage(settings, requestServerSync);
             _blocklist = new SparkBlocklist(
                 settings,
                 blockAccount,
@@ -159,29 +159,27 @@ namespace rp.spark.UI.Views
                 ? RPStatus.Online
                 : _settings.CurrentStatus.Value;
 
-            var statusRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 8);
+            var statusRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, RowGap);
 
             SparkFormLayout.AddLabel(
                 statusRow,
                 "Status:",
-                60,
-                30,
+                55,
+                ControlHeight,
                 GameService.Content.DefaultFont14);
 
             var statusDropdown = SparkFormLayout.AddDropdown(
                 statusRow,
                 ProfileLabels.RpStatusOptions,
                 ProfileLabels.StatusLabel(currentStatus),
-                170,
-                30);
+                155,
+                ControlHeight);
 
             statusDropdown.ValueChanged += (s, e) =>
             {
                 _settings.CurrentStatus.Value = ProfileLabels.ParseStatus(statusDropdown.SelectedItem?.ToString());
                 _requestServerSync?.Invoke();
             };
-
-            _statusMessage.Build(settingsStack, ContentWidth);
         }
 
         private void WatchServer()
@@ -308,14 +306,14 @@ namespace rp.spark.UI.Views
 
         private void BuildGlobalSettings(FlowPanel settingsStack)
         {
-            var sharingRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 20);
+            var sharingRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
 
             var broadcastCheckbox = SparkFormLayout.AddCheckbox(
                 sharingRow,
                 "Share my profile online",
                 _settings.BroadcastProfile.Value,
-                260,
-                30);
+                230,
+                ControlHeight);
 
             broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
             broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
@@ -324,22 +322,27 @@ namespace rp.spark.UI.Views
                 sharingRow,
                 "Hide my location",
                 _settings.HideLocation.Value,
-                220,
-                30);
+                180,
+                ControlHeight);
 
             hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
             hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
 
-            var optionsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 30, 20);
+            var optionsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
 
-            SparkFormLayout.AddLabel(optionsRow, "Region:", 60, 30);
+            SparkFormLayout.AddLabel(
+                optionsRow,
+                "Region:",
+                55,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
 
             var regionDropdown = SparkFormLayout.AddDropdown(
                 optionsRow,
                 new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
                 _settings.RegionFilter.Value.ToString(),
-                100,
-                30);
+                90,
+                ControlHeight);
 
             regionDropdown.ValueChanged += (s, e) =>
             {
@@ -354,8 +357,8 @@ namespace rp.spark.UI.Views
                 optionsRow,
                 "Auto-hide during map/UI",
                 _settings.AutoHideGameUi.Value,
-                260,
-                30);
+                230,
+                ControlHeight);
 
             autoHideCheckbox.CheckedChanged += (s, e) =>
             {

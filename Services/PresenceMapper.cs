@@ -117,7 +117,6 @@ namespace rp.spark.Services
             var offlinePresence = CopyProfileFields(presence);
 
             offlinePresence.Status = RPStatus.Invisible;
-            offlinePresence.StatusMessage = string.Empty;
             offlinePresence.LocationName = "Hidden";
             offlinePresence.IsLocationHidden = true;
             offlinePresence.IsInGame = false;
@@ -137,7 +136,6 @@ namespace rp.spark.Services
             var clone = CopyProfileFields(presence);
 
             clone.Status = presence.Status;
-            clone.StatusMessage = Clean(presence.StatusMessage);
             clone.Currently = Clean(presence.Currently);
             clone.OutOfCharacterInfo = Clean(presence.OutOfCharacterInfo);
             clone.LocationName = Clean(presence.LocationName);

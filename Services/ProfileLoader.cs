@@ -354,7 +354,6 @@ namespace rp.spark.Services
                 return;
 
             presence.Status = RPStatus.Offline;
-            presence.StatusMessage = string.Empty;
             presence.LocationName = "Unknown";
             presence.IsLocationHidden = false;
             presence.LastSeen = default;

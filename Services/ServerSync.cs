@@ -465,7 +465,6 @@ namespace rp.spark.Services
                 || !SameTrimmed(previous.ActiveProfileName, current.ActiveProfileName)
                 || previous.ProfileUpdatedAtTime != current.ProfileUpdatedAtTime
                 || previous.Status != current.Status
-                || !SameTrimmed(previous.StatusMessage, current.StatusMessage)
                 || !SameTrimmed(previous.Currently, current.Currently)
                 || !SameTrimmed(previous.OutOfCharacterInfo, current.OutOfCharacterInfo)
                 || !SameTrimmed(previous.LocationName, current.LocationName)
