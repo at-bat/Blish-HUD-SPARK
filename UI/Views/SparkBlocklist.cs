@@ -10,8 +10,10 @@ namespace rp.spark.UI.Views
 {
     internal sealed class SparkBlocklist : IDisposable
     {
-        private const int ListHeight = 220;
+        private const int InputHeight = 30;
+        private const int DefaultListHeight = 360;
         private const int RowHeight = 30;
+        private const int ActionButtonWidth = 90;
 
         private readonly SparkSettings _settings;
         private readonly Func<string, string> _blockAccount;
@@ -38,24 +40,24 @@ namespace rp.spark.UI.Views
             _unwatchBlocks = unwatchBlocklistChanged;
         }
 
-        public void Build(FlowPanel settingsStack, int contentWidth)
+        public void Build(FlowPanel settingsStack, int contentWidth, int listHeight = DefaultListHeight)
         {
             var blockedStack = SparkFormLayout.AddAutoStack(settingsStack, contentWidth, 5);
-            var inputRow = SparkFormLayout.AddRow(blockedStack, contentWidth, 35, 8);
+            var inputRow = SparkFormLayout.AddRow(blockedStack, contentWidth, InputHeight, 8);
 
             _input = SparkFormLayout.AddTextBox(
                 inputRow,
                 string.Empty,
                 "Account name, such as Name.1234",
-                contentWidth - 120,
-                35,
+                contentWidth - ActionButtonWidth - 8,
+                InputHeight,
                 ProfileLimits.MaxAccountNameLength);
 
-            var addButton = SparkFormLayout.AddButton(inputRow, "Block", 112);
+            var addButton = SparkFormLayout.AddButton(inputRow, "Block", ActionButtonWidth, InputHeight);
             addButton.Click += (s, e) => AddBlock();
             _input.EnterPressed += (s, e) => AddBlock();
 
-            _list = new ProfileScrollList(contentWidth - 16, ListHeight, RowHeight)
+            _list = new ProfileScrollList(contentWidth - 16, listHeight, RowHeight)
             {
                 Parent = blockedStack
             };
@@ -121,13 +123,16 @@ namespace rp.spark.UI.Views
         private void AddRow(int index, string accountName)
         {
             var row = _list.AddRow(index, accountName);
-            _list.AddCell(row, accountName, 8, 3, 500, Color.White);
+            var rowWidth = _list.Width - 16;
+            var buttonX = rowWidth - ActionButtonWidth - 8;
+
+            _list.AddCell(row, accountName, 8, 3, buttonX - 16, Color.White);
 
             var unblockButton = new StandardButton
             {
                 Text = "Unblock",
-                Location = new Point(548, 3),
-                Size = new Point(90, 25),
+                Location = new Point(buttonX, 3),
+                Size = new Point(ActionButtonWidth, 25),
                 Parent = row
             };
 

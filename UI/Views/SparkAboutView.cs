@@ -22,64 +22,57 @@ namespace rp.spark.UI.Views
                 OuterControlPadding = new Vector2(ContentPadding, ContentPadding)
             };
 
-            AddHeading(
+            AddSection(
                 contentStack,
                 "What is SPARK?",
-                GameService.Content.DefaultFont18);
-
-            AddParagraph(
-                contentStack,
+                true,
                 "SPARK is built for roleplay and discovering potential RP partners. It lets you create character profiles, share profiles, and view profiles from other SPARK users. The name stands for 'Simple Profile and Roleplay Kit', and comes from the precursor of my first legendary, Incinerator.");
 
-            AddHeading(contentStack, "Profile sharing");
-            AddParagraph(
+            AddSection(
                 contentStack,
-                "When 'Share my profile online' is enabled, SPARK publishes your profile and online presence to the SPARK service, assuming you are on a character with an active profile and your status is not set to Invisible.");
+                "SPARK Content Guidelines / Policies",
+                false,
+                "SPARK offers a report function and a block function to help curate your experience when using the tool.",
+                "By using SPARK, you agree to the following:",
+                " ",
+                "1. No hate speech or bigotry",
+                "Profiles may not include racist, sexist, homophobic, transphobic, ableist, or otherwise discriminatory content.",
+                " ",
+                "2. No harassment or targeted abuse",
+                "Do not make profiles that insults, shames, threatens, stalks, or attempts to organize/coordinate harassment against another player.",
+                " ",
+                "3. No abusive sexual content",
+                "Sexual content involving minors (real or fictional underage characters) is strictly prohibited.",
+                " ",
+                "SPARK may permanently block access to this service to any GW2 account that breaks these rules.");
 
-            AddHeading(contentStack, "Privacy");
-            AddParagraph(
+            AddSection(
                 contentStack,
-                "The 'Invisible' status removes your online presence from the online user list. Hide my location sets your location to 'Hidden' for privacy. If you block someone, all profiles on that GW2 account get filtered. Blocked users can only see the last profile they ever saw from you (if any). They won't ever receive your profile updates or information.");
+                "Profile sharing",
+                false,
+                "When 'Share my profile' is enabled, SPARK publishes your active profile and information to the SPARK service. If your online status is invisible, this will no longer publish.");
 
-            AddHeading(contentStack, "Saved Data");
-            AddParagraph(
+            AddSection(
                 contentStack,
-                "Your profiles and viewed profiles get saved locally to your PC. When your profile syncs to the server, it only transmits the information in the profile, plus your RP status, account name, character name, and location (if not hidden).");
-            AddParagraph(
-                contentStack,
-                "Your profile data is removed from the SPARK server after 24 hours of being offline. The webserver does not retain user data, nor does SPARK do any tracking of any kind. The information stored is temporary and only used to transmit profiles from one another.");
-            AddParagraph(
-                contentStack,
-                "SPARK can and will permanently block access to GW2 accounts who misuse the service or make profiles/statuses that promote hate or bigotry.");
+                "Privacy",
+                false,
+                "The 'Invisible' status removes your info from the online user list. Hide my location sets your location to 'Hidden' for privacy.",
+                "If you block someone, all profiles on that GW2 account get filtered. Blocked users can only see the last profile they ever saw from you, if any. They won't ever receive your profile updates or information.");
 
-            AddHeading(contentStack, "Questions / Feedback");
-            AddParagraph(
+            AddSection(
                 contentStack,
-                "Any feedback can be sent to Bat.8570 in-game, or emailed to taw@a-bat.com. Online profiles can be reported from the profile viewer, which sends a short reason and snapshots the profile on the SPARK server for review.");
+                "Saved Data",
+                false,
+                "Your profiles and any viewed profiles get saved locally to your PC. When your profile syncs to the server, it only transmits the information in the profile, plus your RP status, account name, character name, and location (if not hidden).",
+                "Your profile data is removed from the SPARK server after 24 hours of being offline. The webserver does not retain user data, except reported profiles for moderation purposes. Your information only used to transmit profiles to other players.",
+                "SPARK does NOT use analytics, tracking, and will never use your data for machine learning or AI.");
+
+            AddSection(
+                contentStack,
+                "Questions / Feedback",
+                false,
+                "Any feedback can be sent to Bat.8570 in-game, or emailed to taw@a-bat.com.");
         }
-
-        private static void AddHeading(FlowPanel parent, string text)
-        {
-            AddHeading(
-                parent,
-                text,
-                GameService.Content.DefaultFont16);
-        }
-
-        private static void AddHeading(FlowPanel parent, string text, BitmapFont font)
-        {
-            new Label
-            {
-                Text = text ?? string.Empty,
-                Width = GetTextWidth(parent),
-                Font = font,
-                TextColor = Color.White,
-                StrokeText = true,
-                AutoSizeHeight = true,
-                Parent = parent
-            };
-        }
-
         private static void AddParagraph(FlowPanel parent, string text)
         {
             new Label
@@ -97,6 +90,31 @@ namespace rp.spark.UI.Views
         private static int GetTextWidth(FlowPanel parent)
         {
             return parent.ContentRegion.Width - ContentPadding * 2;
+        }
+
+        private static void AddSection(FlowPanel parent, string title, bool expandedByDefault, params string[] paragraphs)
+        {
+            var section = new FlowPanel
+            {
+                Parent = parent,
+                Width = GetTextWidth(parent),
+                HeightSizingMode = SizingMode.AutoSize,
+                AutoSizePadding = new Point(0, 10),
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
+                ControlPadding = new Vector2(0, 8),
+                OuterControlPadding = new Vector2(8, 10),
+                ShowBorder = true,
+                CanCollapse = true,
+                Title = title ?? string.Empty
+            };
+
+            foreach (var paragraph in paragraphs)
+                AddParagraph(section, paragraph);
+
+            if (expandedByDefault)
+                section.Expand();
+            else
+                section.Collapse();
         }
     }
 }

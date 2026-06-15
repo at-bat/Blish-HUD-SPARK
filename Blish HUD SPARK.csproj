@@ -107,6 +107,7 @@
     <Compile Include="UI\Controls\AssetIcon.cs" />
     <Compile Include="UI\Controls\ProfileScrollList.cs" />
     <Compile Include="UI\SparkWindows.cs" />
+    <Compile Include="UI\Views\SparkBlocklistView.cs" />
     <Compile Include="UI\WindowBuilder.cs" />
     <Compile Include="UI\Views\GlanceTooltipView.cs" />
     <Compile Include="UI\Views\SparkAboutView.cs" />
