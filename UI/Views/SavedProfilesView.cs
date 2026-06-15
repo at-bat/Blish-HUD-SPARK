@@ -177,17 +177,20 @@ namespace rp.spark.UI.Views
             var tooltipText = TooltipText(savedProfile);
             var row = _profileList.AddRow(index, tooltipText);
 
-            MakeClickable(row, savedProfile, tooltipText);
-
+            // Quick fix for clickthrough on remove bookmark also opening profiles
+            // The last segment of the bookmark row is non-clickable for profile opening, not sure if there's a better way to handle this
             if (_mode == SavedProfilesMode.Bookmarks)
             {
                 MakeClickable(_profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 8, 8, 210, Color.White), savedProfile, tooltipText);
                 MakeClickable(_profileList.AddCell(row, ProfileText.SavedRace(savedProfile), 225, 8, 95, new Color(220, 220, 220)), savedProfile, tooltipText);
                 MakeClickable(_profileList.AddCell(row, ProfileText.SavedAccountName(savedProfile), 330, 8, 160, new Color(220, 220, 220)), savedProfile, tooltipText);
                 MakeClickable(_profileList.AddCell(row, GetSavedTime(savedProfile), 500, 8, 135, new Color(220, 220, 220)), savedProfile, tooltipText);
+
                 AddRemoveButton(row, savedProfile);
                 return;
             }
+
+            MakeClickable(row, savedProfile, tooltipText);
 
             AddBookmarkMarker(row, savedProfile, tooltipText);
             MakeClickable(_profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 30, 8, 210, Color.White), savedProfile, tooltipText);
