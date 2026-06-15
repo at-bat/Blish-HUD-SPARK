@@ -30,6 +30,24 @@ namespace rp.spark.UI.Views
 
             AddSection(
                 contentStack,
+                "SPARK Content Guidelines / Policies",
+                false,
+                "SPARK offers a report function and a block function to help curate your experience when using the tool.",
+                "By using SPARK, you agree to the following:",
+                " ",
+                "1. No hate speech or bigotry",
+                "Profiles may not include racist, sexist, homophobic, transphobic, ableist, or otherwise discriminatory content.",
+                " ",
+                "2. No harassment or targeted abuse",
+                "Do not make profiles that insults, shames, threatens, stalks, or attempts to organize/coordinate harassment against another player.",
+                " ",
+                "3. No abusive sexual content",
+                "Sexual content involving minors (real or fictional underage characters) is strictly prohibited.",
+                " ",
+                "SPARK may permanently block access to this service to any GW2 account that breaks these rules.");
+
+            AddSection(
+                contentStack,
                 "Profile sharing",
                 false,
                 "When 'Share my profile' is enabled, SPARK publishes your active profile and information to the SPARK service. If your online status is invisible, this will no longer publish.");
@@ -48,24 +66,6 @@ namespace rp.spark.UI.Views
                 "Your profiles and any viewed profiles get saved locally to your PC. When your profile syncs to the server, it only transmits the information in the profile, plus your RP status, account name, character name, and location (if not hidden).",
                 "Your profile data is removed from the SPARK server after 24 hours of being offline. The webserver does not retain user data, except reported profiles for moderation purposes. Your information only used to transmit profiles to other players.",
                 "SPARK does NOT use analytics, tracking, and will never use your data for machine learning or AI.");
-
-            AddSection(
-                contentStack,
-                "SPARK Content Guidelines / Policies",
-                false,
-                "SPARK offers a report function and a block function to help curate your experience when using the tool.",
-                "By using SPARK, you agree to the following:",
-                " ",
-                "1. No hate speech or bigotry",
-                "Profiles may not include racist, sexist, homophobic, transphobic, ableist, or otherwise discriminatory content.",
-                " ",
-                "2. No harassment or targeted abuse",
-                "Do not make profiles with names, descriptions, or any information that insults, shames, threatens, stalks, or attempts to organize harassment against another player.",
-                " ",
-                "3. No abusive sexual content",
-                "Sexual content involving minors (real or fictional underage characters) is strictly prohibited.",
-                " ",
-                "SPARK may permanently block access to this service to any GW2 account that breaks these rules.");
 
             AddSection(
                 contentStack,
@@ -92,7 +92,6 @@ namespace rp.spark.UI.Views
             return parent.ContentRegion.Width - ContentPadding * 2;
         }
 
-        // Figured out how to make collapsible sections to make this more tidy
         private static void AddSection(FlowPanel parent, string title, bool expandedByDefault, params string[] paragraphs)
         {
             var section = new FlowPanel

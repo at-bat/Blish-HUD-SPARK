@@ -209,9 +209,8 @@ namespace rp.spark.UI.Views
                 };
             }
 
-            // Copy the account name for them to whisper
             // Removed virtual keypress system to attempt to set up /w <name> since it was buggy
-            var whisperButton = new StandardButton
+            var copyNameButton = new StandardButton
             {
                 Text = "Copy Name",
                 Location = new Point(405, 8),
@@ -220,7 +219,7 @@ namespace rp.spark.UI.Views
             };
 
             SparkUiActions.BindClick(
-                whisperButton,
+                copyNameButton,
                 CopyAccountNameAsync,
                 SetStatusText,
                 "Couldn't copy the account name right now.");
