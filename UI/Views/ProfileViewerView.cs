@@ -519,7 +519,7 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeProfileTraitTooltip(string title, string description)
         {
-            return new Tooltip(new GlanceTooltipView(title, description));
+            return new Tooltip(new ProfileTooltipView(title, description));
         }
 
         private static void AddProfileTraitSeparator(Container parent, ref int x, int y)
@@ -610,7 +610,7 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeGlanceTooltip(AtAGlanceEntry entry)
         {
-            return new Tooltip(new GlanceTooltipView(entry?.Title, entry?.Description));
+            return new Tooltip(new ProfileTooltipView(entry?.Title, entry?.Description, "At A Glance"));
         }
 
         private string GetBookmarkButtonText()

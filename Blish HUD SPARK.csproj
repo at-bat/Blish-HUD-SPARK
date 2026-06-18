@@ -111,7 +111,7 @@
     <Compile Include="UI\Views\ProfileStatusColors.cs" />
     <Compile Include="UI\Views\SparkBlocklistView.cs" />
     <Compile Include="UI\WindowBuilder.cs" />
-    <Compile Include="UI\Views\GlanceTooltipView.cs" />
+    <Compile Include="UI\Views\ProfileTooltipView.cs" />
     <Compile Include="UI\Views\SparkAboutView.cs" />
     <Compile Include="UI\Views\ProfileEditorView.cs" />
     <Compile Include="UI\Views\ProfileEditorPreferencesView.cs" />

@@ -233,7 +233,7 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeGlanceTooltip(AtAGlanceEntry entry)
         {
-            return new Tooltip(new GlanceTooltipView(entry?.Title, entry?.Description));
+            return new Tooltip(new ProfileTooltipView(entry?.Title, entry?.Description, "At a Glance"));
         }
 
         private void EditGlance(int index)
