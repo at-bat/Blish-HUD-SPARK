@@ -211,7 +211,7 @@ namespace rp.spark.UI.Views
 
         private void OnBlockedAccountsChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshBlockedAccountCount();
@@ -259,7 +259,7 @@ namespace rp.spark.UI.Views
                     return;
                 }
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
                     if (!_isUnloaded)
                         RefreshApiKeyWarning();
@@ -284,7 +284,7 @@ namespace rp.spark.UI.Views
 
         private void OnServerStatus(ServerSyncStatus status)
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshServerStatus(status);
@@ -320,7 +320,7 @@ namespace rp.spark.UI.Views
 
         private void OnGameStateChanged(object sender, EventArgs e)
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshApiKeyWarning();

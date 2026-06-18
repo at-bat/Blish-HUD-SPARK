@@ -355,7 +355,11 @@ namespace rp.spark.UI
                 if (_isDisposed)
                     return;
 
-                ShowProfileViewer(viewData);
+                SparkUiThread.Queue(() =>
+                {
+                    if (!_isDisposed)
+                        ShowProfileViewer(viewData);
+                });
             }
             catch (OperationCanceledException)
             {
@@ -374,10 +378,11 @@ namespace rp.spark.UI
                 var record = _profileCache.Load(summary?.CacheKey);
                 var viewData = await _profileLoader.LoadSavedProfileAsync(record);
 
-                if (_isDisposed)
-                    return;
-
-                ShowProfileViewer(viewData);
+                SparkUiThread.Queue(() =>
+                {
+                    if (!_isDisposed)
+                        ShowProfileViewer(viewData);
+                });
             }
             catch (OperationCanceledException)
             {

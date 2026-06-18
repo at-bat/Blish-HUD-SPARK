@@ -772,8 +772,14 @@ namespace rp.spark.UI.Views
                     ? "Report failed."
                     : await _reportProfile(_profile, _presence, reason);
 
-                SetStatusText(message);
-                CloseReportPanel();
+                SparkUiThread.Queue(() =>
+                {
+                    if (_contentPanel == null)
+                        return;
+
+                    SetStatusText(message);
+                    CloseReportPanel();
+                });
             }
             finally
             {
@@ -795,8 +801,11 @@ namespace rp.spark.UI.Views
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Spark report failed");
-                if (popupStatus != null)
-                    popupStatus.Text = "Report failed. Please try again.";
+                SparkUiThread.Queue(() =>
+                {
+                    if (_contentPanel != null && popupStatus != null)
+                        popupStatus.Text = "Report failed. Please try again.";
+                });
             }
         }
 
@@ -965,15 +974,19 @@ namespace rp.spark.UI.Views
                 return;
             }
 
+            string statusText;
+
             try
             {
                 await CopyTextAsync(accountName.Trim());
-                _status.Text = $"Copied {accountName.Trim()}.";
+                statusText = $"Copied {accountName.Trim()}.";
             }
             catch
             {
-                _status.Text = "Couldn't copy the account name right now.";
+                statusText = "Couldn't copy the account name right now.";
             }
+
+            SparkUiThread.Queue(() => SetStatusText(statusText));
         }
 
         private void SetStatusText(string text)

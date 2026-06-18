@@ -129,7 +129,7 @@ namespace rp.spark.UI.Views
 
         private void HandleSavedProfilesChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshRows();

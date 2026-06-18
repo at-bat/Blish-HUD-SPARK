@@ -179,14 +179,23 @@ namespace rp.spark.UI.Views
 
         private void HandleStatusChanged(string statusText)
         {
-            if (_status != null)
-                _status.Text = statusText ?? string.Empty;
+            SparkUiThread.Queue(() =>
+            {
+                if (_status?.Parent != null)
+                    _status.Text = statusText ?? string.Empty;
+            });
         }
 
         private void HandleProfileChanged()
         {
-            _deleteConfirmArmed = false;
-            RefreshFromSession();
+            SparkUiThread.Queue(() =>
+            {
+                if (_profileDropdown?.Parent == null)
+                    return;
+
+                _deleteConfirmArmed = false;
+                RefreshFromSession();
+            });
         }
 
         private void RefreshFromSession()

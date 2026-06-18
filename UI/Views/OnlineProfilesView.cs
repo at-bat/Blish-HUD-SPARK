@@ -128,7 +128,7 @@ namespace rp.spark.UI.Views
 
         private void HandleBookmarksChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime => RefreshVisibleRows(false));
+            SparkUiThread.Queue(() => RefreshVisibleRows(false));
         }
 
         private void StartRefresh()
@@ -213,7 +213,7 @@ namespace rp.spark.UI.Views
                 if (_isUnloaded)
                     return;
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
                     if (_profileList == null || _status == null || _isUnloaded)
                         return;
@@ -231,7 +231,7 @@ namespace rp.spark.UI.Views
                 if (_isUnloaded)
                     return;
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
                     if (_profileList == null || _status == null || _isUnloaded)
                         return;
@@ -273,7 +273,7 @@ namespace rp.spark.UI.Views
             if (cachedRows == null || cachedRows.Count == 0)
                 return false;
 
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_profileList == null || _status == null || _isUnloaded)
                     return;
@@ -483,7 +483,7 @@ namespace rp.spark.UI.Views
             if (_status == null || _isUnloaded)
                 return;
 
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_status != null && !_isUnloaded)
                     _status.Text = text ?? string.Empty;

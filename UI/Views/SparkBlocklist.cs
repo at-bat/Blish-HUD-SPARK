@@ -76,7 +76,7 @@ namespace rp.spark.UI.Views
 
         private void OnBlocksChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isDisposed)
                     Refresh();

@@ -188,31 +188,37 @@ namespace rp.spark
         {
             RefreshPresenceSoon();
 
-            if (_windows == null
-                || !_windows.IsProfileViewerVisible
-                || !_windows.IsViewingProfile(savedProfile))
-                return;
+            SparkUiThread.Queue(() =>
+            {
+                if (_windows == null
+                    || !_windows.IsProfileViewerVisible
+                    || !_windows.IsViewingProfile(savedProfile))
+                    return;
 
-            var state = _playerState.GetCached();
-            _windows.ShowProfileViewer(_profileLoader.BuildLocal(savedProfile, state));
+                var state = _playerState.GetCached();
+                _windows.ShowProfileViewer(_profileLoader.BuildLocal(savedProfile, state));
+            });
         }
 
         private void ActiveProfileChanged(string accountName, string officialCharacterName, string profileId)
         {
             RefreshPresenceSoon();
 
-            if (_windows == null || !_windows.IsProfileViewerVisible)
-                return;
+            SparkUiThread.Queue(() =>
+            {
+                if (_windows == null || !_windows.IsProfileViewerVisible)
+                    return;
 
-            if (!_windows.IsViewingCharacter(officialCharacterName))
-                return;
+                if (!_windows.IsViewingCharacter(officialCharacterName))
+                    return;
 
-            var state = _playerState.GetCached();
-            var profile = string.IsNullOrWhiteSpace(profileId)
-                ? null
-                : _profileRepository.Load(profileId);
+                var state = _playerState.GetCached();
+                var profile = string.IsNullOrWhiteSpace(profileId)
+                    ? null
+                    : _profileRepository.Load(profileId);
 
-            _windows.ShowProfileViewer(_profileLoader.BuildLocal(profile, state));
+                _windows.ShowProfileViewer(_profileLoader.BuildLocal(profile, state));
+            });
         }
 
         private void EnsurePlayerStateLoad()
@@ -327,7 +333,7 @@ namespace rp.spark
 
         private void CloseGameplayWindowsIfUnavailableSoon()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_windows?.ShouldHideGameplayWindows() == true)
                     _windows.CloseGameplayWindows();
