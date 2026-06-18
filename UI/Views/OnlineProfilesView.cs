@@ -138,23 +138,20 @@ namespace rp.spark.UI.Views
             _autoRefreshWorker = AutoRefreshAsync(_refreshCancellation.Token);
         }
 
-        private void StopRefresh()
+        private Task StopRefresh()
         {
             var cancellation = _refreshCancellation;
-            var autoWorker = _autoRefreshWorker;
-            var refreshWorker = _refreshWorker;
+            var workers = Task.WhenAll(
+                new[] { _autoRefreshWorker, _refreshWorker }
+                    .Where(task => task != null));
 
             _refreshCancellation = null;
             _autoRefreshWorker = null;
             _refreshWorker = null;
 
-            if (cancellation == null)
-                return;
-
-            cancellation.Cancel();
-
-            var cleanupWorker = Task.WhenAll(new[] { autoWorker, refreshWorker }.Where(task => task != null));
-            TaskCleanup.DisposeWhenComplete(cleanupWorker, cancellation);
+            cancellation?.Cancel();
+            TaskCleanup.DisposeWhenComplete(workers, cancellation);
+            return workers;
         }
 
         private async Task AutoRefreshAsync(CancellationToken cancellationToken)
@@ -460,7 +457,7 @@ namespace rp.spark.UI.Views
         {
             _isUnloaded = true;
             _unwatchBookmarks?.Invoke(HandleBookmarksChanged);
-            StopRefresh();
+            TaskCleanup.DisposeWhenComplete(StopRefresh(), _refreshGate);
         }
 
         private void SetStatusText(string text)

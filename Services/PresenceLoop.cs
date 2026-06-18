@@ -122,9 +122,17 @@ namespace rp.spark.Services
             StatusChanged?.Invoke(LastStatus);
         }
 
+        private bool _isDisposed;
+
         public void Dispose()
         {
+            if (_isDisposed)
+                return;
+
+            _isDisposed = true;
+            var worker = _worker;
             Stop();
+            TaskCleanup.DisposeWhenComplete(worker, _refreshGate);
         }
     }
 }

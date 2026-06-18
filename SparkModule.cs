@@ -110,8 +110,8 @@ namespace rp.spark
             _serviceHost.Add(_iconIndex, service => service.Start());
             _serviceHost.Add(_presenceLoop, service => service.Start());
             _serviceHost.Add(_tokens);
-            _serviceHost.Add(_sync, service => service.Start());
             _serviceHost.Add(_profileActions, service => service.Start());
+            _serviceHost.Add(_sync, service => service.Start());
 
             _windows = new SparkWindows(
                 new WindowBuilder(),

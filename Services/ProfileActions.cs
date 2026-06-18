@@ -627,11 +627,10 @@ namespace rp.spark.Services
             _blockSyncCancellation = null;
             _blockSyncWorker = null;
 
-            if (cancellation != null)
-            {
-                cancellation.Cancel();
-                TaskCleanup.DisposeWhenComplete(worker, cancellation);
-            }
+            cancellation?.Cancel();
+
+            TaskCleanup.DisposeWhenComplete(worker, cancellation);
+            TaskCleanup.DisposeWhenComplete(worker, _fullBlockSyncGate);
         }
     }
 }
