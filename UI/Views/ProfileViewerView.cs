@@ -355,7 +355,7 @@ namespace rp.spark.UI.Views
             {
                 Text = statusText,
                 Font = GameService.Content.DefaultFont18,
-                TextColor = GetStatusColor(_presence.Status),
+                TextColor = ProfileStatusColors.Get(_presence.Status),
                 StrokeText = true,
                 WrapText = false,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -369,21 +369,6 @@ namespace rp.spark.UI.Views
         {
             return (int)Math.Ceiling(
                 GameService.Content.DefaultFont18.MeasureString(text ?? string.Empty).Width) + 2;
-        }
-
-        private static Color GetStatusColor(RPStatus status)
-        {
-            switch (status)
-            {
-                case RPStatus.Looking:
-                    return new Color(150, 255, 80);
-                case RPStatus.Busy:
-                    return new Color(255, 150, 40);
-                case RPStatus.Offline:
-                    return new Color(160, 160, 160);
-                default:
-                    return new Color(120, 210, 255);
-            }
         }
 
         private void BuildBody(Container buildPanel)

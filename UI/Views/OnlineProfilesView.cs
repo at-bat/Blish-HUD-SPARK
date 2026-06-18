@@ -332,7 +332,7 @@ namespace rp.spark.UI.Views
             MakeClickable(_profileList.AddCell(row, presence.VisibleName(), 30, 7, 163, Color.White), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, ProfileText.PresenceRace(presence), 200, 7, 95, new Color(220, 220, 220)), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, presence.AccountName, 305, 7, 140, new Color(220, 220, 220)), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, GetStatusColor(presence.Status)), presence, tooltipText);
+            MakeClickable(_profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, ProfileText.PresenceLocation(presence), 570, 7, 180, new Color(220, 220, 220)), presence, tooltipText);
         }
 
@@ -454,21 +454,6 @@ namespace rp.spark.UI.Views
             }
 
             return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
-        }
-
-        private static Color GetStatusColor(RPStatus status)
-        {
-            switch (status)
-            {
-                case RPStatus.Looking:
-                    return new Color(160, 255, 180);
-                case RPStatus.Busy:
-                    return new Color(255, 210, 120);
-                case RPStatus.Offline:
-                    return new Color(160, 160, 160);
-                default:
-                    return new Color(220, 220, 220);
-            }
         }
 
         protected override void Unload()
