@@ -130,9 +130,7 @@ namespace rp.spark.Services
                 return;
 
             _isDisposed = true;
-            var worker = _worker;
             Stop();
-            TaskCleanup.DisposeWhenComplete(worker, _refreshGate);
         }
     }
 }

@@ -34,8 +34,6 @@ namespace rp.spark.UI.Views
 
         private bool _isUnloaded;
         private CancellationTokenSource _refreshCancellation;
-        private Task _autoRefreshWorker;
-        private Task _refreshWorker;
         private IReadOnlyList<PlayerPresence> _rows = new List<PlayerPresence>();
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
@@ -135,23 +133,15 @@ namespace rp.spark.UI.Views
         {
             StopRefresh();
             _refreshCancellation = new CancellationTokenSource();
-            _autoRefreshWorker = AutoRefreshAsync(_refreshCancellation.Token);
+            _ = AutoRefreshAsync(_refreshCancellation.Token);
         }
 
-        private Task StopRefresh()
+        private void StopRefresh()
         {
             var cancellation = _refreshCancellation;
-            var workers = Task.WhenAll(
-                new[] { _autoRefreshWorker, _refreshWorker }
-                    .Where(task => task != null));
-
             _refreshCancellation = null;
-            _autoRefreshWorker = null;
-            _refreshWorker = null;
 
             cancellation?.Cancel();
-            TaskCleanup.DisposeWhenComplete(workers, cancellation);
-            return workers;
         }
 
         private async Task AutoRefreshAsync(CancellationToken cancellationToken)
@@ -170,14 +160,11 @@ namespace rp.spark.UI.Views
             }
         }
 
-        private async Task RefreshAsync(bool resetScroll)
+        private Task RefreshAsync(bool resetScroll)
         {
-            var refreshTask = RefreshAsync(
+            return RefreshAsync(
                 resetScroll,
                 _refreshCancellation?.Token ?? CancellationToken.None);
-
-            _refreshWorker = refreshTask;
-            await refreshTask;
         }
 
         private async Task RefreshAsync(bool resetScroll, CancellationToken cancellationToken)
@@ -457,7 +444,7 @@ namespace rp.spark.UI.Views
         {
             _isUnloaded = true;
             _unwatchBookmarks?.Invoke(HandleBookmarksChanged);
-            TaskCleanup.DisposeWhenComplete(StopRefresh(), _refreshGate);
+            StopRefresh();
         }
 
         private void SetStatusText(string text)
