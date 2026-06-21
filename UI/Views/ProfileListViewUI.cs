@@ -5,6 +5,7 @@ using rp.spark.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace rp.spark.UI.Views
 {
@@ -31,6 +32,10 @@ namespace rp.spark.UI.Views
 
         private static readonly Color SecondaryTextColor = new Color(220, 220, 220);
         private static readonly Color HeaderTextColor = new Color(255, 233, 180);
+
+        // Time before we submit the search for filtering
+        // 250ms felt too quick, 450ms might be okay for now
+        private const int SearchDebounceMilliseconds = 450;
 
         public static void AddTitle(Container parent, string text, int width)
         {
@@ -73,7 +78,18 @@ namespace rp.spark.UI.Views
                 Parent = parent
             };
 
-            searchBox.TextChanged += (s, e) => changed?.Invoke();
+            var searchChangeVersion = 0;
+
+            searchBox.TextChanged += (s, e) =>
+            {
+                var scheduledVersion = ++searchChangeVersion;
+
+                _ = QueueDebouncedAsync(() =>
+                {
+                    if (scheduledVersion == searchChangeVersion)
+                        changed?.Invoke();
+                });
+            };
 
             var searchFieldDropdown = new Dropdown
             {
@@ -84,7 +100,11 @@ namespace rp.spark.UI.Views
 
             AddOptions(searchFieldDropdown, searchOptions);
             searchFieldDropdown.SelectedItem = SearchAllFields;
-            searchFieldDropdown.ValueChanged += (s, e) => changed?.Invoke();
+            searchFieldDropdown.ValueChanged += (s, e) =>
+            {
+                searchChangeVersion++;
+                changed?.Invoke();
+            };
 
             new Label
             {
@@ -106,7 +126,11 @@ namespace rp.spark.UI.Views
             var sortOptionList = (sortOptions ?? Enumerable.Empty<string>()).ToList();
             AddOptions(sortDropdown, sortOptionList);
             sortDropdown.SelectedItem = selectedSortOption ?? sortOptionList.FirstOrDefault();
-            sortDropdown.ValueChanged += (s, e) => changed?.Invoke();
+            sortDropdown.ValueChanged += (s, e) =>
+            {
+                searchChangeVersion++;
+                changed?.Invoke();
+            };
 
             return new ProfileListSearchControls(searchBox, searchFieldDropdown, sortDropdown);
         }
@@ -162,6 +186,13 @@ namespace rp.spark.UI.Views
         {
             foreach (var option in options ?? Enumerable.Empty<string>())
                 dropdown.Items.Add(option);
+        }
+
+        // Fix search/sorting from rebuilding every keypress with a debounce
+        private static async Task QueueDebouncedAsync(Action action)
+        {
+            await Task.Delay(SearchDebounceMilliseconds);
+            SparkUiThread.Queue(action);
         }
     }
 

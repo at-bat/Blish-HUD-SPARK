@@ -500,7 +500,7 @@ namespace rp.spark
                 return string.Empty;
 
             return SparkWindows.IsLoadingScreen()
-                ? "SPARK profile tools are unavailable during loading screens."
+                ? "SPARK profile tools are unavailable during loading screens or character select."
                 : "Load into the game on a character to use SPARK.";
         }
 
