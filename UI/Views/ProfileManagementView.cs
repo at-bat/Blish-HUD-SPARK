@@ -15,12 +15,10 @@ namespace rp.spark.UI.Views
         private const int FormWidth = 760;
         private const int FormHeight = 275;
         private const int StatusY = 300;
-        private const int ApiKeyWarningHeight = 44;
 
         private readonly ProfileEditorSession _session;
 
         private Label _status;
-        private Label _apiKeyWarning;
         private Label _activeStatus;
         private Label _profileTip;
         private Dropdown _profileDropdown;
@@ -43,7 +41,6 @@ namespace rp.spark.UI.Views
             }
 
             var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, FormWidth, FormHeight, 15);
-            BuildApiKeyWarning(form);
 
             var profileGroup = SparkFormLayout.AddAutoStack(form, FormWidth, 0);
 
@@ -92,19 +89,6 @@ namespace rp.spark.UI.Views
             _session.StatusChanged += HandleStatusChanged;
             _session.ProfileChanged += HandleProfileChanged;
             RefreshFromSession();
-        }
-
-        private void BuildApiKeyWarning(FlowPanel form)
-        {
-            _apiKeyWarning = SparkFormLayout.AddLabel(
-                form,
-                string.Empty,
-                FormWidth,
-                ApiKeyWarningHeight,
-                GameService.Content.DefaultFont16,
-                SparkViewUI.WarningTextColor,
-                true);
-            _apiKeyWarning.WrapText = true;
         }
 
         private void BuildActions(Container buildPanel)
@@ -211,7 +195,6 @@ namespace rp.spark.UI.Views
                     ? "Active for broadcast"
                     : "Not active for broadcast";
                 _profileTip.Text = GetProfileTip();
-                RefreshApiKeyWarning();
             }
             finally
             {
@@ -297,17 +280,5 @@ namespace rp.spark.UI.Views
 
             return "Tip: You can make multiple profiles per character and set whichever one to active depending on who you want to RP as today!";
         }
-
-        private void RefreshApiKeyWarning()
-        {
-            if (_apiKeyWarning == null)
-                return;
-
-            var showWarning = !_session.InitialState.HasCharactersPermission;
-            _apiKeyWarning.Text = showWarning ? SparkViewUI.MissingApiKeyWarning : string.Empty;
-            _apiKeyWarning.Height = showWarning ? ApiKeyWarningHeight : 0;
-            _apiKeyWarning.Visible = showWarning;
-        }
-
     }
 }

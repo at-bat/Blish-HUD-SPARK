@@ -9,7 +9,6 @@ namespace rp.spark.UI.Views
     {
         public static readonly Color SecondaryTextColor = new Color(220, 220, 220);
         public static readonly Color WarningTextColor = new Color(255, 170, 40);
-        public const string MissingApiKeyWarning = "No API key! Click 'Manage API Keys' on Blish HUD and add a key to use SPARK!";
 
         public static Label AddLabel(
             Container parent,

@@ -471,9 +471,7 @@ namespace rp.spark
             if (!string.IsNullOrWhiteSpace(unavailableReason))
                 return unavailableReason;
 
-            return HasValidApiKey()
-                ? string.Empty
-                : "Add your GW2 API key to Blish HUD to use SPARK!";
+            return GetApiStatus(state);
         }
 
         private bool IsGameplayUiBlockingSpark()
@@ -502,6 +500,29 @@ namespace rp.spark
             return SparkWindows.IsLoadingScreen()
                 ? "SPARK profile tools are unavailable during loading screens or character select."
                 : "Load into the game on a character to use SPARK.";
+        }
+
+        // Adding new status messages based on API for clarity
+        private string GetApiStatus(PlayerState state)
+        {
+            var stateTask = _initialStateTask;
+
+            if (stateTask != null && !stateTask.IsCompleted)
+                return "Checking GW2 API account and character permissions...";
+
+            if (!HasValidApiKey())
+                return "Waiting for GW2 API access from Blish HUD. Add an API key with account and characters permissions.";
+
+            if (state == null || !state.HasCharactersPermission)
+                return "Refreshing GW2 API permissions...";
+
+            if (string.IsNullOrWhiteSpace(state.AccountName))
+                return "Waiting for GW2 account verification...";
+
+            if (!state.IsCharacterApiVerified)
+                return "Waiting for current character verification from the GW2 API...";
+
+            return string.Empty;
         }
 
         protected override void Unload()
