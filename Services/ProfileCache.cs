@@ -16,6 +16,10 @@ namespace rp.spark.Services
     {
         private static readonly Logger Logger = Logger.GetLogger<ProfileCache>();
 
+        // Adding in cache limits for unbookmarked profiles to keep this growing indefinitely
+        private const int MaxRecentProfiles = 250;
+        private static readonly TimeSpan RecentProfileMaxAge = TimeSpan.FromDays(180);
+
         private readonly string _cacheDirectory;
         private readonly ProfileValidator _validator;
         private readonly object _cacheLock = new object();
@@ -95,7 +99,7 @@ namespace rp.spark.Services
                 return NormalizeLoadedRecord(record, path);
 
             if (record != null)
-                Logger.Warn("Skipping unsupported SPARK cached profile file at {path}.", path);
+                Logger.Warn("Skipping unsupported SPARK cached profile at {path}.", path);
 
             return null;
         }
@@ -209,25 +213,195 @@ namespace rp.spark.Services
         }
 
         // This index contains only what we need to fill in each row, sorting, searching, and bookmark checks to keep it light.
-        // If duplicate files use the same cache key, we only keep the newest.
+        // If duplicate files use the same cache key, we only keep the newest version and discard the previous.
         private Dictionary<string, ProfileCacheEntry> ReadIndex()
         {
-            var index = new Dictionary<string, ProfileCacheEntry>(StringComparer.OrdinalIgnoreCase);
+            var entries = FileStore
+                .GetFiles(_cacheDirectory, Logger, "SPARK cached profile")
+                .Select(ReadIndexEntry)
+                .Where(entry =>
+                    entry?.Summary != null
+                    && !string.IsNullOrWhiteSpace(entry.Summary.CacheKey))
+                .ToList();
 
-            foreach (var entry in FileStore.GetFiles(_cacheDirectory, Logger, "SPARK cached profile")
-                         .Select(ReadIndexEntry)
-                         .Where(entry => entry?.Summary != null && !string.IsNullOrWhiteSpace(entry.Summary.CacheKey)))
+            var indexEntries = new List<ProfileCacheEntry>();
+            var removedCount = 0;
+
+            foreach (var group in entries.GroupBy(
+                         entry => NormalizeCacheKey(entry.Summary.CacheKey),
+                         StringComparer.OrdinalIgnoreCase))
             {
-                var cacheKey = NormalizeCacheKey(entry.Summary.CacheKey);
+                var ordered = group
+                    .OrderByDescending(entry => entry.Summary.CachedAt)
+                    .ToList();
 
-                if (string.IsNullOrWhiteSpace(cacheKey))
+                // When a duplicate group contains a bookmark, retain every file
+                // and use the newest bookmarked entry in the index.
+                var bookmarkedEntry = ordered
+                    .FirstOrDefault(entry => entry.Summary.IsBookmarked);
+
+                if (bookmarkedEntry != null)
+                {
+                    indexEntries.Add(bookmarkedEntry);
                     continue;
+                }
 
-                if (!index.TryGetValue(cacheKey, out var existing) || entry.Summary.CachedAt >= existing.Summary.CachedAt)
+                // With no bookmarks involved, keep only the newest duplicate.
+                indexEntries.Add(ordered[0]);
+
+                foreach (var duplicate in ordered.Skip(1))
+                {
+                    if (TryDeleteCacheEntry(duplicate))
+                        removedCount++;
+                }
+            }
+
+            var expirationCutoff =
+                DateTime.UtcNow.Subtract(RecentProfileMaxAge);
+
+            var expiredEntries = indexEntries
+                .Where(entry =>
+                    !entry.Summary.IsBookmarked
+                    && entry.Summary.CachedAt < expirationCutoff)
+                .ToList();
+
+            removedCount += RemoveCacheEntries(
+                indexEntries,
+                expiredEntries);
+
+            var excessEntries = indexEntries
+                .Where(entry => !entry.Summary.IsBookmarked)
+                .OrderByDescending(entry => entry.Summary.CachedAt)
+                .Skip(MaxRecentProfiles)
+                .ToList();
+
+            removedCount += RemoveCacheEntries(
+                indexEntries,
+                excessEntries);
+
+            if (removedCount > 0)
+            {
+                Logger.Info(
+                    "Pruned {count} old or duplicate SPARK cached profile(s).",
+                    removedCount);
+            }
+
+            var index = new Dictionary<string, ProfileCacheEntry>(
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in indexEntries)
+            {
+                var cacheKey =
+                    NormalizeCacheKey(entry.Summary.CacheKey);
+
+                if (!string.IsNullOrWhiteSpace(cacheKey))
                     index[cacheKey] = entry;
             }
 
             return index;
+        }
+
+        private int RemoveCacheEntries(
+    List<ProfileCacheEntry> entries,
+    IEnumerable<ProfileCacheEntry> candidates)
+        {
+            var removedCount = 0;
+
+            foreach (var entry in candidates
+                         ?? Enumerable.Empty<ProfileCacheEntry>())
+            {
+                if (!TryDeleteCacheEntry(entry))
+                    continue;
+
+                entries.Remove(entry);
+                removedCount++;
+            }
+
+            return removedCount;
+        }
+
+        private int TrimRecent()
+        {
+            if (_indexByKey == null)
+                return 0;
+
+            var excessEntries = _indexByKey
+                .Values
+                .Where(entry =>
+                    entry?.Summary != null
+                    && !entry.Summary.IsBookmarked)
+                .OrderByDescending(entry => entry.Summary.CachedAt)
+                .Skip(MaxRecentProfiles)
+                .ToList();
+
+            var removedCount = 0;
+
+            foreach (var entry in excessEntries)
+            {
+                if (!TryDeleteCacheEntry(entry))
+                    continue;
+
+                _indexByKey.Remove(
+                    NormalizeCacheKey(entry.Summary.CacheKey));
+
+                removedCount++;
+            }
+
+            return removedCount;
+        }
+
+        private bool TryDeleteCacheEntry(ProfileCacheEntry entry)
+        {
+            if (entry?.Summary == null
+                || entry.Summary.IsBookmarked
+                || !IsManagedCachePath(entry.Path))
+            {
+                return false;
+            }
+
+            try
+            {
+                File.Delete(entry.Path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(
+                    "Failed to prune a SPARK cached profile ({errorType}).",
+                    ex.GetType().Name);
+
+                return false;
+            }
+        }
+
+        private bool IsManagedCachePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            try
+            {
+                var fullCacheDirectory = Path
+                    .GetFullPath(_cacheDirectory)
+                    .TrimEnd(
+                        Path.DirectorySeparatorChar,
+                        Path.AltDirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar;
+
+                var fullPath = Path.GetFullPath(path);
+
+                return fullPath.StartsWith(
+                           fullCacheDirectory,
+                           StringComparison.OrdinalIgnoreCase)
+                       && string.Equals(
+                           Path.GetExtension(fullPath),
+                           ".json",
+                           StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private ProfileCacheEntry ReadIndexEntry(string path)
@@ -242,7 +416,7 @@ namespace rp.spark.Services
                 };
 
             if (snapshot != null)
-                Logger.Warn("Skipping unsupported SPARK cached profile file at {path}.", path);
+                Logger.Warn("Skipping unsupported SPARK cached profile at {path}.", path);
 
             return null;
         }
@@ -271,22 +445,45 @@ namespace rp.spark.Services
             return summary;
         }
 
+        // Write now checks if we have more than 250 profiles
+        // If more than 250 non-bookmarked ones, we remove oldest
         private void Write(SavedProfile record)
         {
             var path = GetRecordPath(record);
 
-            if (!FileStore.TryWrite(path, record, Logger, "SPARK cached profile"))
-                throw new InvalidOperationException("Could not save the cached profile file. Check file permissions and try again.");
+            if (!FileStore.TryWrite(
+                    path,
+                    record,
+                    Logger,
+                    "SPARK cached profile"))
+            {
+                throw new InvalidOperationException(
+                    "Could not save the cached profile. Check file permissions and try again.");
+            }
 
             lock (_cacheLock)
             {
-                if (_indexByKey != null && !string.IsNullOrWhiteSpace(record.CacheKey))
+                if (_indexByKey == null
+                    || string.IsNullOrWhiteSpace(record.CacheKey))
                 {
-                    _indexByKey[NormalizeCacheKey(record.CacheKey)] = new ProfileCacheEntry
+                    return;
+                }
+
+                _indexByKey[NormalizeCacheKey(record.CacheKey)] =
+                    new ProfileCacheEntry
                     {
                         Path = path,
                         Summary = ToSummary(record)
                     };
+
+                var removedCount =
+                    TrimRecent();
+
+                if (removedCount > 0)
+                {
+                    Logger.Info(
+                        "Pruned {count} excess SPARK cached profile(s).",
+                        removedCount);
                 }
             }
         }
