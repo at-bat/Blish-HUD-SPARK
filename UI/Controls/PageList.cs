@@ -190,8 +190,7 @@ namespace rp.spark.UI.Controls
             _nextButton.Enabled = _pageList.PageIndex + 1 < pageCount;
 
             _pageLabel.Text =
-                $"Page {_pageList.PageIndex + 1} of {pageCount}."
-                + $" Total entries: {_itemCount}";
+                $"Page {_pageList.PageIndex + 1} of {pageCount}.";
         }
     }
 }

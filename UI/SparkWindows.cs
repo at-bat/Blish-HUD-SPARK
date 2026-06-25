@@ -313,7 +313,7 @@ namespace rp.spark.UI
             _onlineListWindow = _windowBuilder.MakeWindow(
                 "Online Profiles",
                 "rp.spark.online-list-window",
-                new Rectangle(70, 60, 839, 610));
+                new Rectangle(96, 22, 783, 654));
         }
 
         private void CreateSavedWindow()
