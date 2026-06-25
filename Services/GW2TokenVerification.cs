@@ -140,7 +140,7 @@ namespace rp.spark.Services
 
         public void Dispose()
         {
-            _tokenGate.Dispose();
+            Clear();
         }
     }
 }

@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace rp.spark.UI.Views
 {
-    internal class GlanceTooltipView : View, ITooltipView
+    internal class ProfileTooltipView : View, ITooltipView
     {
         private const int MinWidth = 220;
         private const int MaxWidth = 520;
@@ -26,9 +26,9 @@ namespace rp.spark.UI.Views
         private readonly string _title;
         private readonly string _description;
 
-        public GlanceTooltipView(string title, string description)
+        public ProfileTooltipView(string title, string description, string fallbackTitle = "Profile")
         {
-            _title = string.IsNullOrWhiteSpace(title) ? "At a Glance" : title.Trim();
+            _title = string.IsNullOrWhiteSpace(title) ? fallbackTitle : title.Trim();
             _description = string.IsNullOrWhiteSpace(description) ? "No description set." : description.Trim();
         }
 

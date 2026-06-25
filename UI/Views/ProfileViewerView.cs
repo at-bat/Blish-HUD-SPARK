@@ -123,6 +123,8 @@ namespace rp.spark.UI.Views
             var secondaryHeaderY = Layout.SecondaryHeaderY(wrappedHeader);
             var characterDetailsY = Layout.CharacterDetailsY(wrappedHeader);
             var metadataY = Layout.MetadataY(wrappedHeader);
+            var profileTraitsY = Layout.ProfileTraitsY(wrappedHeader);
+            var showProfileTraits = HasProfileTraits();
 
             var nameWidth = Math.Min(
                 500,
@@ -209,6 +211,9 @@ namespace rp.spark.UI.Views
                 };
             }
 
+            if (showProfileTraits)
+                BuildProfileTraits(buildPanel, profileTraitsY);
+
             // Removed virtual keypress system to attempt to set up /w <name> since it was buggy
             var copyNameButton = new StandardButton
             {
@@ -286,7 +291,16 @@ namespace rp.spark.UI.Views
                 Parent = buildPanel
             };
 
-            return wrappedHeader ? Layout.WrappedHeaderOffset : 0;
+            return (wrappedHeader ? Layout.WrappedHeaderOffset : 0)
+                 + (showProfileTraits ? Layout.ProfileTraitsOffset : 0);
+        }
+
+        private bool HasProfileTraits()
+        {
+            return _profile.Experience != ProfileExperience.Hidden
+                || _profile.Preferences != ProfilePreferenceFlags.None
+                || _profile.Themes != ProfileThemeFlags.None
+                || _profile.Styles != ProfileStyleFlags.None;
         }
 
         private void BuildGlance(Container buildPanel)
@@ -319,18 +333,42 @@ namespace rp.spark.UI.Views
                 return;
 
             var bounds = _layout.ProfileStatusBounds;
+            var statusText = ProfileLabels.StatusLabel(_presence.Status);
+            var statusWidth = GetStatusTextWidth(statusText);
+            var prefixWidth = GetStatusTextWidth("Status:");
+            var statusX = bounds.Right - statusWidth;
 
             new Label
             {
-                Text = $"Status: {ProfileLabels.StatusLabel(_presence.Status)}",
+                Text = "Status:",
                 Font = GameService.Content.DefaultFont18,
                 TextColor = new Color(255, 233, 180),
                 StrokeText = true,
                 WrapText = false,
-                Location = bounds.Location,
-                Size = bounds.Size,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Location = new Point(statusX - prefixWidth - Layout.StatusGap, bounds.Y),
+                Size = new Point(prefixWidth, bounds.Height),
                 Parent = buildPanel
             };
+
+            new Label
+            {
+                Text = statusText,
+                Font = GameService.Content.DefaultFont18,
+                TextColor = ProfileStatusColors.Get(_presence.Status),
+                StrokeText = true,
+                WrapText = false,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Location = new Point(statusX, bounds.Y),
+                Size = new Point(statusWidth, bounds.Height),
+                Parent = buildPanel
+            };
+        }
+
+        private static int GetStatusTextWidth(string text)
+        {
+            return (int)Math.Ceiling(
+                GameService.Content.DefaultFont18.MeasureString(text ?? string.Empty).Width) + 2;
         }
 
         private void BuildBody(Container buildPanel)
@@ -348,11 +386,6 @@ namespace rp.spark.UI.Views
             };
 
             var y = _layout.TextStartY;
-            y = AddHighlights(_scrollViewport, y);
-
-            if (y > _layout.TextStartY)
-                y += _layout.SectionGap;
-
             var currently = GetCurrentlyText();
             if (!string.IsNullOrWhiteSpace(currently))
             {
@@ -403,74 +436,139 @@ namespace rp.spark.UI.Views
             return AddWrappedLabel(parent, text, y, GameService.Content.DefaultFont16, _layout.TextLineHeight);
         }
 
-        private int AddHighlights(Container parent, int y)
+        private void BuildProfileTraits(Container parent, int y)
         {
-            var lines = HighlightLines().ToList();
+            var experienceSet = _profile.Experience != ProfileExperience.Hidden;
+            var preferences = SelectedPreferences(_profile.Preferences, Environment.NewLine);
+            var themes = SelectedThemes(_profile.Themes, Environment.NewLine);
+            var styles = SelectedStyles(_profile.Styles, Environment.NewLine);
+            var x = 0;
 
-            if (!lines.Any())
-                return y;
+            AddProfileTraitLabel(
+                parent,
+                ref x,
+                y,
+                experienceSet
+                    ? $"Experience: {ProfileLabels.GetExperienceLabel(_profile.Experience)}"
+                    : "Experience",
+                experienceSet
+                    ? null
+                    : MakeProfileTraitTooltip("Experience", "No experience set."),
+                experienceSet);
 
-            foreach (var line in lines)
-                y = AddSingleLine(parent, line, y);
+            AddProfileTraitSeparator(parent, ref x, y);
+            AddProfileTraitLabel(
+                parent,
+                ref x,
+                y,
+                "Preferences",
+                MakeProfileTraitTooltip(
+                    "Preferences",
+                    string.IsNullOrWhiteSpace(preferences) ? "No preferences set." : preferences),
+                !string.IsNullOrWhiteSpace(preferences));
 
-            return y;
+            AddProfileTraitSeparator(parent, ref x, y);
+            AddProfileTraitLabel(
+                parent,
+                ref x,
+                y,
+                "Themes",
+                MakeProfileTraitTooltip(
+                    "Themes",
+                    string.IsNullOrWhiteSpace(themes) ? "No themes set." : themes),
+                !string.IsNullOrWhiteSpace(themes));
+
+            AddProfileTraitSeparator(parent, ref x, y);
+            AddProfileTraitLabel(
+                parent,
+                ref x,
+                y,
+                "Styles",
+                MakeProfileTraitTooltip(
+                    "Styles",
+                    string.IsNullOrWhiteSpace(styles) ? "No styles set." : styles),
+                !string.IsNullOrWhiteSpace(styles));
         }
 
-        private int AddSingleLine(Container parent, string text, int y)
+        private static void AddProfileTraitLabel(
+            Container parent,
+            ref int x,
+            int y,
+            string text,
+            Tooltip tooltip,
+            bool isSet)
         {
+            var width = GetProfileTraitWidth(text);
+
             new Label
             {
                 Text = text,
-                Font = GameService.Content.DefaultFont14,
-                TextColor = new Color(210, 210, 210),
-                Location = new Point(_layout.TextX, y),
-                Size = new Point(_layout.TextLabelWidth, 26),
+                Font = GameService.Content.DefaultFont16,
+                TextColor = isSet
+                    ? new Color(220, 220, 220)
+                    : new Color(125, 125, 125),
+                WrapText = false,
+                Location = new Point(x, y),
+                Size = new Point(width, 25),
+                Tooltip = tooltip,
                 Parent = parent
             };
 
-            return y + 28;
+            x += width;
         }
 
-        private IEnumerable<string> HighlightLines()
+        private static Tooltip MakeProfileTraitTooltip(string title, string description)
         {
-            if (_profile.Experience != ProfileExperience.Hidden)
-                yield return $"Experience: {ProfileLabels.GetExperienceLabel(_profile.Experience)}";
-
-            var preferences = SelectedPreferences(_profile.Preferences);
-            if (!string.IsNullOrWhiteSpace(preferences))
-                yield return $"Preferences: {preferences}";
-
-            var themes = SelectedThemes(_profile.Themes);
-            if (!string.IsNullOrWhiteSpace(themes))
-                yield return $"Themes: {themes}";
-
-            var styles = SelectedStyles(_profile.Styles);
-            if (!string.IsNullOrWhiteSpace(styles))
-                yield return $"Styles: {styles}";
+            return new Tooltip(new ProfileTooltipView(title, description));
         }
 
-        private static string SelectedPreferences(ProfilePreferenceFlags flags)
+        private static void AddProfileTraitSeparator(Container parent, ref int x, int y)
+        {
+            const string separator = " | ";
+            var width = GetProfileTraitWidth(separator);
+
+            new Label
+            {
+                Text = separator,
+                Font = GameService.Content.DefaultFont16,
+                TextColor = new Color(150, 150, 150),
+                WrapText = false,
+                Location = new Point(x, y),
+                Size = new Point(width, 25),
+                Parent = parent
+            };
+
+            x += width;
+        }
+
+        private static int GetProfileTraitWidth(string text)
+        {
+            return (int)Math.Ceiling(
+                GameService.Content.DefaultFont16.MeasureString(text ?? string.Empty).Width) + 2;
+        }
+
+        private static string SelectedPreferences(ProfilePreferenceFlags flags, string separator)
         {
             return string.Join(
-                ", ",
+                separator,
                 ProfileLabels.PreferenceOptions
                     .Where(option => (flags & option.Key) == option.Key)
                     .Select(option => option.Value));
         }
 
-        private static string SelectedThemes(ProfileThemeFlags flags)
+        private static string SelectedThemes(ProfileThemeFlags flags, string separator)
         {
             return string.Join(
-                ", ",
+                separator,
                 ProfileLabels.ThemeOptions
                     .Where(option => (flags & option.Key) == option.Key)
                     .Select(option => option.Value));
         }
 
-        private static string SelectedStyles(ProfileStyleFlags flags)
+        private static string SelectedStyles(ProfileStyleFlags flags, string separator)
         {
             return string.Join(
-                ", ",
+                separator,
                 ProfileLabels.StyleOptions
                     .Where(option => (flags & option.Key) == option.Key)
                     .Select(option => option.Value));
@@ -512,7 +610,7 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeGlanceTooltip(AtAGlanceEntry entry)
         {
-            return new Tooltip(new GlanceTooltipView(entry?.Title, entry?.Description));
+            return new Tooltip(new ProfileTooltipView(entry?.Title, entry?.Description, "At A Glance"));
         }
 
         private string GetBookmarkButtonText()
@@ -659,8 +757,14 @@ namespace rp.spark.UI.Views
                     ? "Report failed."
                     : await _reportProfile(_profile, _presence, reason);
 
-                SetStatusText(message);
-                CloseReportPanel();
+                SparkUiThread.Queue(() =>
+                {
+                    if (_contentPanel == null)
+                        return;
+
+                    SetStatusText(message);
+                    CloseReportPanel();
+                });
             }
             finally
             {
@@ -682,8 +786,11 @@ namespace rp.spark.UI.Views
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Spark report failed");
-                if (popupStatus != null)
-                    popupStatus.Text = "Report failed. Please try again.";
+                SparkUiThread.Queue(() =>
+                {
+                    if (_contentPanel != null && popupStatus != null)
+                        popupStatus.Text = "Report failed. Please try again.";
+                });
             }
         }
 
@@ -852,15 +959,19 @@ namespace rp.spark.UI.Views
                 return;
             }
 
+            string statusText;
+
             try
             {
                 await CopyTextAsync(accountName.Trim());
-                _status.Text = $"Copied {accountName.Trim()}.";
+                statusText = $"Copied {accountName.Trim()}.";
             }
             catch
             {
-                _status.Text = "Couldn't copy the account name right now.";
+                statusText = "Couldn't copy the account name right now.";
             }
+
+            SparkUiThread.Queue(() => SetStatusText(statusText));
         }
 
         private void SetStatusText(string text)
@@ -903,11 +1014,14 @@ namespace rp.spark.UI.Views
             private const int IconY = 94;
             private const int IconSize = 50;
             private const int IconGap = 8;
+            private const int StatusWidth = 220;
             private const int TextXValue = 1;
             private const int TextRightPadding = 24;
 
             public const int HeaderCharacterLimit = 28;
             public const int WrappedHeaderOffset = 24;
+            public const int ProfileTraitsOffset = 28;
+            public const int StatusGap = 5;
 
             private readonly int _headerOffset;
             private readonly Point _contentSize;
@@ -953,9 +1067,9 @@ namespace rp.spark.UI.Views
                 ViewportHeight - _headerOffset);
 
             public Rectangle ProfileStatusBounds => new Rectangle(
-                560,
+                Math.Max(0, ViewportWidth - StatusWidth),
                 IconY + 10 + _headerOffset,
-                190,
+                Math.Min(StatusWidth, ViewportWidth),
                 28);
 
             public Rectangle GlanceIconBounds(int index)
@@ -980,6 +1094,11 @@ namespace rp.spark.UI.Views
             public static int MetadataY(bool wrappedHeader)
             {
                 return wrappedHeader ? 90 : 70;
+            }
+
+            public static int ProfileTraitsY(bool wrappedHeader)
+            {
+                return wrappedHeader ? 118 : 94;
             }
         }
 

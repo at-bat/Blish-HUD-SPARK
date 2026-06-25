@@ -23,6 +23,10 @@ namespace rp.spark.UI.Views
         // The open online list refreshes periodically; players can still refresh manually if they want it sooner
         // Server-side throttling may be added depending on performance.
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
+        private readonly Func<bool> _isAutoRefreshEnabled;
+
+        private readonly PageList _page = new PageList();
+        private PageListControls _pageControls;
 
         private readonly Func<CancellationToken, Task<IReadOnlyList<PlayerPresence>>> _loadRows;
         private readonly Func<IReadOnlyList<PlayerPresence>> _loadCachedRows;
@@ -34,8 +38,6 @@ namespace rp.spark.UI.Views
 
         private bool _isUnloaded;
         private CancellationTokenSource _refreshCancellation;
-        private Task _autoRefreshWorker;
-        private Task _refreshWorker;
         private IReadOnlyList<PlayerPresence> _rows = new List<PlayerPresence>();
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
@@ -49,7 +51,8 @@ namespace rp.spark.UI.Views
             Action<PlayerPresence> openProfile,
             Func<PlayerPresence, bool> isBookmarked = null,
             Action<Action> watchBookmarksChanged = null,
-            Action<Action> unwatchBookmarksChanged = null)
+            Action<Action> unwatchBookmarksChanged = null,
+            Func<bool> isAutoRefreshEnabled = null)
         {
             _loadRows = getPresenceRows;
             _loadCachedRows = getCachedPresenceRows;
@@ -57,6 +60,7 @@ namespace rp.spark.UI.Views
             _isBookmarked = isBookmarked;
             _watchBookmarks = watchBookmarksChanged;
             _unwatchBookmarks = unwatchBookmarksChanged;
+            _isAutoRefreshEnabled = isAutoRefreshEnabled;
         }
 
         protected override void Build(Container buildPanel)
@@ -65,7 +69,7 @@ namespace rp.spark.UI.Views
             var refreshButton = ProfileListViewUI.AddRefreshButton(buildPanel);
             SparkUiActions.BindClick(
                 refreshButton,
-                () => RefreshAsync(true),
+                () => RefreshAsync(false),
                 SetStatusText,
                 "Couldn't refresh online profiles.");
 
@@ -76,6 +80,15 @@ namespace rp.spark.UI.Views
             {
                 Location = new Point(0, ProfileListViewUI.ListY),
                 Parent = buildPanel
+            };
+
+            _pageControls = new PageListControls(
+                buildPanel,
+                _page,
+                ProfileListViewUI.BodyWidth,
+                () => RefreshVisibleRows(false))
+            {
+                Location = new Point(0, ProfileListViewUI.PageY)
             };
 
             _status = ProfileListViewUI.AddStatusLabel(buildPanel);
@@ -128,81 +141,99 @@ namespace rp.spark.UI.Views
 
         private void HandleBookmarksChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime => RefreshVisibleRows(false));
+            SparkUiThread.Queue(() => RefreshVisibleRows(false));
         }
 
         private void StartRefresh()
         {
             StopRefresh();
             _refreshCancellation = new CancellationTokenSource();
-            _autoRefreshWorker = AutoRefreshAsync(_refreshCancellation.Token);
+            _ = AutoRefreshAsync(_refreshCancellation.Token);
         }
 
         private void StopRefresh()
         {
             var cancellation = _refreshCancellation;
-            var autoWorker = _autoRefreshWorker;
-            var refreshWorker = _refreshWorker;
-
             _refreshCancellation = null;
-            _autoRefreshWorker = null;
-            _refreshWorker = null;
 
-            if (cancellation == null)
-                return;
-
-            cancellation.Cancel();
-
-            var cleanupWorker = Task.WhenAll(new[] { autoWorker, refreshWorker }.Where(task => task != null));
-            TaskCleanup.DisposeWhenComplete(cleanupWorker, cancellation);
+            cancellation?.Cancel();
         }
 
-        private async Task AutoRefreshAsync(CancellationToken cancellationToken)
+        private async Task AutoRefreshAsync(
+            CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    await Task.Delay(RefreshInterval, cancellationToken);
-                    await RefreshAsync(false, cancellationToken);
+                    await Task.Delay(
+                        RefreshInterval,
+                        cancellationToken);
+
+                    if (IsAutoRefreshEnabled())
+                        await RefreshAsync(false, cancellationToken);
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
             }
         }
 
-        private async Task RefreshAsync(bool resetScroll)
+        private bool IsAutoRefreshEnabled()
         {
-            var refreshTask = RefreshAsync(
-                resetScroll,
-                _refreshCancellation?.Token ?? CancellationToken.None);
-
-            _refreshWorker = refreshTask;
-            await refreshTask;
+            return _isAutoRefreshEnabled?.Invoke() ?? true;
         }
 
-        private async Task RefreshAsync(bool resetScroll, CancellationToken cancellationToken)
+        // Renamed resetScroll -> resetPage since we have pagination now
+        private Task RefreshAsync(bool resetPage)
         {
-            if (_isUnloaded || _profileList == null || cancellationToken.IsCancellationRequested)
+            return RefreshAsync(
+                resetPage,
+                _refreshCancellation?.Token ?? CancellationToken.None);
+        }
+
+        private async Task RefreshAsync(
+            bool resetPage,
+            CancellationToken cancellationToken)
+        {
+            if (_isUnloaded
+                || _profileList == null
+                || cancellationToken.IsCancellationRequested)
+            {
                 return;
+            }
 
             var hasRefreshLock = false;
             var showedCachedRows = false;
+            var hadExistingRows = _rows != null && _rows.Count > 0;
 
             try
             {
-                hasRefreshLock = await _refreshGate.WaitAsync(0, cancellationToken);
+                hasRefreshLock = await _refreshGate.WaitAsync(
+                    0,
+                    cancellationToken);
 
                 if (!hasRefreshLock)
                     return;
 
-                if (_isUnloaded || _profileList == null || cancellationToken.IsCancellationRequested)
+                if (_isUnloaded
+                    || _profileList == null
+                    || cancellationToken.IsCancellationRequested)
+                {
                     return;
+                }
 
-                showedCachedRows = ShowCachedRows(resetScroll);
-                SetStatusText(showedCachedRows ? "Refreshing profiles..." : "Loading profiles...");
+                // Fixing previous bug due to UX when first loading.
+                // Only show the fallback when opening an empty list, if it contains anything but yourself, don't fallback.
+                if (!hadExistingRows)
+                    showedCachedRows = ShowCachedRows(resetPage);
+
+                SetStatusText(
+                    hadExistingRows || showedCachedRows
+                        ? "Refreshing profiles..."
+                        : "Loading profiles...");
 
                 var rows = _loadRows == null
                     ? new List<PlayerPresence>()
@@ -213,16 +244,21 @@ namespace rp.spark.UI.Views
                 if (_isUnloaded)
                     return;
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
-                    if (_profileList == null || _status == null || _isUnloaded)
+                    if (_profileList == null
+                        || _status == null
+                        || _isUnloaded)
+                    {
                         return;
+                    }
 
                     _rows = rows ?? new List<PlayerPresence>();
-                    RefreshVisibleRows(resetScroll);
+                    RefreshVisibleRows(resetPage);
                 });
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || _isUnloaded)
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested || _isUnloaded)
             {
                 return;
             }
@@ -231,18 +267,32 @@ namespace rp.spark.UI.Views
                 if (_isUnloaded)
                     return;
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
-                    if (_profileList == null || _status == null || _isUnloaded)
-                        return;
-
-                    if (showedCachedRows)
+                    if (_profileList == null
+                        || _status == null
+                        || _isUnloaded)
                     {
-                        _status.Text = "Showing local profile. Server list unavailable.";
                         return;
                     }
 
-                    _profileList.ShowEmptyMessage("Could not load online profiles.");
+                    if (hadExistingRows)
+                    {
+                        _status.Text =
+                            "Showing previous results. Server list unavailable.";
+                        return;
+                    }
+
+                    if (showedCachedRows)
+                    {
+                        _status.Text =
+                            "Showing local profile. Server list unavailable.";
+                        return;
+                    }
+
+                    _profileList.ShowEmptyMessage(
+                        "Could not load online profiles.");
+
                     _status.Text = "Server list unavailable.";
                 });
             }
@@ -273,7 +323,7 @@ namespace rp.spark.UI.Views
             if (cachedRows == null || cachedRows.Count == 0)
                 return false;
 
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_profileList == null || _status == null || _isUnloaded)
                     return;
@@ -285,35 +335,66 @@ namespace rp.spark.UI.Views
             return true;
         }
 
-        private void ShowRows(IReadOnlyList<PlayerPresence> presenceRows, bool resetScroll)
+        private void ShowRows(
+            IReadOnlyList<PlayerPresence> presenceRows,
+            bool resetScroll)
         {
-            if (_profileList == null || _status == null || _isUnloaded)
+            if (_profileList == null
+                || _status == null
+                || _isUnloaded)
+            {
                 return;
+            }
 
             _profileList.ClearRows();
 
-            var filteredRows = (presenceRows ?? new List<PlayerPresence>())
-                .Where(row => row != null && row.Status != RPStatus.Invisible)
+            var filteredRows = (presenceRows
+                                ?? new List<PlayerPresence>())
+                .Where(row =>
+                    row != null
+                    && row.Status != RPStatus.Invisible)
                 .Where(MatchesSearch);
 
             var rows = SortRows(filteredRows).ToList();
 
-            if (!rows.Any())
+            if (resetScroll)
+                _page.Reset();
+
+            _page.Clamp(rows.Count);
+            _pageControls?.Update(rows.Count);
+
+            if (rows.Count == 0)
             {
                 _profileList.ShowEmptyMessage(GetEmptyMessage());
-                _status.Text = "0 matching profiles.";
+
+                _status.Text = IsAutoRefreshEnabled()
+                    ? "0 matching profiles."
+                    : "0 matching profiles. Auto-refresh is off. Manually refresh instead.";
+
                 return;
             }
 
-            for (var i = 0; i < rows.Count; i++)
-                AddRow(rows[i], i);
+            var pageRows = _page.GetPage(rows);
+
+            for (var index = 0; index < pageRows.Count; index++)
+                AddRow(pageRows[index], index);
 
             if (resetScroll)
                 _profileList.ResetScroll();
 
-            var visibleRows = rows.Count == 1 ? "1 visible profile" : $"{rows.Count} visible profiles";
-            var searchSuffix = ProfileListViewUI.GetSearchSuffix(_searchBox);
-            _status.Text = $"{visibleRows}{searchSuffix}.";
+            var visibleRows = rows.Count == 1
+                ? "1 visible profile"
+                : $"{rows.Count} visible profiles";
+
+            var searchSuffix =
+                ProfileListViewUI.GetSearchSuffix(_searchBox);
+
+            var refreshSuffix = IsAutoRefreshEnabled()
+                ? string.Empty
+                : " Auto-refresh is off. Manually refresh instead.";
+
+            _status.Text =
+                $"{visibleRows}{searchSuffix}.{refreshSuffix}";
         }
 
         private void RefreshVisibleRows(bool resetScroll)
@@ -332,7 +413,7 @@ namespace rp.spark.UI.Views
             MakeClickable(_profileList.AddCell(row, presence.VisibleName(), 30, 7, 163, Color.White), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, ProfileText.PresenceRace(presence), 200, 7, 95, new Color(220, 220, 220)), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, presence.AccountName, 305, 7, 140, new Color(220, 220, 220)), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, GetStatusColor(presence.Status)), presence, tooltipText);
+            MakeClickable(_profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
             MakeClickable(_profileList.AddCell(row, ProfileText.PresenceLocation(presence), 570, 7, 180, new Color(220, 220, 220)), presence, tooltipText);
         }
 
@@ -456,21 +537,6 @@ namespace rp.spark.UI.Views
             return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
         }
 
-        private static Color GetStatusColor(RPStatus status)
-        {
-            switch (status)
-            {
-                case RPStatus.Looking:
-                    return new Color(160, 255, 180);
-                case RPStatus.Busy:
-                    return new Color(255, 210, 120);
-                case RPStatus.Offline:
-                    return new Color(160, 160, 160);
-                default:
-                    return new Color(220, 220, 220);
-            }
-        }
-
         protected override void Unload()
         {
             _isUnloaded = true;
@@ -483,7 +549,7 @@ namespace rp.spark.UI.Views
             if (_status == null || _isUnloaded)
                 return;
 
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_status != null && !_isUnloaded)
                     _status.Text = text ?? string.Empty;

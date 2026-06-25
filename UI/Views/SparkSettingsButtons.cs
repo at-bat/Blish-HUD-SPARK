@@ -102,7 +102,7 @@ namespace rp.spark.UI.Views
             if (_isDisposed)
                 return;
 
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_isDisposed || refreshVersion != _refreshId)
                     return;
@@ -223,7 +223,7 @@ namespace rp.spark.UI.Views
             }
 
             var refreshVersion = Interlocked.Increment(ref _refreshId);
-            GameService.Overlay.QueueMainThreadUpdate(gameTime => RefreshButtonText());
+            SparkUiThread.Queue(() => RefreshButtonText());
             _ = RefreshButtonStateAsync(refreshVersion);
         }
 
@@ -250,7 +250,7 @@ namespace rp.spark.UI.Views
                 if (_isDisposed)
                     return;
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
                     if (_isDisposed)
                         return;

@@ -79,13 +79,20 @@ namespace rp.spark.UI.Views
 
         private void HandleStatusChanged(string statusText)
         {
-            if (_status != null)
-                _status.Text = statusText ?? string.Empty;
+            SparkUiThread.Queue(() =>
+            {
+                if (_status?.Parent != null)
+                    _status.Text = statusText ?? string.Empty;
+            });
         }
 
         private void HandleProfileChanged()
         {
-            RefreshFromSession();
+            SparkUiThread.Queue(() =>
+            {
+                if (_currently?.Parent != null)
+                    RefreshFromSession();
+            });
         }
 
         private void RefreshFromSession()

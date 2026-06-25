@@ -33,22 +33,30 @@ namespace rp.spark.UI.Views
             var wasEnabled = button.Enabled;
             button.Enabled = false;
 
+            string errorStatus = null;
+
             try
             {
                 await action();
             }
             catch (OperationCanceledException)
             {
-                // Closing a view while work is in flight is expected.
             }
             catch (Exception ex)
             {
                 Logger.Warn(ex, "SPARK UI action failed.");
-                setStatus?.Invoke(failureStatus);
+                errorStatus = failureStatus;
             }
             finally
             {
-                button.Enabled = wasEnabled;
+                SparkUiThread.Queue(() =>
+                {
+                    if (!string.IsNullOrWhiteSpace(errorStatus))
+                        setStatus?.Invoke(errorStatus);
+
+                    if (button.Parent != null)
+                        button.Enabled = wasEnabled;
+                });
             }
         }
 

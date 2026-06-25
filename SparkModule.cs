@@ -110,8 +110,8 @@ namespace rp.spark
             _serviceHost.Add(_iconIndex, service => service.Start());
             _serviceHost.Add(_presenceLoop, service => service.Start());
             _serviceHost.Add(_tokens);
-            _serviceHost.Add(_sync, service => service.Start());
             _serviceHost.Add(_profileActions, service => service.Start());
+            _serviceHost.Add(_sync, service => service.Start());
 
             _windows = new SparkWindows(
                 new WindowBuilder(),
@@ -188,31 +188,37 @@ namespace rp.spark
         {
             RefreshPresenceSoon();
 
-            if (_windows == null
-                || !_windows.IsProfileViewerVisible
-                || !_windows.IsViewingProfile(savedProfile))
-                return;
+            SparkUiThread.Queue(() =>
+            {
+                if (_windows == null
+                    || !_windows.IsProfileViewerVisible
+                    || !_windows.IsViewingProfile(savedProfile))
+                    return;
 
-            var state = _playerState.GetCached();
-            _windows.ShowProfileViewer(_profileLoader.BuildLocal(savedProfile, state));
+                var state = _playerState.GetCached();
+                _windows.ShowProfileViewer(_profileLoader.BuildLocal(savedProfile, state));
+            });
         }
 
         private void ActiveProfileChanged(string accountName, string officialCharacterName, string profileId)
         {
             RefreshPresenceSoon();
 
-            if (_windows == null || !_windows.IsProfileViewerVisible)
-                return;
+            SparkUiThread.Queue(() =>
+            {
+                if (_windows == null || !_windows.IsProfileViewerVisible)
+                    return;
 
-            if (!_windows.IsViewingCharacter(officialCharacterName))
-                return;
+                if (!_windows.IsViewingCharacter(officialCharacterName))
+                    return;
 
-            var state = _playerState.GetCached();
-            var profile = string.IsNullOrWhiteSpace(profileId)
-                ? null
-                : _profileRepository.Load(profileId);
+                var state = _playerState.GetCached();
+                var profile = string.IsNullOrWhiteSpace(profileId)
+                    ? null
+                    : _profileRepository.Load(profileId);
 
-            _windows.ShowProfileViewer(_profileLoader.BuildLocal(profile, state));
+                _windows.ShowProfileViewer(_profileLoader.BuildLocal(profile, state));
+            });
         }
 
         private void EnsurePlayerStateLoad()
@@ -327,7 +333,7 @@ namespace rp.spark
 
         private void CloseGameplayWindowsIfUnavailableSoon()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (_windows?.ShouldHideGameplayWindows() == true)
                     _windows.CloseGameplayWindows();
@@ -465,9 +471,7 @@ namespace rp.spark
             if (!string.IsNullOrWhiteSpace(unavailableReason))
                 return unavailableReason;
 
-            return HasValidApiKey()
-                ? string.Empty
-                : "Add your GW2 API key to Blish HUD to use SPARK!";
+            return GetApiStatus(state);
         }
 
         private bool IsGameplayUiBlockingSpark()
@@ -494,8 +498,31 @@ namespace rp.spark
                 return string.Empty;
 
             return SparkWindows.IsLoadingScreen()
-                ? "SPARK profile tools are unavailable during loading screens."
+                ? "SPARK profile tools are unavailable during loading screens or character select."
                 : "Load into the game on a character to use SPARK.";
+        }
+
+        // Adding new status messages based on API for clarity
+        private string GetApiStatus(PlayerState state)
+        {
+            var stateTask = _initialStateTask;
+
+            if (stateTask != null && !stateTask.IsCompleted)
+                return "Checking GW2 API account and character permissions...";
+
+            if (!HasValidApiKey())
+                return "Waiting for GW2 API access from Blish HUD. Add an API key with account and characters permissions.";
+
+            if (state == null || !state.HasCharactersPermission)
+                return "Refreshing GW2 API permissions...";
+
+            if (string.IsNullOrWhiteSpace(state.AccountName))
+                return "Waiting for GW2 account verification...";
+
+            if (!state.IsCharacterApiVerified)
+                return "Waiting for current character verification from the GW2 API...";
+
+            return string.Empty;
         }
 
         protected override void Unload()

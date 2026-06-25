@@ -30,6 +30,8 @@ namespace rp.spark.UI.Views
         private readonly Action<Action> _watchSavedProfiles;
         private readonly Action<Action> _unwatchSavedProfiles;
         private readonly SavedProfilesMode _mode;
+        private readonly PageList _page = new PageList();
+        private PageListControls _pageControls;
 
         private bool _isUnloaded;
         private TextBox _searchBox;
@@ -66,7 +68,7 @@ namespace rp.spark.UI.Views
                 320);
 
             var refreshButton = ProfileListViewUI.AddRefreshButton(buildPanel);
-            refreshButton.Click += (s, e) => RefreshRows();
+            refreshButton.Click += (s, e) => RefreshRows(false);
 
             BuildSearchControls(buildPanel);
             BuildHeader(buildPanel);
@@ -78,9 +80,18 @@ namespace rp.spark.UI.Views
                 Parent = buildPanel
             };
 
+            _pageControls = new PageListControls(
+                buildPanel,
+                _page,
+                ProfileListViewUI.BodyWidth,
+                () => RefreshRows(false))
+            {
+                Location = new Point(0, ProfileListViewUI.PageY)
+            };
+
             _status = ProfileListViewUI.AddStatusLabel(buildPanel);
 
-            RefreshRows();
+            RefreshRows(true);
         }
 
         private void BuildSearchControls(Container parent)
@@ -102,7 +113,7 @@ namespace rp.spark.UI.Views
                 },
                 sortOptions,
                 sortOptions[0],
-                RefreshRows);
+                () => RefreshRows(true));
 
             _searchBox = controls.SearchBox;
             _searchFieldDropdown = controls.SearchFieldDropdown;
@@ -129,14 +140,14 @@ namespace rp.spark.UI.Views
 
         private void HandleSavedProfilesChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
-                    RefreshRows();
+                    RefreshRows(false);
             });
         }
 
-        private void RefreshRows()
+        private void RefreshRows(bool resetPage)
         {
             if (_isUnloaded || _profileList == null)
                 return;
@@ -150,7 +161,13 @@ namespace rp.spark.UI.Views
 
             var rows = SortRows(filteredRows).ToList();
 
-            if (!rows.Any())
+            if (resetPage)
+                _page.Reset();
+
+            _page.Clamp(rows.Count);
+            _pageControls?.Update(rows.Count);
+
+            if (rows.Count == 0)
             {
                 _profileList.ShowEmptyMessage(_mode == SavedProfilesMode.Bookmarks
                     ? GetEmptyBookmarksMessage()
@@ -161,12 +178,14 @@ namespace rp.spark.UI.Views
                 return;
             }
 
-            for (var i = 0; i < rows.Count; i++)
-                AddRow(rows[i], i);
+            var pageRows = _page.GetPage(rows);
 
-            _profileList.ResetScroll();
+            for (var index = 0; index < pageRows.Count; index++)
+                AddRow(pageRows[index], index);
 
-            var searchSuffix = ProfileListViewUI.GetSearchSuffix(_searchBox);
+            var searchSuffix =
+                ProfileListViewUI.GetSearchSuffix(_searchBox);
+
             _status.Text = _mode == SavedProfilesMode.Bookmarks
                 ? $"{rows.Count} bookmarked profile(s){searchSuffix}."
                 : $"{rows.Count} recent profile(s){searchSuffix}.";
@@ -227,7 +246,7 @@ namespace rp.spark.UI.Views
                 }
 
                 _removeBookmark(savedProfile);
-                RefreshRows();
+                RefreshRows(false);
                 _status.Text = "Bookmark removed.";
             };
         }

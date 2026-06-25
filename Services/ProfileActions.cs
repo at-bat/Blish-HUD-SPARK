@@ -623,15 +623,10 @@ namespace rp.spark.Services
                 _serverSync.StatusChanged -= HandleServerSyncStatusChanged;
 
             var cancellation = _blockSyncCancellation;
-            var worker = _blockSyncWorker;
             _blockSyncCancellation = null;
             _blockSyncWorker = null;
 
-            if (cancellation != null)
-            {
-                cancellation.Cancel();
-                TaskCleanup.DisposeWhenComplete(worker, cancellation);
-            }
+            cancellation?.Cancel();
         }
     }
 }

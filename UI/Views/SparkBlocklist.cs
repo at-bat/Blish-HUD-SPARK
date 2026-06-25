@@ -20,6 +20,8 @@ namespace rp.spark.UI.Views
         private readonly Func<string, string> _unblockAccount;
         private readonly Action<Action> _watchBlocks;
         private readonly Action<Action> _unwatchBlocks;
+        private readonly PageList _page = new PageList();
+        private PageListControls _pageControls;
 
         private bool _isDisposed;
         private TextBox _input;
@@ -62,6 +64,12 @@ namespace rp.spark.UI.Views
                 Parent = blockedStack
             };
 
+            _pageControls = new PageListControls(
+                blockedStack,
+                _page,
+                contentWidth,
+                () => Refresh(false));
+
             _status = SparkFormLayout.AddLabel(
                 blockedStack,
                 string.Empty,
@@ -71,15 +79,15 @@ namespace rp.spark.UI.Views
                 SparkViewUI.SecondaryTextColor);
 
             _watchBlocks?.Invoke(OnBlocksChanged);
-            Refresh();
+            Refresh(true);
         }
 
         private void OnBlocksChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isDisposed)
-                    Refresh();
+                    Refresh(false);
             });
         }
 
@@ -98,17 +106,23 @@ namespace rp.spark.UI.Views
             if (_settings.IsBlockedAccount(accountName) && _input != null)
                 _input.Text = string.Empty;
 
-            Refresh();
+            Refresh(true);
         }
 
-        private void Refresh()
+        private void Refresh(bool resetPage)
         {
             if (_list == null)
                 return;
 
             var blockedAccounts = _settings.GetBlockedAccountNames().ToList();
 
-            if (!blockedAccounts.Any())
+            if (resetPage)
+                _page.Reset();
+
+            _page.Clamp(blockedAccounts.Count);
+            _pageControls?.Update(blockedAccounts.Count);
+
+            if (blockedAccounts.Count == 0)
             {
                 _list.ShowEmptyMessage("No blocked accounts.");
                 return;
@@ -116,8 +130,10 @@ namespace rp.spark.UI.Views
 
             _list.ClearRows();
 
-            for (var i = 0; i < blockedAccounts.Count; i++)
-                AddRow(i, blockedAccounts[i]);
+            var pageRows = _page.GetPage(blockedAccounts);
+
+            for (var index = 0; index < pageRows.Count; index++)
+                AddRow(index, pageRows[index]);
         }
 
         private void AddRow(int index, string accountName)
@@ -139,7 +155,7 @@ namespace rp.spark.UI.Views
             unblockButton.Click += (s, e) =>
             {
                 SetStatus(_unblockAccount?.Invoke(accountName) ?? "Couldn't update the block list.");
-                Refresh();
+                Refresh(false);
             };
         }
 

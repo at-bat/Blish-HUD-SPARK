@@ -5,6 +5,7 @@ using rp.spark.Models;
 using rp.spark.Models.Api;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -38,11 +39,15 @@ namespace rp.spark.Services
         private const string ServerInvalidResponseMessage = "The SPARK webserver returned a response SPARK could not read.";
         private const string ServerEmptyResponseMessage = "The SPARK webserver returned an empty response.";
         private const string ServerTimeoutMessage = "The SPARK webserver did not respond in time.";
+        private const string ServerInvalidRequestMessage = "SPARK could not prepare the request.";
         private const string SubtokenHeader = "X-GW2-Subtoken";
+        private const int MaxResponseBodySize = 1024 * 1024;
+        private const int ResponseReadBufferSize = 8192;
+        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
         private static readonly HttpClient SharedHttpClient = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(10)
+            Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
 
         private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
@@ -68,71 +73,6 @@ namespace rp.spark.Services
                     : null;
         }
 
-        public async Task<bool> PublishPresenceAsync(PlayerPresence presence, CancellationToken cancellationToken = default)
-        {
-            var result = await PublishPresenceResultAsync(presence, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public async Task<IReadOnlyList<PlayerPresence>> ListPresenceAsync(ProfileRegion region, CancellationToken cancellationToken = default)
-        {
-            var result = await ListPresenceResultAsync(region, cancellationToken);
-
-            return result.Succeeded
-                ? result.Value?.Entries ?? new List<PlayerPresence>()
-                : new List<PlayerPresence>();
-        }
-
-        public async Task<bool> UploadProfileAsync(CharacterProfile profile, CancellationToken cancellationToken = default)
-        {
-            var result = await UploadProfileResultAsync(profile, null, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public async Task<bool> UploadProfileAsync(
-            CharacterProfile profile,
-            PlayerPresence presence,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await UploadProfileResultAsync(profile, presence, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public async Task<ProfileDownload> DownloadProfileAsync(
-            string accountName,
-            string officialCharacterName,
-            string profileId, 
-            CancellationToken cancellationToken = default)
-        {
-            var result = await DownloadProfileResultAsync(accountName, officialCharacterName, profileId, cancellationToken);
-            return result.Value;
-        }
-
-        public async Task<bool> BlockAccountAsync(string accountName, CancellationToken cancellationToken = default)
-        {
-            var result = await BlockAccountResultAsync(accountName, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public async Task<bool> UnblockAccountAsync(string accountName, CancellationToken cancellationToken = default)
-        {
-            var result = await UnblockAccountResultAsync(accountName, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public async Task<bool> ReplaceBlocklistAsync(
-            IEnumerable<string> accountNames,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await ReplaceBlocklistResultAsync(accountNames, cancellationToken);
-            return result.Succeeded;
-        }
-
-        public Task<ApiResult<bool>> PublishPresenceResultAsync(PlayerPresence presence, CancellationToken cancellationToken = default)
-        {
-            return PublishPresenceResultAsync(presence, string.Empty, cancellationToken);
-        }
-
         public Task<ApiResult<bool>> PublishPresenceResultAsync(
             PlayerPresence presence,
             string gw2Subtoken,
@@ -145,11 +85,6 @@ namespace rp.spark.Services
                 gw2Subtoken);
         }
 
-        public Task<ApiResult<PresenceListResponse>> ListPresenceResultAsync(ProfileRegion region, CancellationToken cancellationToken = default)
-        {
-            return ListPresenceResultAsync(region, string.Empty, cancellationToken);
-        }
-
         public Task<ApiResult<PresenceListResponse>> ListPresenceResultAsync(
             ProfileRegion region,
             string gw2Subtoken,
@@ -159,19 +94,6 @@ namespace rp.spark.Services
                 $"presence/?region={Uri.EscapeDataString(region.ToString())}",
                 cancellationToken,
                 gw2Subtoken);
-        }
-
-        public Task<ApiResult<bool>> UploadProfileResultAsync(CharacterProfile profile, CancellationToken cancellationToken = default)
-        {
-            return UploadProfileResultAsync(profile, null, cancellationToken);
-        }
-
-        public Task<ApiResult<bool>> UploadProfileResultAsync(
-            CharacterProfile profile,
-            PlayerPresence presence,
-            CancellationToken cancellationToken = default)
-        {
-            return UploadProfileResultAsync(profile, presence, string.Empty, cancellationToken);
         }
 
         public Task<ApiResult<bool>> UploadProfileResultAsync(
@@ -191,20 +113,6 @@ namespace rp.spark.Services
             string accountName,
             string officialCharacterName,
             string profileId,
-            CancellationToken cancellationToken = default)
-        {
-            return DownloadProfileResultAsync(
-                accountName,
-                officialCharacterName,
-                profileId,
-                string.Empty,
-                cancellationToken);
-        }
-
-        public Task<ApiResult<ProfileDownload>> DownloadProfileResultAsync(
-            string accountName,
-            string officialCharacterName,
-            string profileId,
             string gw2Subtoken,
             CancellationToken cancellationToken = default)
         {
@@ -214,11 +122,6 @@ namespace rp.spark.Services
                      + $"&profileId={Uri.EscapeDataString(profileId ?? string.Empty)}";
 
             return GetAsync<ProfileDownload>(path, cancellationToken, gw2Subtoken);
-        }
-
-        public Task<ApiResult<bool>> BlockAccountResultAsync(string accountName, CancellationToken cancellationToken = default)
-        {
-            return BlockAccountResultAsync(accountName, string.Empty, cancellationToken);
         }
 
         public Task<ApiResult<bool>> BlockAccountResultAsync(
@@ -233,11 +136,6 @@ namespace rp.spark.Services
                 gw2Subtoken);
         }
 
-        public Task<ApiResult<bool>> UnblockAccountResultAsync(string accountName, CancellationToken cancellationToken = default)
-        {
-            return UnblockAccountResultAsync(accountName, string.Empty, cancellationToken);
-        }
-
         public Task<ApiResult<bool>> UnblockAccountResultAsync(
             string accountName,
             string gw2Subtoken,
@@ -247,13 +145,6 @@ namespace rp.spark.Services
                      + $"?account={Uri.EscapeDataString(accountName ?? string.Empty)}";
 
             return DeleteAsync(path, cancellationToken, gw2Subtoken);
-        }
-
-        public Task<ApiResult<bool>> ReplaceBlocklistResultAsync(
-            IEnumerable<string> accountNames,
-            CancellationToken cancellationToken = default)
-        {
-            return ReplaceBlocklistResultAsync(accountNames, string.Empty, cancellationToken);
         }
 
         public Task<ApiResult<bool>> ReplaceBlocklistResultAsync(
@@ -288,7 +179,7 @@ namespace rp.spark.Services
         private async Task<ApiResult<T>> GetAsync<T>(
             string relativePath,
             CancellationToken cancellationToken,
-            string gw2Subtoken = "")
+            string gw2Subtoken)
             where T : class
         {
             if (!IsConfigured)
@@ -296,70 +187,36 @@ namespace rp.spark.Services
                     "SPARK webserver is misconfigured or down.",
                     failureKind: ApiFailure.NotConfigured);
 
-            try
-            {
-                using (var request = new HttpRequestMessage(HttpMethod.Get, GetUri(relativePath)))
+            return await ExecuteRequestAsync<T>(
+                HttpMethod.Get,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
                 {
-                    AddSubtokenHeader(request, gw2Subtoken);
-
-                    using (var response = await SharedHttpClient.SendAsync(request, cancellationToken))
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, GetUri(relativePath)))
                     {
-                        var responseBody = await response.Content.ReadAsStringAsync();
+                        AddSubtokenHeader(request, gw2Subtoken);
 
-                        if (!response.IsSuccessStatusCode)
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
                         {
-                            Logger.Warn("SPARK GET {path} failed with status {status}.", relativePath, response.StatusCode);
-                            return ApiResult<T>.Failure(
-                                GetServerStatusMessage(response.StatusCode, responseBody),
-                                response.StatusCode);
+                            return await ReadJsonResponseAsync<T>(
+                                HttpMethod.Get,
+                                relativePath,
+                                response,
+                                requestToken);
                         }
-
-                        if (string.IsNullOrWhiteSpace(responseBody))
-                            return ApiResult<T>.Failure(ServerEmptyResponseMessage, response.StatusCode);
-
-                        var value = JsonConvert.DeserializeObject<T>(responseBody, JsonSettings);
-
-                        return value == null
-                            ? ApiResult<T>.Failure(ServerInvalidResponseMessage, response.StatusCode)
-                            : ApiResult<T>.Success(value, response.StatusCode);
                     }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (TaskCanceledException ex)
-            {
-                Logger.Warn(ex, "SPARK GET {path} timed out.", relativePath);
-                return ApiResult<T>.Failure(
-                    ServerTimeoutMessage,
-                    failureKind: ApiFailure.Timeout);
-            }
-            catch (JsonException ex)
-            {
-                Logger.Warn(ex, "SPARK GET {path} returned invalid JSON.", relativePath);
-                return ApiResult<T>.Failure(
-                    ServerInvalidResponseMessage,
-                    failureKind: ApiFailure.InvalidResponse);
-            }
-            catch (Exception ex)
-            {
-                BlishWarnings.HttpBlocked(ex, ServerAction);
-                Logger.Warn(ex, "SPARK GET {path} failed.", relativePath);
-                return ApiResult<T>.Failure(
-                    ServerUnavailableMessage,
-                    failureKind: BlishWarnings.IsHttpBlocked(ex)
-                        ? ApiFailure.BlockedByWindows
-                        : ApiFailure.Network);
-            }
+                });
         }
 
         private async Task<ApiResult<bool>> PostAsync<T>(
             string relativePath,
             T payload,
             CancellationToken cancellationToken,
-            string gw2Subtoken = "")
+            string gw2Subtoken)
         {
             if (!IsConfigured)
                 return ApiResult<bool>.Failure(
@@ -368,62 +225,44 @@ namespace rp.spark.Services
 
             if (payload == null)
                 return ApiResult<bool>.Failure(
-                    "SPARK response is empty.",
+                    "SPARK request is empty.",
                     failureKind: ApiFailure.InvalidRequest);
 
-            try
-            {
-                var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
-
-                using (var request = new HttpRequestMessage(HttpMethod.Post, GetUri(relativePath)))
-                using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+            return await ExecuteRequestAsync<bool>(
+                HttpMethod.Post,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
                 {
-                    request.Content = content;
+                    var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
 
-                    AddSubtokenHeader(request, gw2Subtoken);
-
-                    using (var response = await SharedHttpClient.SendAsync(request, cancellationToken))
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, GetUri(relativePath)))
+                    using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
                     {
-                        var responseBody = await response.Content.ReadAsStringAsync();
+                        request.Content = content;
 
-                        if (response.IsSuccessStatusCode)
-                            return ApiResult<bool>.Success(true, response.StatusCode);
+                        AddSubtokenHeader(request, gw2Subtoken);
 
-                        Logger.Warn("SPARK POST {path} failed with status {status}.", relativePath, response.StatusCode);
-                        return ApiResult<bool>.Failure(
-                            GetServerStatusMessage(response.StatusCode, responseBody),
-                            response.StatusCode);
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
+                        {
+                            return await ReadStatusOnlyResponseAsync(
+                                HttpMethod.Post,
+                                relativePath,
+                                response,
+                                requestToken);
+                        }
                     }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (TaskCanceledException ex)
-            {
-                Logger.Warn(ex, "SPARK POST {path} timed out.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerTimeoutMessage,
-                    failureKind: ApiFailure.Timeout);
-            }
-            catch (Exception ex)
-            {
-                BlishWarnings.HttpBlocked(ex, ServerAction);
-                Logger.Warn(ex, "SPARK POST {path} failed.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerUnavailableMessage,
-                    failureKind: BlishWarnings.IsHttpBlocked(ex)
-                        ? ApiFailure.BlockedByWindows
-                : ApiFailure.Network);
-            }
+                });
         }
 
         private async Task<ApiResult<TResponse>> PostAsync<TPayload, TResponse>(
             string relativePath,
             TPayload payload,
             CancellationToken cancellationToken,
-            string gw2Subtoken = "")
+            string gw2Subtoken)
             where TResponse : class
         {
             if (!IsConfigured)
@@ -436,75 +275,41 @@ namespace rp.spark.Services
                     "SPARK request is empty.",
                     failureKind: ApiFailure.InvalidRequest);
 
-            try
-            {
-                var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
-
-                using (var request = new HttpRequestMessage(HttpMethod.Post, GetUri(relativePath)))
-                using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+            return await ExecuteRequestAsync<TResponse>(
+                HttpMethod.Post,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
                 {
-                    request.Content = content;
+                    var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
 
-                    AddSubtokenHeader(request, gw2Subtoken);
-
-                    using (var response = await SharedHttpClient.SendAsync(request, cancellationToken))
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, GetUri(relativePath)))
+                    using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
                     {
-                        var responseBody = await response.Content.ReadAsStringAsync();
+                        request.Content = content;
 
-                        if (!response.IsSuccessStatusCode)
+                        AddSubtokenHeader(request, gw2Subtoken);
+
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
                         {
-                            Logger.Warn("SPARK POST {path} failed with status {status}.", relativePath, response.StatusCode);
-                            return ApiResult<TResponse>.Failure(
-                                GetServerStatusMessage(response.StatusCode, responseBody),
-                                response.StatusCode);
+                            return await ReadJsonResponseAsync<TResponse>(
+                                HttpMethod.Post,
+                                relativePath,
+                                response,
+                                requestToken);
                         }
-
-                        if (string.IsNullOrWhiteSpace(responseBody))
-                            return ApiResult<TResponse>.Failure(ServerEmptyResponseMessage, response.StatusCode);
-
-                        var value = JsonConvert.DeserializeObject<TResponse>(responseBody, JsonSettings);
-
-                        return value == null
-                            ? ApiResult<TResponse>.Failure(ServerInvalidResponseMessage, response.StatusCode)
-                            : ApiResult<TResponse>.Success(value, response.StatusCode);
                     }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (TaskCanceledException ex)
-            {
-                Logger.Warn(ex, "SPARK POST {path} timed out.", relativePath);
-                return ApiResult<TResponse>.Failure(
-                    ServerTimeoutMessage,
-                    failureKind: ApiFailure.Timeout);
-            }
-            catch (JsonException ex)
-            {
-                Logger.Warn(ex, "SPARK POST {path} returned invalid JSON.", relativePath);
-                return ApiResult<TResponse>.Failure(
-                    ServerInvalidResponseMessage,
-                    failureKind: ApiFailure.InvalidResponse);
-            }
-            catch (Exception ex)
-            {
-                BlishWarnings.HttpBlocked(ex, ServerAction);
-                Logger.Warn(ex, "SPARK POST {path} failed.", relativePath);
-                return ApiResult<TResponse>.Failure(
-                    ServerUnavailableMessage,
-                    failureKind: BlishWarnings.IsHttpBlocked(ex)
-                        ? ApiFailure.BlockedByWindows
-                        : ApiFailure.Network);
-            }
+                });
         }
 
         private async Task<ApiResult<bool>> PutAsync<T>(
             string relativePath,
             T payload,
             CancellationToken cancellationToken,
-            string gw2Subtoken = "")
+            string gw2Subtoken)
         {
             if (!IsConfigured)
                 return ApiResult<bool>.Failure(
@@ -513,108 +318,300 @@ namespace rp.spark.Services
 
             if (payload == null)
                 return ApiResult<bool>.Failure(
-                    "SPARK response is empty.",
+                    "SPARK request is empty.",
                     failureKind: ApiFailure.InvalidRequest);
 
-            try
-            {
-                var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
-
-                using (var request = new HttpRequestMessage(HttpMethod.Put, GetUri(relativePath)))
-                using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+            return await ExecuteRequestAsync<bool>(
+                HttpMethod.Put,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
                 {
-                    request.Content = content;
+                    var json = JsonConvert.SerializeObject(payload, Formatting.None, JsonSettings);
 
-                    AddSubtokenHeader(request, gw2Subtoken);
-
-                    using (var response = await SharedHttpClient.SendAsync(request, cancellationToken))
+                    using (var request = new HttpRequestMessage(HttpMethod.Put, GetUri(relativePath)))
+                    using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
                     {
-                        var responseBody = await response.Content.ReadAsStringAsync();
+                        request.Content = content;
 
-                        if (response.IsSuccessStatusCode)
-                            return ApiResult<bool>.Success(true, response.StatusCode);
+                        AddSubtokenHeader(request, gw2Subtoken);
 
-                        Logger.Warn("SPARK PUT {path} failed with status {status}.", relativePath, response.StatusCode);
-                        return ApiResult<bool>.Failure(
-                            GetServerStatusMessage(response.StatusCode, responseBody),
-                            response.StatusCode);
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
+                        {
+                            return await ReadStatusOnlyResponseAsync(
+                                HttpMethod.Put,
+                                relativePath,
+                                response,
+                                requestToken);
+                        }
                     }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (TaskCanceledException ex)
-            {
-                Logger.Warn(ex, "SPARK PUT {path} timed out.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerTimeoutMessage,
-                    failureKind: ApiFailure.Timeout);
-            }
-            catch (Exception ex)
-            {
-                BlishWarnings.HttpBlocked(ex, ServerAction);
-                Logger.Warn(ex, "SPARK PUT {path} failed.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerUnavailableMessage,
-                    failureKind: BlishWarnings.IsHttpBlocked(ex)
-                        ? ApiFailure.BlockedByWindows
-                        : ApiFailure.Network);
-            }
+                });
         }
 
         private async Task<ApiResult<bool>> DeleteAsync(
             string relativePath,
             CancellationToken cancellationToken,
-            string gw2Subtoken = "")
+            string gw2Subtoken)
         {
             if (!IsConfigured)
                 return ApiResult<bool>.Failure(
                     "SPARK webserver is not configured.",
                     failureKind: ApiFailure.NotConfigured);
 
-            try
-            {
-                using (var request = new HttpRequestMessage(HttpMethod.Delete, GetUri(relativePath)))
+            return await ExecuteRequestAsync<bool>(
+                HttpMethod.Delete,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
                 {
-                    AddSubtokenHeader(request, gw2Subtoken);
-
-                    using (var response = await SharedHttpClient.SendAsync(request, cancellationToken))
+                    using (var request = new HttpRequestMessage(HttpMethod.Delete, GetUri(relativePath)))
                     {
-                        var responseBody = await response.Content.ReadAsStringAsync();
+                        AddSubtokenHeader(request, gw2Subtoken);
 
-                        if (response.IsSuccessStatusCode)
-                            return ApiResult<bool>.Success(true, response.StatusCode);
-
-                        Logger.Warn("SPARK DELETE {path} failed with status {status}.", relativePath, response.StatusCode);
-                        return ApiResult<bool>.Failure(
-                            GetServerStatusMessage(response.StatusCode, responseBody),
-                            response.StatusCode);
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
+                        {
+                            return await ReadStatusOnlyResponseAsync(
+                                HttpMethod.Delete,
+                                relativePath,
+                                response,
+                                requestToken);
+                        }
                     }
+                });
+        }
+
+        private static async Task<ApiResult<T>> ExecuteRequestAsync<T>(
+            HttpMethod method,
+            string relativePath,
+            CancellationToken cancellationToken,
+            Func<CancellationToken, Task<ApiResult<T>>> requestAsync)
+        {
+            var logPath = GetEndpointPathForLog(relativePath);
+
+            using (var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                requestTimeout.CancelAfter(RequestTimeout);
+
+                try
+                {
+                    return await requestAsync(requestTimeout.Token);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (ResponseBodyTooLargeException ex)
+                {
+                    Logger.Warn(
+                        "SPARK {method} {path} exceeded the {limit} byte response limit.",
+                        method.Method,
+                        logPath,
+                        MaxResponseBodySize);
+
+                    return ApiResult<T>.Failure(
+                        ServerInvalidResponseMessage,
+                        ex.StatusCode,
+                        ApiFailure.InvalidResponse);
+                }
+                catch (InvalidApiResponseException ex)
+                {
+                    Logger.Warn(
+                        "SPARK {method} {path} returned invalid JSON ({errorType}).",
+                        method.Method,
+                        logPath,
+                        (ex.InnerException ?? ex).GetType().Name);
+
+                    return ApiResult<T>.Failure(
+                        ServerInvalidResponseMessage,
+                        ex.StatusCode,
+                        ApiFailure.InvalidResponse);
+                }
+                catch (JsonException ex)
+                {
+                    Logger.Warn(
+                        "SPARK {method} {path} could not serialize the request ({errorType}).",
+                        method.Method,
+                        logPath,
+                        ex.GetType().Name);
+
+                    return ApiResult<T>.Failure(
+                        ServerInvalidRequestMessage,
+                        failureKind: ApiFailure.InvalidRequest);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    Logger.Warn(
+                        "SPARK {method} {path} timed out ({errorType}).",
+                        method.Method,
+                        logPath,
+                        ex.GetType().Name);
+
+                    return ApiResult<T>.Failure(
+                        ServerTimeoutMessage,
+                        failureKind: ApiFailure.Timeout);
+                }
+                catch (Exception ex)
+                {
+                    BlishWarnings.HttpBlocked(ex, ServerAction);
+
+                    Logger.Warn(
+                        "SPARK {method} {path} failed ({errorType}).",
+                        method.Method,
+                        logPath,
+                        ex.GetType().Name);
+
+                    return ApiResult<T>.Failure(
+                        ServerUnavailableMessage,
+                        failureKind: BlishWarnings.IsHttpBlocked(ex)
+                            ? ApiFailure.BlockedByWindows
+                            : ApiFailure.Network);
                 }
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        }
+
+        private static async Task<ApiResult<T>> ReadJsonResponseAsync<T>(
+            HttpMethod method,
+            string relativePath,
+            HttpResponseMessage response,
+            CancellationToken cancellationToken)
+            where T : class
+        {
+            var responseBody = await ReadResponseBodyAsync(response, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                return CreateStatusFailure<T>(
+                    method,
+                    relativePath,
+                    response,
+                    responseBody);
+
+            if (string.IsNullOrWhiteSpace(responseBody))
+                return ApiResult<T>.Failure(
+                    ServerEmptyResponseMessage,
+                    response.StatusCode);
+
+            try
             {
-                throw;
+                var value = JsonConvert.DeserializeObject<T>(responseBody, JsonSettings);
+
+                return value == null
+                    ? ApiResult<T>.Failure(
+                        ServerInvalidResponseMessage,
+                        response.StatusCode,
+                        ApiFailure.InvalidResponse)
+                    : ApiResult<T>.Success(value, response.StatusCode);
             }
-            catch (TaskCanceledException ex)
+            catch (JsonException ex)
             {
-                Logger.Warn(ex, "SPARK DELETE {path} timed out.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerTimeoutMessage,
-                    failureKind: ApiFailure.Timeout);
+                throw new InvalidApiResponseException(response.StatusCode, ex);
             }
-            catch (Exception ex)
+        }
+
+        private static async Task<ApiResult<bool>> ReadStatusOnlyResponseAsync(
+            HttpMethod method,
+            string relativePath,
+            HttpResponseMessage response,
+            CancellationToken cancellationToken)
+        {
+            if (response.IsSuccessStatusCode)
+                return ApiResult<bool>.Success(true, response.StatusCode);
+
+            var responseBody = await ReadResponseBodyAsync(response, cancellationToken);
+
+            return CreateStatusFailure<bool>(
+                method,
+                relativePath,
+                response,
+                responseBody);
+        }
+
+        private static ApiResult<T> CreateStatusFailure<T>(
+            HttpMethod method,
+            string relativePath,
+            HttpResponseMessage response,
+            string responseBody)
+        {
+            Logger.Warn(
+                "SPARK {method} {path} failed with status {status}.",
+                method.Method,
+                GetEndpointPathForLog(relativePath),
+                response.StatusCode);
+
+            return ApiResult<T>.Failure(
+                GetServerStatusMessage(response.StatusCode, responseBody),
+                response.StatusCode);
+        }
+
+        private static async Task<string> ReadResponseBodyAsync(
+            HttpResponseMessage response,
+            CancellationToken cancellationToken)
+        {
+            if (response?.Content == null)
+                return string.Empty;
+
+            var contentLength = response.Content.Headers.ContentLength;
+
+            if (contentLength.HasValue && contentLength.Value > MaxResponseBodySize)
+                throw new ResponseBodyTooLargeException(response.StatusCode);
+
+            using (var stream = await response.Content.ReadAsStreamAsync())
+            using (var memory = new MemoryStream())
             {
-                BlishWarnings.HttpBlocked(ex, ServerAction);
-                Logger.Warn(ex, "SPARK DELETE {path} failed.", relativePath);
-                return ApiResult<bool>.Failure(
-                    ServerUnavailableMessage,
-                    failureKind: BlishWarnings.IsHttpBlocked(ex)
-                        ? ApiFailure.BlockedByWindows
-                        : ApiFailure.Network);
+                var buffer = new byte[ResponseReadBufferSize];
+                int bytesRead;
+
+                while ((bytesRead = await stream.ReadAsync(
+                           buffer,
+                           0,
+                           buffer.Length,
+                           cancellationToken)) > 0)
+                {
+                    if (memory.Length + bytesRead > MaxResponseBodySize)
+                        throw new ResponseBodyTooLargeException(response.StatusCode);
+
+                    memory.Write(buffer, 0, bytesRead);
+                }
+
+                return Encoding.UTF8.GetString(memory.ToArray());
             }
+        }
+
+        private static readonly char[] LogPathSeparators = { '?', '#' };
+        private static string GetEndpointPathForLog(string relativePath)
+        {
+            var path = relativePath?.Trim() ?? string.Empty;
+            var index = path.IndexOfAny(LogPathSeparators);
+
+            return index < 0 ? path : path.Substring(0, index);
+        }
+
+        private sealed class InvalidApiResponseException : Exception
+        {
+            public InvalidApiResponseException(
+                HttpStatusCode statusCode,
+                Exception innerException)
+                : base("The API response contained invalid JSON.", innerException)
+            {
+                StatusCode = statusCode;
+            }
+
+            public HttpStatusCode StatusCode { get; }
+        }
+
+        private sealed class ResponseBodyTooLargeException : Exception
+        {
+            public ResponseBodyTooLargeException(HttpStatusCode statusCode)
+            {
+                StatusCode = statusCode;
+            }
+
+            public HttpStatusCode StatusCode { get; }
         }
 
         private static void AddSubtokenHeader(HttpRequestMessage request, string gw2Subtoken)

@@ -657,19 +657,13 @@ namespace rp.spark.Services
             TaskCleanup.DisposeWhenComplete(worker, cancellation);
         }
 
-        private void DisposeSyncGate(Task worker)
-        {
-            TaskCleanup.DisposeWhenComplete(worker, _syncGate);
-        }
-
         public void Dispose()
         {
             if (_isDisposed)
                 return;
 
             _isDisposed = true;
-            var worker = StopWorker();
-            DisposeSyncGate(worker);
+            StopWorker();
         }
     }
 }

@@ -160,13 +160,20 @@ namespace rp.spark.UI.Views
 
         private void HandleStatusChanged(string statusText)
         {
-            if (_status != null)
-                _status.Text = statusText ?? string.Empty;
+            SparkUiThread.Queue(() =>
+            {
+                if (_status?.Parent != null)
+                    _status.Text = statusText ?? string.Empty;
+            });
         }
 
         private void HandleProfileChanged()
         {
-            RefreshFromSession();
+            SparkUiThread.Queue(() =>
+            {
+                if (_displayName?.Parent != null)
+                    RefreshFromSession();
+            });
         }
 
         private void RefreshFromSession()
@@ -226,7 +233,7 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeGlanceTooltip(AtAGlanceEntry entry)
         {
-            return new Tooltip(new GlanceTooltipView(entry?.Title, entry?.Description));
+            return new Tooltip(new ProfileTooltipView(entry?.Title, entry?.Description, "At a Glance"));
         }
 
         private void EditGlance(int index)

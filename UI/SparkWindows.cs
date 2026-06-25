@@ -135,7 +135,8 @@ namespace rp.spark.UI
                 OpenPresence,
                 _profileActions.IsPresenceBookmarked,
                 _profileActions.WatchSavedProfiles,
-                _profileActions.UnwatchSavedProfiles));
+                _profileActions.UnwatchSavedProfiles,
+                () => _settings.AutoRefreshOnlineProfiles.Value));
         }
 
         public void OpenSavedProfiles()
@@ -312,7 +313,7 @@ namespace rp.spark.UI
             _onlineListWindow = _windowBuilder.MakeWindow(
                 "Online Profiles",
                 "rp.spark.online-list-window",
-                new Rectangle(70, 60, 839, 610));
+                new Rectangle(96, 22, 783, 654));
         }
 
         private void CreateSavedWindow()
@@ -355,7 +356,11 @@ namespace rp.spark.UI
                 if (_isDisposed)
                     return;
 
-                ShowProfileViewer(viewData);
+                SparkUiThread.Queue(() =>
+                {
+                    if (!_isDisposed)
+                        ShowProfileViewer(viewData);
+                });
             }
             catch (OperationCanceledException)
             {
@@ -374,10 +379,11 @@ namespace rp.spark.UI
                 var record = _profileCache.Load(summary?.CacheKey);
                 var viewData = await _profileLoader.LoadSavedProfileAsync(record);
 
-                if (_isDisposed)
-                    return;
-
-                ShowProfileViewer(viewData);
+                SparkUiThread.Queue(() =>
+                {
+                    if (!_isDisposed)
+                        ShowProfileViewer(viewData);
+                });
             }
             catch (OperationCanceledException)
             {

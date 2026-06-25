@@ -14,7 +14,9 @@ namespace rp.spark.UI.Views
     {
         private const int ContentWidth = 660;
         private const int ControlHeight = 30;
+        private const int StatusLineHeight = 24;
         private const int RowGap = 8;
+        private const int LeftPadding = 8;
 
         private readonly SparkSettings _settings;
         private readonly Func<ServerSyncStatus> _getServerSyncStatus;
@@ -32,7 +34,8 @@ namespace rp.spark.UI.Views
 
         private bool _isUnloaded;
         private Label _serverStatusLabel;
-        private Label _apiKeyWarning;
+        // Originally this was for knowing if there were API key issues but it's been renamed to readiness for clarity
+        private Label _readinessLabel;
 
         private static readonly TimeSpan NoticeRefreshInterval = TimeSpan.FromMilliseconds(500);
 
@@ -97,11 +100,10 @@ namespace rp.spark.UI.Views
                 buildPanel,
                 ContentWidth,
                 6);
+            settingsStack.Left = LeftPadding;
 
             BuildServerStatus(settingsStack);
-            BuildImportantNotice(settingsStack);
-
-            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            BuildReadinessNotice(settingsStack);
             _buttons.Build(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
@@ -114,38 +116,45 @@ namespace rp.spark.UI.Views
             BuildBlockSummary(settingsStack);
         }
 
-        private void BuildImportantNotice(FlowPanel settingsStack)
+        private void BuildReadinessNotice(FlowPanel settingsStack)
         {
-            _apiKeyWarning = SparkFormLayout.AddLabel(
+            _readinessLabel = SparkFormLayout.AddLabel(
                 settingsStack,
                 string.Empty,
                 ContentWidth,
-                24,
+                StatusLineHeight,
                 GameService.Content.DefaultFont14,
                 SparkViewUI.WarningTextColor,
                 true);
 
-            _apiKeyWarning.WrapText = true;
-            RefreshApiKeyWarning();
+            _readinessLabel.WrapText = true;
+            RefreshReadinessNotice();
         }
 
         private void BuildServerStatus(FlowPanel settingsStack)
         {
-            var serverRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, 24, 5);
+            const int labelWidth = 95;
+            const int columnGap = 5;
+
+            var serverRow = SparkFormLayout.AddRow(
+                settingsStack,
+                ContentWidth,
+                StatusLineHeight,
+                columnGap);
 
             SparkFormLayout.AddLabel(
                 serverRow,
                 "Server status:",
-                110,
-                24,
-                GameService.Content.DefaultFont12);
+                labelWidth,
+                StatusLineHeight,
+                GameService.Content.DefaultFont14);
 
             _serverStatusLabel = SparkFormLayout.AddLabel(
                 serverRow,
                 ServerStatusText(_getServerSyncStatus?.Invoke()),
-                ContentWidth - 115,
-                24,
-                GameService.Content.DefaultFont12,
+                ContentWidth - labelWidth - columnGap,
+                StatusLineHeight,
+                GameService.Content.DefaultFont14,
                 SparkViewUI.SecondaryTextColor);
         }
 
@@ -211,7 +220,7 @@ namespace rp.spark.UI.Views
 
         private void OnBlockedAccountsChanged()
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshBlockedAccountCount();
@@ -259,10 +268,10 @@ namespace rp.spark.UI.Views
                     return;
                 }
 
-                GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+                SparkUiThread.Queue(() =>
                 {
                     if (!_isUnloaded)
-                        RefreshApiKeyWarning();
+                        RefreshReadinessNotice();
                 });
             }
         }
@@ -284,7 +293,7 @@ namespace rp.spark.UI.Views
 
         private void OnServerStatus(ServerSyncStatus status)
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
                     RefreshServerStatus(status);
@@ -297,7 +306,7 @@ namespace rp.spark.UI.Views
                 return;
 
             _serverStatusLabel.Text = ServerStatusText(_getServerSyncStatus?.Invoke() ?? status);
-            RefreshApiKeyWarning();
+            RefreshReadinessNotice();
         }
 
         private void WatchGameState()
@@ -320,31 +329,31 @@ namespace rp.spark.UI.Views
 
         private void OnGameStateChanged(object sender, EventArgs e)
         {
-            GameService.Overlay.QueueMainThreadUpdate(gameTime =>
+            SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
-                    RefreshApiKeyWarning();
+                    RefreshReadinessNotice();
             });
         }
 
         // Reserving space for the API key message since dynamic height isn't working on this bit
-        private void RefreshApiKeyWarning()
+        private void RefreshReadinessNotice()
         {
-            if (_apiKeyWarning == null)
+            if (_readinessLabel == null)
                 return;
 
             var notice = GetImportantNotice();
 
-            _apiKeyWarning.Text = string.IsNullOrWhiteSpace(notice)
-                ? "SPARK ready."
+            _readinessLabel.Text = string.IsNullOrWhiteSpace(notice)
+                ? "SPARK tools ready."
                 : notice;
 
-            _apiKeyWarning.TextColor = string.IsNullOrWhiteSpace(notice)
+            _readinessLabel.TextColor = string.IsNullOrWhiteSpace(notice)
                 ? new Color(140, 220, 140)
                 : SparkViewUI.WarningTextColor;
 
-            _apiKeyWarning.Height = 24;
-            _apiKeyWarning.Visible = true;
+            _readinessLabel.Height = StatusLineHeight;
+            _readinessLabel.Visible = true;
         }
 
         private void BuildGlobalSettings(FlowPanel settingsStack)
@@ -396,6 +405,19 @@ namespace rp.spark.UI.Views
                 }
             };
 
+            var autoRefreshCheckbox = SparkFormLayout.AddCheckbox(
+                optionsRow,
+                "Auto-refresh Online List",
+                _settings.AutoRefreshOnlineProfiles.Value,
+                220,
+                ControlHeight);
+
+            autoRefreshCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoRefreshOnlineProfiles.Value =
+                    autoRefreshCheckbox.Checked;
+            };
+
             var autoHideCheckbox = SparkFormLayout.AddCheckbox(
                 optionsRow,
                 "Auto-hide UI",
@@ -406,7 +428,7 @@ namespace rp.spark.UI.Views
             autoHideCheckbox.CheckedChanged += (s, e) =>
             {
                 _settings.AutoHideGameUi.Value = autoHideCheckbox.Checked;
-                RefreshApiKeyWarning();
+                RefreshReadinessNotice();
                 _buttons.Refresh();
                 _enforceGameplayWindowVisibility?.Invoke();
             };
