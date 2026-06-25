@@ -550,6 +550,7 @@ namespace rp.spark.Services
                 CacheKey = NormalizeCacheKey(record.CacheKey),
                 ProfileId = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileId, record.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileName, record.Presence?.ActiveProfileName)),
+                IsMature = record.Profile?.IsMature == true || record.Presence?.IsMature == true,
                 AccountName = Clean(TextUtil.FirstNonEmpty(record.Presence?.AccountName, record.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.OfficialCharacterName, record.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.DisplayCharacterName, record.Profile?.DisplayName)),
@@ -580,6 +581,7 @@ namespace rp.spark.Services
                 CacheKey = NormalizeCacheKey(snapshot.CacheKey),
                 ProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileId, snapshot.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileName, snapshot.Presence?.ActiveProfileName)),
+                IsMature = snapshot.Profile?.IsMature == true || snapshot.Presence?.IsMature == true,
                 AccountName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.AccountName, snapshot.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OfficialCharacterName, snapshot.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.DisplayCharacterName, snapshot.Profile?.DisplayName)),
@@ -611,6 +613,7 @@ namespace rp.spark.Services
                 CacheKey = summary.CacheKey,
                 ProfileId = summary.ProfileId,
                 ProfileName = summary.ProfileName,
+                IsMature = summary.IsMature,
                 AccountName = summary.AccountName,
                 OfficialCharacterName = summary.OfficialCharacterName,
                 DisplayCharacterName = summary.DisplayCharacterName,
@@ -639,7 +642,6 @@ namespace rp.spark.Services
         private sealed class ProfileCacheEntry
         {
             public string Path { get; set; }
-
             public SavedProfileSummary Summary { get; set; }
         }
 
@@ -652,17 +654,11 @@ namespace rp.spark.Services
             }
 
             public int SchemaVersion { get; set; } = 1;
-
             public string CacheKey { get; set; } = string.Empty;
-
             public ProfileIndexFields Profile { get; set; }
-
             public PresenceIndexFields Presence { get; set; }
-
             public DateTime CachedAt { get; set; }
-
             public bool IsBookmarked { get; set; }
-
             public DateTime? BookmarkedAt { get; set; }
         }
 
@@ -674,25 +670,16 @@ namespace rp.spark.Services
             }
 
             public string ProfileId { get; set; } = string.Empty;
-
             public string ProfileName { get; set; } = string.Empty;
-
+            public bool IsMature { get; set; }
             public string AccountName { get; set; } = string.Empty;
-
             public string CharacterName { get; set; } = string.Empty;
-
             public string DisplayName { get; set; } = string.Empty;
-
             public string Race { get; set; } = string.Empty;
-
             public string Profession { get; set; } = string.Empty;
-
             public string CustomProfession { get; set; } = string.Empty;
-
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
-
             public string Currently { get; set; } = string.Empty;
-
             public string OutOfCharacterInfo { get; set; } = string.Empty;
         }
 
@@ -704,31 +691,19 @@ namespace rp.spark.Services
             }
 
             public string AccountName { get; set; } = string.Empty;
-
             public string OfficialCharacterName { get; set; } = string.Empty;
-
             public string DisplayCharacterName { get; set; } = string.Empty;
-
             public string Race { get; set; } = string.Empty;
-
             public string Profession { get; set; } = string.Empty;
-
             public string CustomProfession { get; set; } = string.Empty;
-
             public string ActiveProfileId { get; set; } = string.Empty;
-
             public string ActiveProfileName { get; set; } = string.Empty;
-
+            public bool IsMature { get; set; }
             public RPStatus Status { get; set; } = RPStatus.Online;
-
             public string Currently { get; set; } = string.Empty;
-
             public string OutOfCharacterInfo { get; set; } = string.Empty;
-
             public string LocationName { get; set; } = string.Empty;
-
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
-
             public DateTime LastSeen { get; set; }
         }
 

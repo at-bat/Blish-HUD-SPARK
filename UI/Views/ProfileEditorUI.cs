@@ -16,7 +16,9 @@ namespace rp.spark.UI.Views
             ProfileEditorSession session,
             int saveY = SaveY,
             int statusY = StatusY,
-            int headerY = HeaderY)
+            int headerY = HeaderY,
+            int statusX = 170,
+            int statusWidth = 560)
         {
             var saveButton = new StandardButton
             {
@@ -35,8 +37,8 @@ namespace rp.spark.UI.Views
             var statusLabel = AddStatusLabel(
                 parent,
                 session.StatusText,
-                new Point(170, statusY),
-                new Point(560, 30));
+                new Point(statusX, statusY),
+                new Point(statusWidth, 30));
 
             AddHeaderLabel(parent, session, headerY);
 

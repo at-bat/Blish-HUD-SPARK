@@ -47,6 +47,7 @@ namespace rp.spark.UI.Views
         private AssetIcon[] _glanceSlots;
         private Panel _glanceEditorPanel;
         private bool _isRefreshing;
+        private Checkbox _matureCheckbox;
 
         public ProfileEditorView(ProfileEditorSession session, IconIndexService iconIndex = null)
         {
@@ -154,7 +155,27 @@ namespace rp.spark.UI.Views
 
         private void BuildFooter(Container buildPanel)
         {
-            _status = ProfileEditorUI.AddSaveFooter(buildPanel, _session);
+            _status = ProfileEditorUI.AddSaveFooter(
+                buildPanel,
+                _session,
+                statusX: 455,
+                statusWidth: 365);
+
+            _matureCheckbox = SparkViewUI.AddCheckbox(
+                buildPanel,
+                "Mark profile as mature/18+",
+                _session.Profile.IsMature,
+                170,
+                ProfileEditorUI.SaveY + 2,
+                270,
+                30);
+
+            _matureCheckbox.CheckedChanged += (s, e) =>
+            {
+                if (!_isRefreshing)
+                    _session.Profile.IsMature = _matureCheckbox.Checked;
+            };
+
             _session.StatusChanged += HandleStatusChanged;
         }
 
@@ -187,6 +208,7 @@ namespace rp.spark.UI.Views
                 _pronouns.Text = _session.Profile.Pronouns ?? string.Empty;
                 _knownFor.Text = _session.Profile.KnownFor ?? string.Empty;
                 _description.Text = _session.Profile.Description ?? string.Empty;
+                _matureCheckbox.Checked = _session.Profile.IsMature;
 
                 if (_glanceSlots != null)
                 {

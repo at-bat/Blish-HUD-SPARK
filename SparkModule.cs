@@ -181,7 +181,8 @@ namespace rp.spark
                 _windows.ShouldHideGameplayWindows,
                 CloseGameplayWindowsIfUnavailableSoon,
                 _profileActions.WatchBlockedAccounts,
-                _profileActions.UnwatchBlockedAccounts);
+                _profileActions.UnwatchBlockedAccounts,
+                _windows.HandleMaturePreferenceChanged);
         }
 
         private void ProfileSaved(CharacterProfile savedProfile)

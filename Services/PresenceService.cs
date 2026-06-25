@@ -69,6 +69,7 @@ namespace rp.spark.Services
                 CustomProfession = activeProfile?.CustomProfession?.Trim() ?? string.Empty,
                 ActiveProfileId = hasActiveProfile ? activeProfile.ProfileId : string.Empty,
                 ActiveProfileName = hasActiveProfile ? activeProfile.ProfileName?.Trim() ?? string.Empty : string.Empty,
+                IsMature = hasActiveProfile && activeProfile.IsMature,
                 ProfileUpdatedAtTime = hasActiveProfile ? activeProfile.UpdatedAt : default,
                 Status = status,
                 Currently = hasActiveProfile ? activeProfile.Currently?.Trim() ?? string.Empty : string.Empty,

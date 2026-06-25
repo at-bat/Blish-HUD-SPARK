@@ -22,6 +22,8 @@ namespace rp.spark.Models
 
         public string ActiveProfileName { get; set; } = string.Empty;
 
+        public bool IsMature { get; set; }
+
         public DateTime ProfileUpdatedAtTime { get; set; }
 
         public RPStatus Status { get; set; } = RPStatus.Online;

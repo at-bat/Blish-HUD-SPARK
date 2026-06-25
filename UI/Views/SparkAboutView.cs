@@ -8,7 +8,7 @@ namespace rp.spark.UI.Views
 {
     internal class SparkAboutView : View
     {
-        private const int ContentPadding = 20;
+        private const int ContentPadding = 12;
 
         protected override void Build(Container buildPanel)
         {
@@ -41,7 +41,11 @@ namespace rp.spark.UI.Views
                 "2. No harassment or targeted abuse",
                 "Do not make profiles that insults, shames, threatens, stalks, or attempts to organize/coordinate harassment against another player.",
                 " ",
-                "3. No abusive sexual content",
+                "3. NSFW Profiles must be marked as Mature/18+",
+                "Profiles should be set to Mature/18+ if it contains explicit content not suitable for minors. Please report any profiles that are not properly set for moderation/review.",
+                "SPARK may permanently mark all of the character profiles on your account as 18+ for breaking this rule.",
+                " ",
+                "4. No abusive sexual content",
                 "Sexual content involving minors (real or fictional underage characters) is strictly prohibited.",
                 " ",
                 "SPARK may permanently block access to this service to any GW2 account that breaks these rules.");
@@ -73,18 +77,27 @@ namespace rp.spark.UI.Views
                 false,
                 "Any feedback can be sent to Bat.8570 in-game, or emailed to taw@a-bat.com.");
         }
-        private static void AddParagraph(FlowPanel parent, string text)
+        private static void AddParagraph(FlowPanel parent, string text, Color? textColor = null, BitmapFont font = null)
         {
             new Label
             {
                 Text = text ?? string.Empty,
                 Width = GetTextWidth(parent),
-                Font = GameService.Content.DefaultFont14,
-                TextColor = SparkViewUI.SecondaryTextColor,
+                Font = font ?? GameService.Content.DefaultFont14,
+                TextColor = textColor ?? SparkViewUI.SecondaryTextColor,
                 WrapText = true,
                 AutoSizeHeight = true,
                 Parent = parent
             };
+        }
+
+        private static bool IsRuleHeading(string text)
+        {
+            return !string.IsNullOrWhiteSpace(text)
+                && text.Length >= 3
+                && char.IsDigit(text[0])
+                && text[1] == '.'
+                && text[2] == ' ';
         }
 
         private static int GetTextWidth(FlowPanel parent)
@@ -108,8 +121,21 @@ namespace rp.spark.UI.Views
                 Title = title ?? string.Empty
             };
 
+            // Adding colour and sizing for the rules to be fancy
             foreach (var paragraph in paragraphs)
-                AddParagraph(section, paragraph);
+            {
+                var isRuleHeading = IsRuleHeading(paragraph);
+
+                AddParagraph(
+                    section,
+                    paragraph,
+                    isRuleHeading
+                        ? new Color(255, 190, 0)
+                        : SparkViewUI.SecondaryTextColor,
+                    isRuleHeading
+                        ? GameService.Content.DefaultFont16
+                        : GameService.Content.DefaultFont14);
+            }
 
             if (expandedByDefault)
                 section.Expand();

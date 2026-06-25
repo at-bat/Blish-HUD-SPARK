@@ -20,11 +20,13 @@ namespace rp.spark.Services
         private const string RegionFilterKey = "RegionFilter";
         private const string BlockedAccountsKey = "BlockedAccounts";
         private const string AutoRefreshOnlineProfilesKey = "AutoRefreshOnlineProfiles";
+        private const string ShowMatureProfilesKey = "ShowMatureProfiles";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
         public SettingCollection SharingSettings { get; }
         public SettingCollection DiscoverySettings { get; }
+        public SettingEntry<bool> ShowMatureProfiles { get; }
         public SettingCollection PrivacySettings { get; }
         public SettingCollection UiSettings { get; }
         public SettingEntry<bool> BroadcastProfile { get; }
@@ -46,6 +48,12 @@ namespace rp.spark.Services
                 DiscoverySettingsKey,
                 true,
                 () => "Profile discovery");
+
+            ShowMatureProfiles = DiscoverySettings.DefineSetting(
+                ShowMatureProfilesKey,
+                false,
+                () => "Show mature/18+ profiles",
+                () => "Allows profiles marked as mature/18+ to appear in online and saved profile lists.");
 
             PrivacySettings = settings.AddSubCollection(
                 PrivacySettingsKey,

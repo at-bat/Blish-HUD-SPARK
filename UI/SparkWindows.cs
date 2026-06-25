@@ -329,7 +329,8 @@ namespace rp.spark.UI
                     _settings.IsBlockedAccount,
                     null,
                     _profileActions.WatchSavedProfiles,
-                    _profileActions.UnwatchSavedProfiles),
+                    _profileActions.UnwatchSavedProfiles,
+                    () => _settings.ShowMatureProfiles.Value),
                 "Recent",
                 100));
 
@@ -342,7 +343,8 @@ namespace rp.spark.UI
                     _settings.IsBlockedAccount,
                     _profileActions.RemoveBookmark,
                     _profileActions.WatchSavedProfiles,
-                    _profileActions.UnwatchSavedProfiles),
+                    _profileActions.UnwatchSavedProfiles,
+                    () => _settings.ShowMatureProfiles.Value),
                 "Bookmarks",
                 110));
         }
@@ -374,6 +376,11 @@ namespace rp.spark.UI
 
         private async void OpenSavedProfile(SavedProfileSummary summary)
         {
+            if (summary?.IsMature == true && !_settings.ShowMatureProfiles.Value)
+            {
+                return;
+            }
+
             try
             {
                 var record = _profileCache.Load(summary?.CacheKey);
@@ -400,7 +407,7 @@ namespace rp.spark.UI
             _aboutWindow = _windowBuilder.MakeWindow(
                 "About",
                 "rp.spark.about-window",
-                new Rectangle(70, 60, 760, 520));
+                new Rectangle(70, 22, 760, 654));
         }
 
         private void CreateBlocklistWindow()
@@ -409,6 +416,51 @@ namespace rp.spark.UI
                 "Blocked Accounts",
                 "rp.spark.blocklist-window",
                 new Rectangle(70, 60, 760, 610));
+        }
+
+        public void HandleMaturePreferenceChanged(bool enabled)
+        {
+            if (enabled)
+                return;
+
+            _windowBuilder.DisposeWindow(_onlineListWindow);
+            _onlineListWindow = null;
+
+            _windowBuilder.DisposeWindow(_savedProfilesWindow);
+            _savedProfilesWindow = null;
+
+            var viewingMatureProfile =
+                _viewedProfile?.IsMature == true
+                || _viewedPresence?.IsMature == true;
+
+            if (!viewingMatureProfile)
+                return;
+
+            var currentAccountName =
+                _playerState?.GetCached()?.AccountName ?? string.Empty;
+
+            var viewedAccountName = TextUtil.FirstNonEmpty(
+                _viewedPresence?.AccountName,
+                _viewedProfile?.AccountName);
+
+            var viewingOwnProfile =
+                !string.IsNullOrWhiteSpace(currentAccountName)
+                && string.Equals(
+                    currentAccountName.Trim(),
+                    viewedAccountName?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (viewingOwnProfile)
+                return;
+
+            _windowBuilder.DisposeWindow(_profileViewerWindow);
+            _profileViewerWindow = null;
+            _profileViewerView = null;
+            _profileNotesView = null;
+            _viewedProfile = null;
+            _viewedPresence = null;
+            ViewedProfileId = null;
+            ViewedOfficialCharacterName = null;
         }
 
         public void CloseGameplayWindows()

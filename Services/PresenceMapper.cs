@@ -15,6 +15,7 @@ namespace rp.spark.Services
                     ? "Profile Loading"
                     : presence.ActiveProfileName.Trim(),
                 ProfileId = presence.ActiveProfileId,
+                IsMature = presence.IsMature,
                 AccountName = Clean(presence.AccountName),
                 CharacterName = Clean(presence.OfficialCharacterName),
                 DisplayName = Clean(presence.DisplayCharacterName),
@@ -47,6 +48,8 @@ namespace rp.spark.Services
 
             if (target.ProfileUpdatedAtTime == default)
                 target.ProfileUpdatedAtTime = source.ProfileUpdatedAtTime;
+
+            target.IsMature = target.IsMature || source.IsMature;
         }
 
         public static void FillMissingPresence(PlayerPresence presence, CharacterProfile profile)
@@ -59,6 +62,8 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(presence.ActiveProfileName))
                 presence.ActiveProfileName = Clean(profile.ProfileName);
+
+            presence.IsMature = presence.IsMature || profile.IsMature;
 
             if (string.IsNullOrWhiteSpace(presence.AccountName))
                 presence.AccountName = Clean(profile.AccountName);
@@ -92,6 +97,8 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(profile.ProfileId) && !string.IsNullOrWhiteSpace(presence.ActiveProfileId))
                 profile.ProfileId = presence.ActiveProfileId.Trim();
+
+            profile.IsMature = profile.IsMature || presence.IsMature;
 
             if (string.IsNullOrWhiteSpace(profile.AccountName))
                 profile.AccountName = Clean(presence.AccountName);
@@ -162,6 +169,7 @@ namespace rp.spark.Services
                 CustomProfession = Clean(presence.CustomProfession),
                 ActiveProfileId = Clean(presence.ActiveProfileId),
                 ActiveProfileName = Clean(presence.ActiveProfileName),
+                IsMature = presence.IsMature,
                 ProfileUpdatedAtTime = presence.ProfileUpdatedAtTime,
                 Region = presence.Region,
                 IsVerified = presence.IsVerified,

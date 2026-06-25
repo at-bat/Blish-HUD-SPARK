@@ -124,6 +124,9 @@ namespace rp.spark.Services
             if (presence == null)
                 return null;
 
+            if (IsMatureHidden(null, presence))
+                return null;
+
             CharacterProfile profile = null;
 
             try
@@ -138,6 +141,9 @@ namespace rp.spark.Services
                 {
                     profile = downloadedProfile.ToCharacterProfile();
                     presence = PreferLivePresence(livePresence, downloadedProfile.Presence, profile);
+
+                    if (IsMatureHidden(profile, presence))
+                        return null;
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -155,6 +161,9 @@ namespace rp.spark.Services
             if (profile == null)
                 profile = PresenceMapper.CreateFromPresence(presence);
 
+            if (IsMatureHidden(profile, presence))
+                return null;
+
             return new ProfileViewData(profile, presence);
         }
 
@@ -163,6 +172,9 @@ namespace rp.spark.Services
             CancellationToken cancellationToken = default)
         {
             if (record == null)
+                return null;
+
+            if (IsMatureHidden(record.Profile, record.Presence))
                 return null;
 
             var presence = record.Presence ?? new PlayerPresence();
@@ -189,6 +201,10 @@ namespace rp.spark.Services
                 {
                     profile = downloadedProfile.ToCharacterProfile();
                     presence = PreferLivePresence(livePresence, downloadedProfile.Presence, profile);
+                    
+                    if (IsMatureHidden(profile, presence))
+                        return null;
+
                     _profileActions.SaveUpdatedProfile(profile, presence, record);
                     refreshedFromServer = true;
                 }
@@ -204,6 +220,9 @@ namespace rp.spark.Services
 
             if (!refreshedFromServer && livePresence == null)
                 MarkOffline(presence);
+
+            if (IsMatureHidden(profile, presence))
+                return null;
 
             return new ProfileViewData(profile, presence);
         }
@@ -261,8 +280,34 @@ namespace rp.spark.Services
                 && presence.CanShare
                 && presence.HasActiveProfile
                 && !_settings.IsBlockedAccount(presence.AccountName)
+                && !IsMatureHidden(null, presence)
                 && !string.IsNullOrWhiteSpace(presence.ActiveProfileId)
                 && !string.IsNullOrWhiteSpace(presence.OfficialCharacterName);
+        }
+
+        // Making sure you always see your own profile, even if it's marked as 18+ but you have mature profiles off
+        private bool IsMatureHidden(CharacterProfile profile, PlayerPresence presence)
+        {
+            if (_settings.ShowMatureProfiles.Value)
+                return false;
+
+            var accountName = TextUtil.FirstNonEmpty(presence?.AccountName, profile?.AccountName);
+
+            var ownAccountName = _playerState?.GetCached()?.AccountName ?? string.Empty;
+
+            var isOwnAccount =
+                !string.IsNullOrWhiteSpace(accountName)
+                && !string.IsNullOrWhiteSpace(ownAccountName)
+                && string.Equals(
+                    accountName.Trim(),
+                    ownAccountName.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (isOwnAccount)
+                return false;
+
+            return profile?.IsMature == true
+                || presence?.IsMature == true;
         }
 
         private async Task<PlayerPresence> FindLivePresenceAsync(

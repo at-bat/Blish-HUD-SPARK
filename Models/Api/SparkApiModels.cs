@@ -57,6 +57,8 @@ namespace rp.spark.Models.Api
 
         public string ProfileId { get; set; } = string.Empty;
 
+        public bool IsMature { get; set; }
+
         public string ProfileName { get; set; } = "Default";
 
         public string DisplayCharacterName { get; set; } = string.Empty;
@@ -93,6 +95,7 @@ namespace rp.spark.Models.Api
             return new ProfileData
             {
                 ProfileId = profile?.ProfileId?.Trim() ?? string.Empty,
+                IsMature = profile?.IsMature ?? false,
                 ProfileName = string.IsNullOrWhiteSpace(profile?.ProfileName) ? "Default" : profile.ProfileName.Trim(),
                 DisplayCharacterName = profile?.DisplayName?.Trim() ?? string.Empty,
                 Pronouns = profile?.Pronouns?.Trim() ?? string.Empty,
@@ -116,6 +119,7 @@ namespace rp.spark.Models.Api
             return new CharacterProfile
             {
                 ProfileId = ProfileId,
+                IsMature = IsMature,
                 ProfileName = ProfileName,
                 AccountName = TextUtil.FirstNonEmpty(identity?.AccountName, presence?.AccountName),
                 CharacterName = TextUtil.FirstNonEmpty(identity?.OfficialCharacterName, presence?.OfficialCharacterName),

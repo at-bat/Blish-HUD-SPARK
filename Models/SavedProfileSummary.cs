@@ -12,6 +12,8 @@ namespace rp.spark.Models
 
         public string ProfileName { get; set; } = string.Empty;
 
+        public bool IsMature { get; set; }
+
         public string AccountName { get; set; } = string.Empty;
 
         public string OfficialCharacterName { get; set; } = string.Empty;

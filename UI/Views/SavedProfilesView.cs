@@ -27,6 +27,7 @@ namespace rp.spark.UI.Views
         private readonly Action<SavedProfileSummary> _openProfile;
         private readonly Action<SavedProfileSummary> _removeBookmark;
         private readonly Func<string, bool> _isBlockedAccount;
+        private readonly Func<bool> _showMatureProfiles;
         private readonly Action<Action> _watchSavedProfiles;
         private readonly Action<Action> _unwatchSavedProfiles;
         private readonly SavedProfilesMode _mode;
@@ -47,12 +48,14 @@ namespace rp.spark.UI.Views
             Func<string, bool> isBlockedAccount = null,
             Action<SavedProfileSummary> removeBookmark = null,
             Action<Action> watchSavedProfilesChanged = null,
-            Action<Action> unwatchSavedProfilesChanged = null)
+            Action<Action> unwatchSavedProfilesChanged = null,
+            Func<bool> showMatureProfiles = null)
         {
             _loadSavedProfiles = getSavedProfiles;
             _openProfile = openProfile;
             _mode = mode;
             _isBlockedAccount = isBlockedAccount;
+            _showMatureProfiles = showMatureProfiles;
             _removeBookmark = removeBookmark;
             _watchSavedProfiles = watchSavedProfilesChanged;
             _unwatchSavedProfiles = unwatchSavedProfilesChanged;
@@ -258,8 +261,13 @@ namespace rp.spark.UI.Views
 
         private bool IsHidden(SavedProfileSummary savedProfile)
         {
-            return _isBlockedAccount != null
+            var isBlocked = _isBlockedAccount != null
                 && _isBlockedAccount(ProfileText.SavedAccountName(savedProfile));
+
+            var matureHidden = savedProfile?.IsMature == true
+                && !(_showMatureProfiles?.Invoke() ?? false);
+
+            return isBlocked || matureHidden;
         }
 
         private bool MatchesSearch(SavedProfileSummary savedProfile)
