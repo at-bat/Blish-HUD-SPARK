@@ -19,6 +19,7 @@ namespace rp.spark.Services
         private const string CurrentStatusKey = "CurrentStatus";
         private const string RegionFilterKey = "RegionFilter";
         private const string BlockedAccountsKey = "BlockedAccounts";
+        private const string AutoRefreshOnlineProfilesKey = "AutoRefreshOnlineProfiles";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -31,6 +32,7 @@ namespace rp.spark.Services
         public SettingEntry<bool> AutoHideGameUi { get; }
         public SettingEntry<RPStatus> CurrentStatus { get; }
         public SettingEntry<ProfileRegion> RegionFilter { get; }
+        public SettingEntry<bool> AutoRefreshOnlineProfiles { get; }
         public SettingEntry<string> BlockedAccounts { get; }
 
         public SparkSettings(SettingCollection settings)
@@ -84,6 +86,12 @@ namespace rp.spark.Services
                 ProfileRegion.NA,
                 () => "Region filter",
                 () => "Filters online profiles to your chosen region.");
+
+            AutoRefreshOnlineProfiles = DiscoverySettings.DefineSetting(
+                AutoRefreshOnlineProfilesKey,
+                true,
+                () => "Auto-refresh online profiles",
+                () => "Refreshes the open online profile list every 30 seconds.");
 
             BlockedAccounts = PrivacySettings.DefineSetting(
                 BlockedAccountsKey,

@@ -135,7 +135,8 @@ namespace rp.spark.UI
                 OpenPresence,
                 _profileActions.IsPresenceBookmarked,
                 _profileActions.WatchSavedProfiles,
-                _profileActions.UnwatchSavedProfiles));
+                _profileActions.UnwatchSavedProfiles,
+                () => _settings.AutoRefreshOnlineProfiles.Value));
         }
 
         public void OpenSavedProfiles()

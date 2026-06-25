@@ -405,6 +405,19 @@ namespace rp.spark.UI.Views
                 }
             };
 
+            var autoRefreshCheckbox = SparkFormLayout.AddCheckbox(
+                optionsRow,
+                "Auto-refresh Online List",
+                _settings.AutoRefreshOnlineProfiles.Value,
+                220,
+                ControlHeight);
+
+            autoRefreshCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoRefreshOnlineProfiles.Value =
+                    autoRefreshCheckbox.Checked;
+            };
+
             var autoHideCheckbox = SparkFormLayout.AddCheckbox(
                 optionsRow,
                 "Auto-hide UI",

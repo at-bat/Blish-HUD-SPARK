@@ -14,8 +14,9 @@ namespace rp.spark.UI.Views
         public const int BodyWidth = 760;
         public const int HeaderY = 92;
         public const int ListY = 128;
-        public const int ListHeight = 420;
+        public const int ListHeight = 400;
         public const int StatusY = 565;
+        public const int PageY = 532;
         public const int BookmarkMarkerY = 11;
         public const int BookmarkIconAssetId = 102439;
 
