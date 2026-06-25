@@ -13,7 +13,7 @@ namespace rp.spark.UI.Views
         private const int ContentHeight = 610;
         private const int ListWidth = 390;
         private const int InfoWidth = 330;
-        private const int ListHeight = 525;
+        private const int ListHeight = 490;
 
         private readonly SparkBlocklist _blocklist;
 
