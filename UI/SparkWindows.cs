@@ -374,17 +374,29 @@ namespace rp.spark.UI
             }
         }
 
+        // Fixing this so we removed saved entries if we cannot load them
         private async void OpenSavedProfile(SavedProfileSummary summary)
         {
-            if (summary?.IsMature == true && !_settings.ShowMatureProfiles.Value)
-            {
+            if (summary == null)
                 return;
-            }
+
+            if (summary.IsMature && !_settings.ShowMatureProfiles.Value)
+                return;
 
             try
             {
-                var record = _profileCache.Load(summary?.CacheKey);
+                var record = _profileCache.Load(summary.CacheKey);
+
+                if (record == null)
+                {
+                    _profileActions.RemoveSavedProfile(summary);
+                    return;
+                }
+
                 var viewData = await _profileLoader.LoadSavedProfileAsync(record);
+
+                if (viewData == null)
+                    return;
 
                 SparkUiThread.Queue(() =>
                 {

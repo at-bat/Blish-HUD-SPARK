@@ -88,12 +88,13 @@ namespace rp.spark.UI.Controls
             };
         }
 
-        public void ClearRows()
+        public void ClearRows(bool resetScroll = true)
         {
             foreach (var child in _rowsPanel.Children.ToArray())
                 child.Dispose();
 
-            ResetScroll();
+            if (resetScroll)
+                ResetScroll();
         }
 
         public void ResetScroll()

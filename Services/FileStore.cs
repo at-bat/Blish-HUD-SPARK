@@ -35,7 +35,7 @@ namespace rp.spark.Services
                 if (string.IsNullOrWhiteSpace(directory))
                     return new List<string>();
 
-                return Directory.GetFiles(directory, "*.json").ToList();
+                return Directory.GetFiles(directory, "*.json").OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
             }
             catch (DirectoryNotFoundException)
             {
@@ -151,14 +151,6 @@ namespace rp.spark.Services
             return fullPath;
         }
 
-        public static string GetNamedPath(string directory, string displayName, string key)
-        {
-            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(key))
-                return null;
-
-            return GetSafePath(directory, GetReadableFileName(displayName, key));
-        }
-
         // Write to temp file, then replace file to safely save data and prevent corrupt data on crash or module being disabled with data in flight.
         private static void WriteText(string path, string text)
         {
@@ -211,54 +203,6 @@ namespace rp.spark.Services
             return string.IsNullOrWhiteSpace(safe)
                 ? "unknown"
                 : safe;
-        }
-
-        private static string GetReadableFileName(string displayName, string key)
-        {
-            var name = GetReadableToken(displayName);
-            var shortKey = GetShortKey(key);
-
-            if (string.IsNullOrWhiteSpace(name))
-                name = "profile";
-
-            return string.IsNullOrWhiteSpace(shortKey)
-                ? name
-                : $"{name}_{shortKey}";
-        }
-
-        private static string GetReadableToken(string value)
-        {
-            var result = new List<char>();
-            var lastWasSeparator = true;
-
-            foreach (var character in (value ?? string.Empty).Trim())
-            {
-                if (char.IsLetterOrDigit(character))
-                {
-                    result.Add(character);
-                    lastWasSeparator = false;
-                    continue;
-                }
-
-                if (!lastWasSeparator)
-                {
-                    result.Add('_');
-                    lastWasSeparator = true;
-                }
-            }
-
-            while (result.Count > 0 && result[result.Count - 1] == '_')
-                result.RemoveAt(result.Count - 1);
-
-            return new string(result.ToArray());
-        }
-
-        private static string GetShortKey(string key)
-        {
-            return new string((key ?? string.Empty)
-                .Where(char.IsLetterOrDigit)
-                .Take(8)
-                .ToArray());
         }
     }
 }

@@ -509,7 +509,11 @@ namespace rp.spark
             var stateTask = _initialStateTask;
 
             if (stateTask != null && !stateTask.IsCompleted)
-                return "Checking GW2 API account and character permissions...";
+            {
+                return _profileActions?.IsBlockSyncInProgress == true
+                    ? "Checking GW2 API access..."
+                    : "Checking GW2 API account and character permissions...";
+            }
 
             if (!HasValidApiKey())
                 return "Waiting for GW2 API access from Blish HUD. Add an API key with account and characters permissions.";
@@ -522,6 +526,9 @@ namespace rp.spark
 
             if (!state.IsCharacterApiVerified)
                 return "Waiting for current character verification from the GW2 API...";
+
+            if (_profileActions?.IsBlockSyncInProgress == true)
+                return "Syncing SPARK settings...";
 
             return string.Empty;
         }

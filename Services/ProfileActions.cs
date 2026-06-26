@@ -30,8 +30,11 @@ namespace rp.spark.Services
         private bool _needsFullBlockSync;
         private bool _blocklistSynced;
         private string _lastSyncedBlocklistKey = string.Empty;
+        private int _blockSyncOperations;
         private bool _isStarted;
         private bool _isDisposed;
+
+        public bool IsBlockSyncInProgress => Volatile.Read(ref _blockSyncOperations) > 0;
 
         public ProfileActions(
             ProfileCache profileCache,
@@ -157,6 +160,15 @@ namespace rp.spark.Services
                 return;
 
             _profileCache.RemoveBookmark(savedProfile.CacheKey);
+            NotifySavedChanged();
+        }
+
+        public void RemoveSavedProfile(SavedProfileSummary savedProfile)
+        {
+            if (savedProfile == null || string.IsNullOrWhiteSpace(savedProfile.CacheKey))
+                return;
+
+            _profileCache.Remove(savedProfile.CacheKey);
             NotifySavedChanged();
         }
 
@@ -430,6 +442,7 @@ namespace rp.spark.Services
                 return false;
 
             await _fullBlockSyncGate.WaitAsync(cancellationToken);
+            BeginBlockSyncOperation();
 
             try
             {
@@ -463,6 +476,7 @@ namespace rp.spark.Services
             }
             finally
             {
+                EndBlockSyncOperation();
                 _fullBlockSyncGate.Release();
             }
         }
@@ -516,6 +530,16 @@ namespace rp.spark.Services
             return _tokens == null
                 ? string.Empty
                 : await _tokens.GetTokenAsync(cancellationToken);
+        }
+
+        private void BeginBlockSyncOperation()
+        {
+            Interlocked.Increment(ref _blockSyncOperations);
+        }
+
+        private void EndBlockSyncOperation()
+        {
+            Interlocked.Decrement(ref _blockSyncOperations);
         }
 
         private void NotifySavedChanged()
