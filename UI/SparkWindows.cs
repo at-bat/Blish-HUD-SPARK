@@ -377,7 +377,7 @@ namespace rp.spark.UI
         }
 
         // Fixing this so we removed saved entries if we cannot load them
-        private async void OpenSavedProfile(SavedProfileSummary summary)
+        private async void OpenSavedProfile(SavedProfileSummary summary, Action<string> showStatus)
         {
             if (summary == null)
                 return;
@@ -392,6 +392,10 @@ namespace rp.spark.UI
                 if (record == null)
                 {
                     _profileActions.RemoveSavedProfile(summary);
+
+                    var profileName = ProfileText.SavedCharacterName(summary);
+                    showStatus?.Invoke($"Warning: {profileName} not found. Entry removed from list.");
+
                     return;
                 }
 
@@ -413,6 +417,7 @@ namespace rp.spark.UI
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Failed to open saved SPARK profile");
+                showStatus?.Invoke("Couldn't open this saved profile.");
             }
         }
 
