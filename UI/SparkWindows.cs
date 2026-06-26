@@ -17,6 +17,8 @@ namespace rp.spark.UI
         private const int RecentlySeenIcon = 156680;
         private const int BookmarkIcon = 156722;
 
+        private static readonly TimeSpan IconIndexIdleUnloadDelay = TimeSpan.FromMinutes(1);
+
         private readonly WindowBuilder _windowBuilder;
         private readonly ProfileRepository _profileRepository;
         private readonly ProfileCache _profileCache;
@@ -38,6 +40,7 @@ namespace rp.spark.UI
         private StandardWindow _blocklistWindow;
         private CharacterProfile _viewedProfile;
         private PlayerPresence _viewedPresence;
+        private DateTime? _lastProfileEditorOpenTime;
 
         public SparkWindows(
             WindowBuilder windowBuilder,
@@ -510,6 +513,8 @@ namespace rp.spark.UI
             if (_iconIndexService == null)
                 return;
 
+            _lastProfileEditorOpenTime = DateTime.UtcNow;
+
             try
             {
                 _iconIndexService.Start();
@@ -519,6 +524,29 @@ namespace rp.spark.UI
             {
                 Logger.Warn(ex, "Failed to load GW2 icon index.");
             }
+        }
+
+        // Unload the icon index after the profile editor has been closed for 60 seconds
+        public void UnloadIdleIconIndex()
+        {
+            if (_iconIndexService == null || !_lastProfileEditorOpenTime.HasValue)
+                return;
+
+            if (_profileWindow != null && _profileWindow.Visible)
+            {
+                _lastProfileEditorOpenTime = DateTime.UtcNow;
+                return;
+            }
+
+            if (_iconIndexService.IsLoading)
+                return;
+
+            if (DateTime.UtcNow - _lastProfileEditorOpenTime.Value < IconIndexIdleUnloadDelay)
+                return;
+
+            _iconIndexService.Stop();
+            _iconIndexService.UnloadIcons();
+            _lastProfileEditorOpenTime = null;
         }
 
         public void Dispose()

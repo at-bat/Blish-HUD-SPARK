@@ -144,6 +144,8 @@ namespace rp.spark
 
             if (_windows.ShouldHideGameplayWindows())
                 _windows.CloseGameplayWindows();
+
+            _windows.UnloadIdleIconIndex();
         }
 
         protected override void OnModuleLoaded(EventArgs e)

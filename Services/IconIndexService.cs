@@ -51,6 +51,7 @@ namespace rp.spark.Services
 
         private List<SearchableIcons> _searchableIcons = new List<SearchableIcons>();
         private bool _isLoading;
+        private volatile bool _isDisposed;
         private CancellationTokenSource _refreshCancellation;
         private Task _refreshTask;
 
@@ -91,14 +92,14 @@ namespace rp.spark.Services
 
         public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
         {
-            if (IsLoaded)
+            if (_isDisposed || IsLoaded)
                 return;
 
             await _loadGate.WaitAsync(cancellationToken);
 
             try
             {
-                if (IsLoaded)
+                if (_isDisposed || IsLoaded)
                     return;
 
                 SetLoading(true);
@@ -117,6 +118,9 @@ namespace rp.spark.Services
                         DeleteBadCacheFile(_cacheManifestPath);
                     }
                 }
+
+                if (_isDisposed)
+                    return;
 
                 using (var stream = _contentsManager.GetFileStream(BundledIndexPath))
                 {
@@ -372,7 +376,7 @@ namespace rp.spark.Services
 
         private bool TryLoadIcons(Gw2IconIndexDocument document, string description)
         {
-            if (document == null || document.Schema != 2 || document.Entries == null)
+            if (_isDisposed || document == null || document.Schema != 2 || document.Entries == null)
             {
                 Logger.Warn("Skipping invalid GW2 {description}.", description);
                 return false;
@@ -384,7 +388,12 @@ namespace rp.spark.Services
                 .ToList();
 
             lock (_indexLock)
+            {
+                if (_isDisposed)
+                    return false;
+
                 _searchableIcons = entries;
+            }
 
             GeneratedAtUtc = document.GeneratedAt?.ToUniversalTime();
             Gw2BuildId = document.Gw2BuildId;
@@ -565,9 +574,29 @@ namespace rp.spark.Services
             }
         }
 
+        public void UnloadIcons()
+        {
+            var count = 0;
+
+            lock (_indexLock)
+            {
+                count = _searchableIcons.Count;
+                _searchableIcons = new List<SearchableIcons>();
+                _isLoading = false;
+            }
+
+            GeneratedAtUtc = null;
+            Gw2BuildId = 0;
+
+            if (count > 0)
+                Logger.Info("Unloaded {count} GW2 icon index entries from memory.", count);
+        }
+
         public void Dispose()
         {
+            _isDisposed = true;
             Stop();
+            UnloadIcons();
         }
 
         private sealed class SearchableIcons

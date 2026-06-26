@@ -97,6 +97,8 @@ namespace rp.spark.Services
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            RemoveOwnServerRows(rows);
+
             foreach (var localPresence in await GetOwnPresenceRowsAsync(cancellationToken))
                 UpdatePresence(rows, localPresence);
 
@@ -362,6 +364,23 @@ namespace rp.spark.Services
                 rows[existingIndex] = presence;
             else
                 rows.Add(presence);
+        }
+
+        private void RemoveOwnServerRows(List<PlayerPresence> rows)
+        {
+            if (rows == null)
+                return;
+
+            var accountName = _playerState?.GetCached()?.AccountName?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(accountName))
+                return;
+
+            rows.RemoveAll(row =>
+                string.Equals(
+                    row?.AccountName?.Trim() ?? string.Empty,
+                    accountName,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
         private static PlayerPresence PreferLivePresence(
