@@ -107,7 +107,6 @@ namespace rp.spark
                 _profileActions);
 
             _serviceHost = new ServiceHost();
-            _serviceHost.Add(_iconIndex, service => service.Start());
             _serviceHost.Add(_presenceLoop, service => service.Start());
             _serviceHost.Add(_tokens);
             _serviceHost.Add(_profileActions, service => service.Start());
@@ -125,9 +124,9 @@ namespace rp.spark
                 _profileActions);
         }
 
-        protected override async Task LoadAsync()
+        protected override Task LoadAsync()
         {
-            await _iconIndex.LoadAsync();
+            return Task.CompletedTask;
         }
 
         // Doing a small check to track the UITick, if it halts, assume we're on a map load
@@ -181,7 +180,8 @@ namespace rp.spark
                 _windows.ShouldHideGameplayWindows,
                 CloseGameplayWindowsIfUnavailableSoon,
                 _profileActions.WatchBlockedAccounts,
-                _profileActions.UnwatchBlockedAccounts);
+                _profileActions.UnwatchBlockedAccounts,
+                _windows.HandleMaturePreferenceChanged);
         }
 
         private void ProfileSaved(CharacterProfile savedProfile)
@@ -508,7 +508,11 @@ namespace rp.spark
             var stateTask = _initialStateTask;
 
             if (stateTask != null && !stateTask.IsCompleted)
-                return "Checking GW2 API account and character permissions...";
+            {
+                return _profileActions?.IsBlockSyncInProgress == true
+                    ? "Checking GW2 API access..."
+                    : "Checking GW2 API account and character permissions...";
+            }
 
             if (!HasValidApiKey())
                 return "Waiting for GW2 API access from Blish HUD. Add an API key with account and characters permissions.";
@@ -521,6 +525,9 @@ namespace rp.spark
 
             if (!state.IsCharacterApiVerified)
                 return "Waiting for current character verification from the GW2 API...";
+
+            if (_profileActions?.IsBlockSyncInProgress == true)
+                return "Syncing SPARK settings...";
 
             return string.Empty;
         }
@@ -537,6 +544,7 @@ namespace rp.spark
             _windows = null;
             _serviceHost?.Dispose();
             _serviceHost = null;
+            _iconIndex?.Dispose();
 
             if (_profileRepository != null)
             {

@@ -100,6 +100,8 @@ namespace rp.spark.UI
             if (!CanShowGameplayWindow())
                 return;
 
+            EnsureIconIndexLoaded();
+
             var state = _playerState.GetCached();
 
             if (_profileWindow != null && _profileWindow.Visible)
@@ -329,7 +331,8 @@ namespace rp.spark.UI
                     _settings.IsBlockedAccount,
                     null,
                     _profileActions.WatchSavedProfiles,
-                    _profileActions.UnwatchSavedProfiles),
+                    _profileActions.UnwatchSavedProfiles,
+                    () => _settings.ShowMatureProfiles.Value),
                 "Recent",
                 100));
 
@@ -342,7 +345,8 @@ namespace rp.spark.UI
                     _settings.IsBlockedAccount,
                     _profileActions.RemoveBookmark,
                     _profileActions.WatchSavedProfiles,
-                    _profileActions.UnwatchSavedProfiles),
+                    _profileActions.UnwatchSavedProfiles,
+                    () => _settings.ShowMatureProfiles.Value),
                 "Bookmarks",
                 110));
         }
@@ -372,12 +376,29 @@ namespace rp.spark.UI
             }
         }
 
+        // Fixing this so we removed saved entries if we cannot load them
         private async void OpenSavedProfile(SavedProfileSummary summary)
         {
+            if (summary == null)
+                return;
+
+            if (summary.IsMature && !_settings.ShowMatureProfiles.Value)
+                return;
+
             try
             {
-                var record = _profileCache.Load(summary?.CacheKey);
+                var record = _profileCache.Load(summary.CacheKey);
+
+                if (record == null)
+                {
+                    _profileActions.RemoveSavedProfile(summary);
+                    return;
+                }
+
                 var viewData = await _profileLoader.LoadSavedProfileAsync(record);
+
+                if (viewData == null)
+                    return;
 
                 SparkUiThread.Queue(() =>
                 {
@@ -400,7 +421,7 @@ namespace rp.spark.UI
             _aboutWindow = _windowBuilder.MakeWindow(
                 "About",
                 "rp.spark.about-window",
-                new Rectangle(70, 60, 760, 520));
+                new Rectangle(70, 22, 760, 654));
         }
 
         private void CreateBlocklistWindow()
@@ -409,6 +430,51 @@ namespace rp.spark.UI
                 "Blocked Accounts",
                 "rp.spark.blocklist-window",
                 new Rectangle(70, 60, 760, 610));
+        }
+
+        public void HandleMaturePreferenceChanged(bool enabled)
+        {
+            if (enabled)
+                return;
+
+            _windowBuilder.DisposeWindow(_onlineListWindow);
+            _onlineListWindow = null;
+
+            _windowBuilder.DisposeWindow(_savedProfilesWindow);
+            _savedProfilesWindow = null;
+
+            var viewingMatureProfile =
+                _viewedProfile?.IsMature == true
+                || _viewedPresence?.IsMature == true;
+
+            if (!viewingMatureProfile)
+                return;
+
+            var currentAccountName =
+                _playerState?.GetCached()?.AccountName ?? string.Empty;
+
+            var viewedAccountName = TextUtil.FirstNonEmpty(
+                _viewedPresence?.AccountName,
+                _viewedProfile?.AccountName);
+
+            var viewingOwnProfile =
+                !string.IsNullOrWhiteSpace(currentAccountName)
+                && string.Equals(
+                    currentAccountName.Trim(),
+                    viewedAccountName?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (viewingOwnProfile)
+                return;
+
+            _windowBuilder.DisposeWindow(_profileViewerWindow);
+            _profileViewerWindow = null;
+            _profileViewerView = null;
+            _profileNotesView = null;
+            _viewedProfile = null;
+            _viewedPresence = null;
+            ViewedProfileId = null;
+            ViewedOfficialCharacterName = null;
         }
 
         public void CloseGameplayWindows()
@@ -432,6 +498,22 @@ namespace rp.spark.UI
             _viewedPresence = null;
             ViewedProfileId = null;
             ViewedOfficialCharacterName = null;
+        }
+
+        private async void EnsureIconIndexLoaded()
+        {
+            if (_iconIndexService == null)
+                return;
+
+            try
+            {
+                _iconIndexService.Start();
+                await _iconIndexService.EnsureLoadedAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to load GW2 icon index.");
+            }
         }
 
         public void Dispose()

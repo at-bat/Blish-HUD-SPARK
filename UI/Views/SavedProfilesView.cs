@@ -27,6 +27,7 @@ namespace rp.spark.UI.Views
         private readonly Action<SavedProfileSummary> _openProfile;
         private readonly Action<SavedProfileSummary> _removeBookmark;
         private readonly Func<string, bool> _isBlockedAccount;
+        private readonly Func<bool> _showMatureProfiles;
         private readonly Action<Action> _watchSavedProfiles;
         private readonly Action<Action> _unwatchSavedProfiles;
         private readonly SavedProfilesMode _mode;
@@ -39,6 +40,8 @@ namespace rp.spark.UI.Views
         private Dropdown _sortDropdown;
         private ProfileScrollList _profileList;
         private Label _status;
+        private string _pendingOpenCacheKey = string.Empty;
+        private string _pendingOpenName = string.Empty;
 
         public SavedProfilesView(
             Func<IReadOnlyList<SavedProfileSummary>> getSavedProfiles,
@@ -47,12 +50,14 @@ namespace rp.spark.UI.Views
             Func<string, bool> isBlockedAccount = null,
             Action<SavedProfileSummary> removeBookmark = null,
             Action<Action> watchSavedProfilesChanged = null,
-            Action<Action> unwatchSavedProfilesChanged = null)
+            Action<Action> unwatchSavedProfilesChanged = null,
+            Func<bool> showMatureProfiles = null)
         {
             _loadSavedProfiles = getSavedProfiles;
             _openProfile = openProfile;
             _mode = mode;
             _isBlockedAccount = isBlockedAccount;
+            _showMatureProfiles = showMatureProfiles;
             _removeBookmark = removeBookmark;
             _watchSavedProfiles = watchSavedProfilesChanged;
             _unwatchSavedProfiles = unwatchSavedProfilesChanged;
@@ -143,16 +148,16 @@ namespace rp.spark.UI.Views
             SparkUiThread.Queue(() =>
             {
                 if (!_isUnloaded)
-                    RefreshRows(false);
+                    RefreshRows(false, false);
             });
         }
 
-        private void RefreshRows(bool resetPage)
+        private void RefreshRows(bool resetPage, bool resetScroll = true)
         {
             if (_isUnloaded || _profileList == null)
                 return;
 
-            _profileList.ClearRows();
+            _profileList.ClearRows(resetScroll);
 
             var filteredRows = (_loadSavedProfiles?.Invoke() ?? new List<SavedProfileSummary>())
                 .Where(savedProfile => savedProfile != null)
@@ -160,6 +165,28 @@ namespace rp.spark.UI.Views
                 .Where(MatchesSearch);
 
             var rows = SortRows(filteredRows).ToList();
+            var statusOverride = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(_pendingOpenCacheKey))
+            {
+                var pendingEntryStillExists = rows.Any(savedProfile =>
+                    string.Equals(
+                        savedProfile.CacheKey?.Trim(),
+                        _pendingOpenCacheKey,
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (!pendingEntryStillExists)
+                {
+                    var missingName = string.IsNullOrWhiteSpace(_pendingOpenName)
+                        ? "Profile"
+                        : _pendingOpenName;
+
+                    statusOverride = $"Warning: {missingName} not found. Entry removed from list.";
+                }
+
+                _pendingOpenCacheKey = string.Empty;
+                _pendingOpenName = string.Empty;
+            }
 
             if (resetPage)
                 _page.Reset();
@@ -172,9 +199,13 @@ namespace rp.spark.UI.Views
                 _profileList.ShowEmptyMessage(_mode == SavedProfilesMode.Bookmarks
                     ? GetEmptyBookmarksMessage()
                     : GetEmptyRecentMessage());
-                _status.Text = _mode == SavedProfilesMode.Bookmarks
-                    ? "0 matching bookmarks."
-                    : "0 matching recent profiles.";
+
+                _status.Text = !string.IsNullOrWhiteSpace(statusOverride)
+                    ? statusOverride
+                    : _mode == SavedProfilesMode.Bookmarks
+                        ? "0 matching bookmarks."
+                        : "0 matching recent profiles.";
+
                 return;
             }
 
@@ -186,9 +217,11 @@ namespace rp.spark.UI.Views
             var searchSuffix =
                 ProfileListViewUI.GetSearchSuffix(_searchBox);
 
-            _status.Text = _mode == SavedProfilesMode.Bookmarks
-                ? $"{rows.Count} bookmarked profile(s){searchSuffix}."
-                : $"{rows.Count} recent profile(s){searchSuffix}.";
+            _status.Text = !string.IsNullOrWhiteSpace(statusOverride)
+                ? statusOverride
+                : _mode == SavedProfilesMode.Bookmarks
+                    ? $"{rows.Count} bookmarked profile(s){searchSuffix}."
+                    : $"{rows.Count} recent profile(s){searchSuffix}.";
         }
 
         private void AddRow(SavedProfileSummary savedProfile, int index)
@@ -253,13 +286,24 @@ namespace rp.spark.UI.Views
 
         private void MakeClickable(Control control, SavedProfileSummary savedProfile, string tooltipText)
         {
-            ProfileScrollList.WireInteraction(control, tooltipText, () => _openProfile?.Invoke(savedProfile));
+            ProfileScrollList.WireInteraction(control, tooltipText, () =>
+            {
+                _pendingOpenCacheKey = savedProfile?.CacheKey?.Trim() ?? string.Empty;
+                _pendingOpenName = ProfileText.SavedCharacterName(savedProfile);
+
+                _openProfile?.Invoke(savedProfile);
+            });
         }
 
         private bool IsHidden(SavedProfileSummary savedProfile)
         {
-            return _isBlockedAccount != null
+            var isBlocked = _isBlockedAccount != null
                 && _isBlockedAccount(ProfileText.SavedAccountName(savedProfile));
+
+            var matureHidden = savedProfile?.IsMature == true
+                && !(_showMatureProfiles?.Invoke() ?? false);
+
+            return isBlocked || matureHidden;
         }
 
         private bool MatchesSearch(SavedProfileSummary savedProfile)

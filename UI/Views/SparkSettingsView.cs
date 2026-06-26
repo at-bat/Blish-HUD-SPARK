@@ -29,8 +29,14 @@ namespace rp.spark.UI.Views
         private readonly Action _openBlocklist;
         private readonly Action<Action> _watchBlockedAccountsChanged;
         private readonly Action<Action> _unwatchBlockedAccountsChanged;
+        private readonly Action<bool> _maturePreferenceChanged;
 
         private Label _blockedAccountsLabel;
+
+        // Mature content window
+        private Container _buildPanel;
+        private StandardButton _matureButton;
+        private Panel _matureConfirmationPanel;
 
         private bool _isUnloaded;
         private Label _serverStatusLabel;
@@ -61,7 +67,8 @@ namespace rp.spark.UI.Views
             Func<bool> shouldHideGameplayWindows,
             Action enforceGameplayWindowVisibility,
             Action<Action> watchBlockedAccountsChanged,
-            Action<Action> unwatchBlockedAccountsChanged)
+            Action<Action> unwatchBlockedAccountsChanged,
+            Action<bool> maturePreferenceChanged)
         {
             _settings = settings;
             _getServerSyncStatus = getServerSyncStatus;
@@ -83,10 +90,12 @@ namespace rp.spark.UI.Views
             _openBlocklist = openBlocklist;
             _watchBlockedAccountsChanged = watchBlockedAccountsChanged;
             _unwatchBlockedAccountsChanged = unwatchBlockedAccountsChanged;
+            _maturePreferenceChanged = maturePreferenceChanged;
         }
 
         protected override void Build(Container buildPanel)
         {
+            _buildPanel = buildPanel;
             BuildSettings(buildPanel);
             WatchServer();
             WatchGameState();
@@ -107,10 +116,10 @@ namespace rp.spark.UI.Views
             _buttons.Build(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
-            BuildPresence(settingsStack);
+            BuildGlobalSettings(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
-            BuildGlobalSettings(settingsStack);
+            BuildMatureProfileSetting(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildBlockSummary(settingsStack);
@@ -434,6 +443,148 @@ namespace rp.spark.UI.Views
             };
         }
 
+        private void BuildMatureProfileSetting(FlowPanel settingsStack)
+        {
+            var row = SparkFormLayout.AddRow(
+                settingsStack,
+                ContentWidth,
+                ControlHeight,
+                12);
+
+            _matureButton = SparkFormLayout.AddButton(
+                row,
+                string.Empty,
+                210,
+                ControlHeight);
+
+            _matureButton.Click += (s, e) =>
+            {
+                if (_settings.ShowMatureProfiles.Value)
+                {
+                    SetMatureProfilesEnabled(false);
+                    return;
+                }
+
+                OpenMatureConfirmation();
+            };
+
+            RefreshMatureSettingUi();
+        }
+
+        private void SetMatureProfilesEnabled(bool enabled)
+        {
+            _settings.ShowMatureProfiles.Value = enabled;
+            RefreshMatureSettingUi();
+            _maturePreferenceChanged?.Invoke(enabled);
+        }
+
+        private void RefreshMatureSettingUi()
+        {
+            if (_matureButton == null)
+                return;
+
+            _matureButton.Text = _settings.ShowMatureProfiles.Value
+                ? "Mature Profiles Visible"
+                : "Mature Profiles Hidden";
+        }
+
+        private void OpenMatureConfirmation()
+        {
+            CloseMatureConfirmation();
+
+            var popupParent = _buildPanel ?? GameService.Graphics.SpriteScreen;
+            const int popupWidth = 500;
+            const int popupHeight = 190;
+
+            _matureConfirmationPanel = new Panel
+            {
+                ShowBorder = true,
+                Title = "Enable Mature Profiles?",
+                Size = new Point(popupWidth, popupHeight),
+                Location = GetCenteredPopupLocation(
+                    popupParent,
+                    popupWidth,
+                    popupHeight),
+                Parent = popupParent,
+                BackgroundColor = new Color(38, 35, 32),
+                ClipsBounds = false,
+                ZIndex = 100
+            };
+
+            var closeButton = new StandardButton
+            {
+                Text = "X",
+                Location = new Point(popupWidth - 32, -28),
+                Size = new Point(24, 24),
+                Parent = _matureConfirmationPanel,
+                ClipsBounds = false,
+                ZIndex = 10011
+            };
+
+            closeButton.Click += (s, e) => CloseMatureConfirmation();
+
+            new Label
+            {
+                Text =
+                    "Enabling this will allow you to view profiles marked as mature/18+. "
+                    + "These profiles may contain explicit details not suitable for minors."
+                    + Environment.NewLine
+                    + Environment.NewLine
+                    + "Are you sure you want to continue?",
+                Font = GameService.Content.DefaultFont14,
+                TextColor = Color.White,
+                WrapText = true,
+                Location = new Point(16, 6),
+                Size = new Point(468, 92),
+                Parent = _matureConfirmationPanel
+            };
+
+            var yesButton = new StandardButton
+            {
+                Text = "Show Mature Profiles",
+                Location = new Point(200, 108),
+                Size = new Point(165, 32),
+                Parent = _matureConfirmationPanel
+            };
+
+            yesButton.Click += (s, e) =>
+            {
+                SetMatureProfilesEnabled(true);
+                CloseMatureConfirmation();
+            };
+
+            var noButton = new StandardButton
+            {
+                Text = "No",
+                Location = new Point(379, 108),
+                Size = new Point(105, 32),
+                Parent = _matureConfirmationPanel
+            };
+
+            noButton.Click += (s, e) => CloseMatureConfirmation();
+        }
+
+        private void CloseMatureConfirmation()
+        {
+            _matureConfirmationPanel?.Dispose();
+            _matureConfirmationPanel = null;
+        }
+
+        private static Point GetCenteredPopupLocation(
+            Container parent,
+            int width,
+            int height)
+        {
+            var parentSize = parent?.ContentRegion.Size ?? GameService.Graphics.SpriteScreen.Size;
+
+            const int padding = 8;
+
+            var x = (parentSize.X - width) / 2;
+            var y = (parentSize.Y - height) / 2;
+
+            return new Point(Math.Max(padding, x), Math.Max(padding, y));
+        }
+
         private string GetImportantNotice()
         {
             try
@@ -462,6 +613,8 @@ namespace rp.spark.UI.Views
         protected override void Unload()
         {
             _isUnloaded = true;
+            CloseMatureConfirmation();
+            _buildPanel = null;
             StopNoticeRefresh();
             _buttons.Dispose();
             _unwatchBlockedAccountsChanged?.Invoke(OnBlockedAccountsChanged);

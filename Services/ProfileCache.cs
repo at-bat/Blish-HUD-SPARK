@@ -74,8 +74,11 @@ namespace rp.spark.Services
         }
 
         // Full profile data is loaded ONLY when a profile is opened. List views use the summary index instead.
+        // Inserting fix for missing/corrupt files by having cache clean the entry
         public SavedProfile Load(string cacheKey)
         {
+            cacheKey = NormalizeCacheKey(cacheKey);
+
             if (string.IsNullOrWhiteSpace(cacheKey))
                 return null;
 
@@ -83,12 +86,18 @@ namespace rp.spark.Services
 
             lock (_cacheLock)
             {
-                GetIndexLocked().TryGetValue(NormalizeCacheKey(cacheKey), out entry);
+                GetIndexLocked().TryGetValue(cacheKey, out entry);
             }
 
-            return entry == null
-                ? null
-                : LoadFromPath(entry.Path);
+            if (entry == null)
+                return null;
+
+            var record = LoadFromPath(entry.Path);
+
+            if (record == null)
+                Remove(cacheKey);
+
+            return record;
         }
 
         private SavedProfile LoadFromPath(string path)
@@ -144,14 +153,47 @@ namespace rp.spark.Services
 
         public void RemoveBookmark(string cacheKey)
         {
+            cacheKey = NormalizeCacheKey(cacheKey);
+
+            if (string.IsNullOrWhiteSpace(cacheKey))
+                return;
+
             var record = Load(cacheKey);
 
             if (record == null)
+            {
+                Remove(cacheKey);
                 return;
+            }
 
             record.IsBookmarked = false;
             record.BookmarkedAt = null;
             Write(record);
+        }
+
+        public bool Remove(string cacheKey)
+        {
+            cacheKey = NormalizeCacheKey(cacheKey);
+
+            if (string.IsNullOrWhiteSpace(cacheKey))
+                return false;
+
+            ProfileCacheEntry entry = null;
+            var removedFromIndex = false;
+
+            lock (_cacheLock)
+            {
+                if (_indexByKey == null)
+                    _indexByKey = ReadIndex();
+
+                if (_indexByKey.TryGetValue(cacheKey, out entry))
+                    removedFromIndex = _indexByKey.Remove(cacheKey);
+            }
+
+            var path = entry?.Path ?? FileStore.GetSafePath(_cacheDirectory, cacheKey);
+            var removedFile = TryDeleteCacheFile(path);
+
+            return removedFromIndex || removedFile;
         }
 
         public static string GetCacheKey(CharacterProfile profile, PlayerPresence presence)
@@ -180,15 +222,13 @@ namespace rp.spark.Services
                 : fallbackKey;
         }
 
-        // Cache files use CacheKey as the actual profile ID to identify them, not the file name, but the file names are readable for players.
-        // Mostly so I don't fill someone's folder with gibberish .json file names and so they can maybe search for one, etc.
-        // Also people can change their names, so lookups use the CacheKey instead of trusting filenames with this change.
+        // Cache files use CacheKey as the file name now (regressing what we did previously)
+        // Less user friendly, but less headaches for making things consistent, especially around profile character renames, etc.
         private string GetRecordPath(SavedProfile record)
         {
-            return FileStore.GetNamedPath(
+            return FileStore.GetSafePath(
                 _cacheDirectory,
-                GetProfileFileName(record?.Profile, record?.Presence),
-                record?.CacheKey);
+                NormalizeCacheKey(record?.CacheKey));
         }
 
         private Dictionary<string, ProfileCacheEntry> GetIndexLocked()
@@ -216,7 +256,7 @@ namespace rp.spark.Services
         // If duplicate files use the same cache key, we only keep the newest version and discard the previous.
         private Dictionary<string, ProfileCacheEntry> ReadIndex()
         {
-            var entries = FileStore
+            var indexEntries = FileStore
                 .GetFiles(_cacheDirectory, Logger, "SPARK cached profile")
                 .Select(ReadIndexEntry)
                 .Where(entry =>
@@ -224,40 +264,9 @@ namespace rp.spark.Services
                     && !string.IsNullOrWhiteSpace(entry.Summary.CacheKey))
                 .ToList();
 
-            var indexEntries = new List<ProfileCacheEntry>();
             var removedCount = 0;
 
-            foreach (var group in entries.GroupBy(
-                         entry => NormalizeCacheKey(entry.Summary.CacheKey),
-                         StringComparer.OrdinalIgnoreCase))
-            {
-                var ordered = group
-                    .OrderByDescending(entry => entry.Summary.CachedAt)
-                    .ToList();
-
-                // When a duplicate group contains a bookmark, retain every file
-                // and use the newest bookmarked entry in the index.
-                var bookmarkedEntry = ordered
-                    .FirstOrDefault(entry => entry.Summary.IsBookmarked);
-
-                if (bookmarkedEntry != null)
-                {
-                    indexEntries.Add(bookmarkedEntry);
-                    continue;
-                }
-
-                // With no bookmarks involved, keep only the newest duplicate.
-                indexEntries.Add(ordered[0]);
-
-                foreach (var duplicate in ordered.Skip(1))
-                {
-                    if (TryDeleteCacheEntry(duplicate))
-                        removedCount++;
-                }
-            }
-
-            var expirationCutoff =
-                DateTime.UtcNow.Subtract(RecentProfileMaxAge);
+            var expirationCutoff = DateTime.UtcNow.Subtract(RecentProfileMaxAge);
 
             var expiredEntries = indexEntries
                 .Where(entry =>
@@ -265,45 +274,41 @@ namespace rp.spark.Services
                     && entry.Summary.CachedAt < expirationCutoff)
                 .ToList();
 
-            removedCount += RemoveCacheEntries(
-                indexEntries,
-                expiredEntries);
+            removedCount += RemoveCacheEntries(indexEntries, expiredEntries);
 
             var excessEntries = indexEntries
                 .Where(entry => !entry.Summary.IsBookmarked)
                 .OrderByDescending(entry => entry.Summary.CachedAt)
+                .ThenBy(entry => entry.Summary.CacheKey, StringComparer.OrdinalIgnoreCase)
                 .Skip(MaxRecentProfiles)
                 .ToList();
 
-            removedCount += RemoveCacheEntries(
-                indexEntries,
-                excessEntries);
+            removedCount += RemoveCacheEntries(indexEntries, excessEntries);
 
             if (removedCount > 0)
             {
                 Logger.Info(
-                    "Pruned {count} old or duplicate SPARK cached profile(s).",
+                    "Pruned {count} old or excess SPARK cached profile(s).",
                     removedCount);
             }
 
             var index = new Dictionary<string, ProfileCacheEntry>(
                 StringComparer.OrdinalIgnoreCase);
 
-            foreach (var entry in indexEntries)
+            foreach (var entry in indexEntries
+                         .OrderByDescending(entry => entry.Summary.CachedAt)
+                         .ThenBy(entry => entry.Summary.CacheKey, StringComparer.OrdinalIgnoreCase))
             {
-                var cacheKey =
-                    NormalizeCacheKey(entry.Summary.CacheKey);
+                var cacheKey = NormalizeCacheKey(entry.Summary.CacheKey);
 
-                if (!string.IsNullOrWhiteSpace(cacheKey))
+                if (!string.IsNullOrWhiteSpace(cacheKey) && !index.ContainsKey(cacheKey))
                     index[cacheKey] = entry;
             }
 
             return index;
         }
 
-        private int RemoveCacheEntries(
-    List<ProfileCacheEntry> entries,
-    IEnumerable<ProfileCacheEntry> candidates)
+        private int RemoveCacheEntries(List<ProfileCacheEntry> entries, IEnumerable<ProfileCacheEntry> candidates)
         {
             var removedCount = 0;
 
@@ -350,24 +355,31 @@ namespace rp.spark.Services
             return removedCount;
         }
 
+        // Splitting this into entries and files
         private bool TryDeleteCacheEntry(ProfileCacheEntry entry)
         {
-            if (entry?.Summary == null
-                || entry.Summary.IsBookmarked
-                || !IsManagedCachePath(entry.Path))
-            {
+            if (entry?.Summary == null || entry.Summary.IsBookmarked)
                 return false;
-            }
+
+            return TryDeleteCacheFile(entry.Path);
+        }
+
+        private bool TryDeleteCacheFile(string path)
+        {
+            if (!IsManagedCachePath(path))
+                return false;
 
             try
             {
-                File.Delete(entry.Path);
+                if (File.Exists(path))
+                    File.Delete(path);
+
                 return true;
             }
             catch (Exception ex)
             {
                 Logger.Warn(
-                    "Failed to prune a SPARK cached profile ({errorType}).",
+                    "Failed to delete a SPARK cached profile ({errorType}).",
                     ex.GetType().Name);
 
                 return false;
@@ -449,6 +461,7 @@ namespace rp.spark.Services
         // If more than 250 non-bookmarked ones, we remove oldest
         private void Write(SavedProfile record)
         {
+            record.CacheKey = NormalizeCacheKey(record.CacheKey);
             var path = GetRecordPath(record);
 
             if (!FileStore.TryWrite(
@@ -486,18 +499,6 @@ namespace rp.spark.Services
                         removedCount);
                 }
             }
-        }
-
-        private static string GetProfileFileName(CharacterProfile profile, PlayerPresence presence)
-        {
-            return TextUtil.FirstNonEmpty(
-                presence?.DisplayCharacterName,
-                profile?.DisplayName,
-                presence?.OfficialCharacterName,
-                profile?.CharacterName,
-                presence?.ActiveProfileName,
-                profile?.ProfileName,
-                "profile");
         }
 
         private static DateTime GetFallbackCachedAt(DateTime? bookmarkedAt, DateTime lastSeen, string path)
@@ -550,6 +551,7 @@ namespace rp.spark.Services
                 CacheKey = NormalizeCacheKey(record.CacheKey),
                 ProfileId = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileId, record.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileName, record.Presence?.ActiveProfileName)),
+                IsMature = record.Profile?.IsMature == true || record.Presence?.IsMature == true,
                 AccountName = Clean(TextUtil.FirstNonEmpty(record.Presence?.AccountName, record.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.OfficialCharacterName, record.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.DisplayCharacterName, record.Profile?.DisplayName)),
@@ -580,6 +582,7 @@ namespace rp.spark.Services
                 CacheKey = NormalizeCacheKey(snapshot.CacheKey),
                 ProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileId, snapshot.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileName, snapshot.Presence?.ActiveProfileName)),
+                IsMature = snapshot.Profile?.IsMature == true || snapshot.Presence?.IsMature == true,
                 AccountName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.AccountName, snapshot.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OfficialCharacterName, snapshot.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.DisplayCharacterName, snapshot.Profile?.DisplayName)),
@@ -611,6 +614,7 @@ namespace rp.spark.Services
                 CacheKey = summary.CacheKey,
                 ProfileId = summary.ProfileId,
                 ProfileName = summary.ProfileName,
+                IsMature = summary.IsMature,
                 AccountName = summary.AccountName,
                 OfficialCharacterName = summary.OfficialCharacterName,
                 DisplayCharacterName = summary.DisplayCharacterName,
@@ -639,7 +643,6 @@ namespace rp.spark.Services
         private sealed class ProfileCacheEntry
         {
             public string Path { get; set; }
-
             public SavedProfileSummary Summary { get; set; }
         }
 
@@ -652,17 +655,11 @@ namespace rp.spark.Services
             }
 
             public int SchemaVersion { get; set; } = 1;
-
             public string CacheKey { get; set; } = string.Empty;
-
             public ProfileIndexFields Profile { get; set; }
-
             public PresenceIndexFields Presence { get; set; }
-
             public DateTime CachedAt { get; set; }
-
             public bool IsBookmarked { get; set; }
-
             public DateTime? BookmarkedAt { get; set; }
         }
 
@@ -674,25 +671,16 @@ namespace rp.spark.Services
             }
 
             public string ProfileId { get; set; } = string.Empty;
-
             public string ProfileName { get; set; } = string.Empty;
-
+            public bool IsMature { get; set; }
             public string AccountName { get; set; } = string.Empty;
-
             public string CharacterName { get; set; } = string.Empty;
-
             public string DisplayName { get; set; } = string.Empty;
-
             public string Race { get; set; } = string.Empty;
-
             public string Profession { get; set; } = string.Empty;
-
             public string CustomProfession { get; set; } = string.Empty;
-
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
-
             public string Currently { get; set; } = string.Empty;
-
             public string OutOfCharacterInfo { get; set; } = string.Empty;
         }
 
@@ -704,31 +692,19 @@ namespace rp.spark.Services
             }
 
             public string AccountName { get; set; } = string.Empty;
-
             public string OfficialCharacterName { get; set; } = string.Empty;
-
             public string DisplayCharacterName { get; set; } = string.Empty;
-
             public string Race { get; set; } = string.Empty;
-
             public string Profession { get; set; } = string.Empty;
-
             public string CustomProfession { get; set; } = string.Empty;
-
             public string ActiveProfileId { get; set; } = string.Empty;
-
             public string ActiveProfileName { get; set; } = string.Empty;
-
+            public bool IsMature { get; set; }
             public RPStatus Status { get; set; } = RPStatus.Online;
-
             public string Currently { get; set; } = string.Empty;
-
             public string OutOfCharacterInfo { get; set; } = string.Empty;
-
             public string LocationName { get; set; } = string.Empty;
-
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
-
             public DateTime LastSeen { get; set; }
         }
 

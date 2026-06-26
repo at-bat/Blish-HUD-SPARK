@@ -87,11 +87,15 @@ namespace rp.spark.Services
 
         public Task<ApiResult<PresenceListResponse>> ListPresenceResultAsync(
             ProfileRegion region,
+            bool includeMature,
             string gw2Subtoken,
             CancellationToken cancellationToken = default)
         {
+            var path = $"presence/?region={Uri.EscapeDataString(region.ToString())}"
+                     + $"&includeMature={includeMature.ToString().ToLowerInvariant()}";
+
             return GetAsync<PresenceListResponse>(
-                $"presence/?region={Uri.EscapeDataString(region.ToString())}",
+                path,
                 cancellationToken,
                 gw2Subtoken);
         }
@@ -113,13 +117,15 @@ namespace rp.spark.Services
             string accountName,
             string officialCharacterName,
             string profileId,
+            bool includeMature,
             string gw2Subtoken,
             CancellationToken cancellationToken = default)
         {
             var path = "profiles/"
                      + $"?account={Uri.EscapeDataString(accountName ?? string.Empty)}"
                      + $"&character={Uri.EscapeDataString(officialCharacterName ?? string.Empty)}"
-                     + $"&profileId={Uri.EscapeDataString(profileId ?? string.Empty)}";
+                     + $"&profileId={Uri.EscapeDataString(profileId ?? string.Empty)}"
+                     + $"&includeMature={includeMature.ToString().ToLowerInvariant()}";
 
             return GetAsync<ProfileDownload>(path, cancellationToken, gw2Subtoken);
         }

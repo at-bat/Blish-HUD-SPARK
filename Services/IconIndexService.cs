@@ -47,8 +47,10 @@ namespace rp.spark.Services
         private readonly string _cacheIndexPath;
         private readonly string _cacheManifestPath;
         private readonly object _indexLock = new object();
+        private readonly SemaphoreSlim _loadGate = new SemaphoreSlim(1, 1);
 
         private List<SearchableIcons> _searchableIcons = new List<SearchableIcons>();
+        private bool _isLoading;
         private CancellationTokenSource _refreshCancellation;
         private Task _refreshTask;
 
@@ -69,6 +71,11 @@ namespace rp.spark.Services
             get { lock (_indexLock) return _searchableIcons.Count > 0; }
         }
 
+        public bool IsLoading
+        {
+            get { lock (_indexLock) return _isLoading; }
+        }
+
         public int EntryCount
         {
             get { lock (_indexLock) return _searchableIcons.Count; }
@@ -77,37 +84,66 @@ namespace rp.spark.Services
         public DateTime? GeneratedAtUtc { get; private set; }
         public int Gw2BuildId { get; private set; }
 
-        public async Task LoadAsync(CancellationToken cancellationToken = default)
+        public Task LoadAsync(CancellationToken cancellationToken = default)
         {
-            if (File.Exists(_cacheIndexPath))
+            return EnsureLoadedAsync(cancellationToken);
+        }
+
+        public async Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
+        {
+            if (IsLoaded)
+                return;
+
+            await _loadGate.WaitAsync(cancellationToken);
+
+            try
             {
-                try
-                {
-                    LoadGzipIcons(File.ReadAllBytes(_cacheIndexPath), "cached icon index", cancellationToken);
+                if (IsLoaded)
                     return;
-                }
-                catch (Exception ex)
+
+                SetLoading(true);
+
+                if (File.Exists(_cacheIndexPath))
                 {
-                    Logger.Warn(ex, "Failed to load cached GW2 icon index. Falling back to bundled index.");
-                    DeleteBadCacheFile(_cacheIndexPath);
-                    DeleteBadCacheFile(_cacheManifestPath);
+                    try
+                    {
+                        LoadGzipIcons(File.ReadAllBytes(_cacheIndexPath), "cached icon index", cancellationToken);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn(ex, "Failed to load cached GW2 icon index. Falling back to bundled index.");
+                        DeleteBadCacheFile(_cacheIndexPath);
+                        DeleteBadCacheFile(_cacheManifestPath);
+                    }
+                }
+
+                using (var stream = _contentsManager.GetFileStream(BundledIndexPath))
+                {
+                    if (stream == null)
+                    {
+                        Logger.Warn("Bundled GW2 icon index file {path} was not found.", BundledIndexPath);
+                        return;
+                    }
+
+                    using (var memory = new MemoryStream())
+                    {
+                        await stream.CopyToAsync(memory);
+                        LoadGzipIcons(memory.ToArray(), "bundled icon index", cancellationToken);
+                    }
                 }
             }
-
-            using (var stream = _contentsManager.GetFileStream(BundledIndexPath))
+            finally
             {
-                if (stream == null)
-                {
-                    Logger.Warn("Bundled GW2 icon index file {path} was not found.", BundledIndexPath);
-                    return;
-                }
-
-                using (var memory = new MemoryStream())
-                {
-                    await stream.CopyToAsync(memory);
-                    LoadGzipIcons(memory.ToArray(), "bundled icon index", cancellationToken);
-                }
+                SetLoading(false);
+                _loadGate.Release();
             }
+        }
+
+        private void SetLoading(bool isLoading)
+        {
+            lock (_indexLock)
+                _isLoading = isLoading;
         }
 
         public void Start()
@@ -137,12 +173,12 @@ namespace rp.spark.Services
         public IReadOnlyList<Gw2IconSearchResult> Search(string query, int limit)
         {
             if (limit <= 0)
-                return new List<Gw2IconSearchResult>();
+                return Array.Empty<Gw2IconSearchResult>();
 
             var terms = GetSearchTerms(query);
 
             if (terms.Length == 0)
-                return new List<Gw2IconSearchResult>();
+                return Array.Empty<Gw2IconSearchResult>();
 
             List<SearchableIcons> entries;
 
@@ -150,14 +186,13 @@ namespace rp.spark.Services
                 entries = _searchableIcons;
 
             if (entries.Count == 0)
-                return new List<Gw2IconSearchResult>();
+                return Array.Empty<Gw2IconSearchResult>();
 
             var results = new List<Gw2IconSearchResult>(limit);
             var seenAssetIds = new HashSet<int>();
 
-            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.NameSearch, terms));
-            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.KeywordSearch, terms));
-            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.FullSearch, terms));
+            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.Name, terms));
+            AddMatches(entries, limit, results, seenAssetIds, entry => ContainsAllTerms(entry.SearchText, terms));
 
             return results;
         }
@@ -177,14 +212,14 @@ namespace rp.spark.Services
                 if (results.Count >= limit)
                     return;
 
-                if (entry.Icon.AssetId <= 0 || seenAssetIds.Contains(entry.Icon.AssetId))
+                if (entry.AssetId <= 0 || seenAssetIds.Contains(entry.AssetId))
                     continue;
 
                 if (!predicate(entry))
                     continue;
 
-                seenAssetIds.Add(entry.Icon.AssetId);
-                results.Add(entry.Icon);
+                seenAssetIds.Add(entry.AssetId);
+                results.Add(entry.ToResult());
             }
         }
 
@@ -390,7 +425,7 @@ namespace rp.spark.Services
                 && uri.AbsolutePath.EndsWith(".json.gz", StringComparison.Ordinal);
         }
 
-        private static async Task<T> DownloadJSONAsync<T>(string url, int maxBytes, CancellationToken cancellationToken) where T : class        
+        private static async Task<T> DownloadJSONAsync<T>(string url, int maxBytes, CancellationToken cancellationToken) where T : class
         {
             var bytes = await DownloadFileAsync(url, maxBytes, cancellationToken);
 
@@ -506,7 +541,7 @@ namespace rp.spark.Services
             if (string.IsNullOrEmpty(value))
                 return false;
 
-            return terms.All(term => value.Contains(term));
+            return terms.All(term => value.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static string BuildSearchText(params string[] parts)
@@ -539,27 +574,32 @@ namespace rp.spark.Services
         {
             public SearchableIcons(Gw2IconIndexEntry entry)
             {
-                Icon = new Gw2IconSearchResult
-                {
-                    AssetId = entry.AssetId,
-                    Source = entry.Source ?? string.Empty,
-                    Name = entry.Name ?? string.Empty,
-                    Description = entry.Description ?? string.Empty,
-                    Keywords = entry.Keywords ?? new List<string>()
-                };
+                AssetId = entry.AssetId;
+                Name = entry.Name ?? string.Empty;
 
-                NameSearch = BuildSearchText(Icon.Name);
-                KeywordSearch = BuildSearchText(Icon.Source, string.Join(" ", Icon.Keywords));
-                FullSearch = BuildSearchText(Icon.Name, Icon.Description, Icon.Source, string.Join(" ", Icon.Keywords));
+                var keywordText = entry.Keywords == null || entry.Keywords.Count == 0
+                    ? string.Empty
+                    : string.Join(" ", entry.Keywords);
+
+                SearchText = BuildSearchText(
+                    Name,
+                    entry.Description,
+                    entry.Source,
+                    keywordText);
             }
 
-            public Gw2IconSearchResult Icon { get; }
+            public int AssetId { get; }
+            public string Name { get; }
+            public string SearchText { get; }
 
-            public string NameSearch { get; }
-
-            public string KeywordSearch { get; }
-
-            public string FullSearch { get; }
+            public Gw2IconSearchResult ToResult()
+            {
+                return new Gw2IconSearchResult
+                {
+                    AssetId = AssetId,
+                    Name = Name
+                };
+            }
         }
     }
 }

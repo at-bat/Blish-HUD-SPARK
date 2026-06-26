@@ -187,11 +187,12 @@ namespace rp.spark.Services
             if (string.IsNullOrWhiteSpace(profileId))
                 return;
 
-            var profile = Load(profileId);
+            var normalizedProfileId = profileId.Trim();
+            var profile = Load(normalizedProfileId);
 
             try
             {
-                var path = GetProfilePath(profile);
+                var path = GetProfilePath(normalizedProfileId);
 
                 if (!string.IsNullOrWhiteSpace(path))
                     File.Delete(path);
@@ -210,7 +211,7 @@ namespace rp.spark.Services
 
             lock (_cacheLock)
             {
-                _profilesByIdCache?.Remove(profileId.Trim());
+                _profilesByIdCache?.Remove(normalizedProfileId);
             }
 
             if (profile == null)
@@ -222,10 +223,15 @@ namespace rp.spark.Services
                 ClearActiveProfile(profile.AccountName, profile.CharacterName);
         }
 
+
         public void Save(CharacterProfile profile)
         {
-            if (string.IsNullOrWhiteSpace(profile.ProfileId))
-                profile.ProfileId = Guid.NewGuid().ToString();
+            if (profile == null)
+                throw new InvalidOperationException("Cannot save a missing profile.");
+
+            profile.ProfileId = string.IsNullOrWhiteSpace(profile.ProfileId)
+                ? Guid.NewGuid().ToString()
+                : profile.ProfileId.Trim();
 
             profile.ProfileName = ProfileName(profile);
 
@@ -239,7 +245,7 @@ namespace rp.spark.Services
             if (!validation.IsValid)
                 throw new InvalidOperationException(string.Join(Environment.NewLine, validation.Errors));
 
-            var profilePath = GetProfilePath(profile);
+            var profilePath = GetProfilePath(profile.ProfileId);
 
             if (!FileStore.TryWrite(profilePath, profile, Logger, "SPARK profile"))
                 throw new InvalidOperationException("Could not save the profile file. Check file permissions and try again.");
@@ -271,12 +277,9 @@ namespace rp.spark.Services
             return null;
         }
 
-        private string GetProfilePath(CharacterProfile profile)
+        private string GetProfilePath(string profileId)
         {
-            return FileStore.GetNamedPath(
-                _profilesDirectory,
-                GetProfileFileName(profile),
-                profile?.ProfileId);
+            return FileStore.GetSafePath(_profilesDirectory, profileId?.Trim());
         }
 
         private Dictionary<string, CharacterProfile> GetProfileCacheLocked()
@@ -354,15 +357,18 @@ namespace rp.spark.Services
             if (profile == null)
                 return;
 
-            if (string.IsNullOrWhiteSpace(profile.ProfileId))
-                profile.ProfileId = Guid.NewGuid().ToString();
+            profile.ProfileId = string.IsNullOrWhiteSpace(profile.ProfileId)
+                ? Guid.NewGuid().ToString()
+                : profile.ProfileId.Trim();
 
             profile.ProfileName = ProfileName(profile);
 
             if (profile.CreatedAt == default)
+            {
                 profile.CreatedAt = profile.UpdatedAt == default
                     ? DateTime.UtcNow
                     : profile.UpdatedAt;
+            }
 
             if (profile.UpdatedAt == default)
                 profile.UpdatedAt = profile.CreatedAt;
@@ -394,15 +400,6 @@ namespace rp.spark.Services
             return string.IsNullOrWhiteSpace(profile?.ProfileName)
                 ? "Default"
                 : profile.ProfileName.Trim();
-        }
-
-        private static string GetProfileFileName(CharacterProfile profile)
-        {
-            return TextUtil.FirstNonEmpty(
-                profile?.DisplayName,
-                profile?.CharacterName,
-                profile?.ProfileName,
-                "profile");
         }
 
         // Use a clone instead of the actual file so we don't mutate something unintentionally

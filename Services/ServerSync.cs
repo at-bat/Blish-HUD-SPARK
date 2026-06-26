@@ -150,6 +150,7 @@ namespace rp.spark.Services
                 presence.AccountName,
                 presence.OfficialCharacterName,
                 presence.ActiveProfileId,
+                _settings?.ShowMatureProfiles?.Value == true,
                 verificationToken,
                 cancellationToken);
 
@@ -183,7 +184,7 @@ namespace rp.spark.Services
             }
 
             var verificationToken = await GetVerificationTokenAsync(cancellationToken);
-            var result = await _apiClient.ListPresenceResultAsync(region, verificationToken, cancellationToken);
+            var result = await _apiClient.ListPresenceResultAsync(region, _settings?.ShowMatureProfiles?.Value == true, verificationToken, cancellationToken);
 
             if (result.Succeeded)
             {
@@ -462,6 +463,7 @@ namespace rp.spark.Services
                 || !SameTrimmed(previous.Profession, current.Profession)
                 || !SameTrimmed(previous.CustomProfession, current.CustomProfession)
                 || !SameTrimmed(previous.ActiveProfileId, current.ActiveProfileId)
+                || previous.IsMature != current.IsMature
                 || !SameTrimmed(previous.ActiveProfileName, current.ActiveProfileName)
                 || previous.ProfileUpdatedAtTime != current.ProfileUpdatedAtTime
                 || previous.Status != current.Status

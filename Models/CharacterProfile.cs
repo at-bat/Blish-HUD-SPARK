@@ -176,6 +176,8 @@ namespace rp.spark.Models
 
         public string ProfileName { get; set; } = "Default";
 
+        public bool IsMature { get; set; }
+
         public string AccountName { get; set; } = string.Empty;
 
         public string CharacterName { get; set; } = string.Empty;

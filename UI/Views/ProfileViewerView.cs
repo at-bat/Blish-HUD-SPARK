@@ -197,6 +197,9 @@ namespace rp.spark.UI.Views
 
             string metadata = $"Current location: {ProfileText.PresenceLocation(_presence)} | Account: {ProfileText.AccountName(_profile, _presence, string.Empty)}";
 
+            if (_profile.IsMature || _presence.IsMature)
+                metadata += " | Mature/18+";
+
             if (!string.IsNullOrWhiteSpace(metadata))
             {
                 new Label

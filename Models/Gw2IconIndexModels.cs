@@ -83,6 +83,6 @@ namespace rp.spark.Models
 
         public string Description { get; set; } = string.Empty;
 
-        public IReadOnlyList<string> Keywords { get; set; } = new List<string>();
+        public IReadOnlyList<string> Keywords { get; set; } = Array.Empty<string>();
     }
 }
