@@ -100,6 +100,8 @@ namespace rp.spark.UI
             if (!CanShowGameplayWindow())
                 return;
 
+            EnsureIconIndexLoaded();
+
             var state = _playerState.GetCached();
 
             if (_profileWindow != null && _profileWindow.Visible)
@@ -496,6 +498,22 @@ namespace rp.spark.UI
             _viewedPresence = null;
             ViewedProfileId = null;
             ViewedOfficialCharacterName = null;
+        }
+
+        private async void EnsureIconIndexLoaded()
+        {
+            if (_iconIndexService == null)
+                return;
+
+            try
+            {
+                _iconIndexService.Start();
+                await _iconIndexService.EnsureLoadedAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to load GW2 icon index.");
+            }
         }
 
         public void Dispose()

@@ -457,13 +457,19 @@ namespace rp.spark.UI.Views
                 return;
             }
 
+            if (!_iconIndex.IsLoaded)
+            {
+                status.Text = _iconIndex.IsLoading
+                    ? "Icon index loading."
+                    : "Icon index not loaded yet.";
+                return;
+            }
+
             var query = queryText?.Trim() ?? string.Empty;
 
             if (query.Length < 2)
             {
-                status.Text = _iconIndex.IsLoaded
-                    ? $"{_iconIndex.EntryCount} icons ready."
-                    : "Icon index loading.";
+                status.Text = $"{_iconIndex.EntryCount} icons ready.";
                 return;
             }
 

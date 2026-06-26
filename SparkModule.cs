@@ -107,7 +107,6 @@ namespace rp.spark
                 _profileActions);
 
             _serviceHost = new ServiceHost();
-            _serviceHost.Add(_iconIndex, service => service.Start());
             _serviceHost.Add(_presenceLoop, service => service.Start());
             _serviceHost.Add(_tokens);
             _serviceHost.Add(_profileActions, service => service.Start());
@@ -125,9 +124,9 @@ namespace rp.spark
                 _profileActions);
         }
 
-        protected override async Task LoadAsync()
+        protected override Task LoadAsync()
         {
-            await _iconIndex.LoadAsync();
+            return Task.CompletedTask;
         }
 
         // Doing a small check to track the UITick, if it halts, assume we're on a map load
@@ -545,6 +544,7 @@ namespace rp.spark
             _windows = null;
             _serviceHost?.Dispose();
             _serviceHost = null;
+            _iconIndex?.Dispose();
 
             if (_profileRepository != null)
             {
