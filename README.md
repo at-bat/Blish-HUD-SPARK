@@ -6,13 +6,14 @@ SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers
 
 - Multiple profiles for each character
 - RP Statuses (Online, Looking for RP, Busy, Invisible (appear offline))
-- 'At a Glance' icons with custom tooltips including a built-in icon search with over 57,000 icons from the game to use
+- 'At a Glance' icons with custom tooltips including a fast, built-in icon search with over 57,000 icons from the game to use
 - Bookmarks for your favourite RP profiles
 - Private notes that you can save to any profile you view
 - Privacy options to hide your current location or appear offline
 - Filter/sorting for profiles on the online list, recently seen, or bookmarked lists
 - Block option (Account-wide) to block all profiles from someone. This prevents blocked users from seeing you online or fetching your profile anymore
 - Report option to report offensive profiles or users who promote hate or bigotry.
+- Mature Profile opt-in / filtering
 
 ## Requirements
 
@@ -82,7 +83,7 @@ When you block an account, this is in a locally kept list on the module for play
 
 Blocked users may have already viewed a profile and have a local copy on their machine. This is the only profile they will be able to view and will never see any updates or anything else from that GW2 Account unless unblocked.
 
-### Reported Profiles / SPARK Bans
+### Reported Profiles / SPARK Moderation
 
 SPARK retains a snapshot of a profile when it has been reported by users. Report reasons are appended to the profile, so if multiple people report a profile, their report messages are added into a server-only copy of the profile for review.
 
@@ -90,11 +91,13 @@ These snapshots are retained for moderation review purposes only. They are not e
 
 If the profile appears to be breaking any TOS or promotes hate/bigotry, they will be added to a ban list on the server. This prevents any uploads from their GW2 account to SPARK permanently until removed from the ban list.
 
+If a SPARK user includes explicit information in a profile without marking it as 18+, SPARK may force all of that account's profiles to be marked as 18+ indefinitely.
+
 ## Installation
 
 Eventually, this will be done through Blish HUD itself. For now, if you're looking to test this, see below:
 
-Place the .bhm files from the Releases page in your Blish HUD module folder. On Windows this is typically `Documents\Guild Wars 2\addons\blishhud\modules`.
+Place the ``.bhm`` file from the Releases page in your Blish HUD module folder. On Windows this is typically `Documents\Guild Wars 2\addons\blishhud\modules`.
 
 Once it's added, start Guild Wars 2 and Blish HUD and you should see it in the Blish HUD sidebar.
 

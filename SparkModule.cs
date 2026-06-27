@@ -78,7 +78,7 @@ namespace rp.spark
             _playerState = new PlayerStateService(this.Gw2ApiManager, _sparkSettings);
             _presenceService = new PresenceService(_profileRepository, _playerState, _sparkSettings);
             _sparkClient = new SparkClient(_sparkSettings.GetServerBaseUrl());
-            _iconIndex = new IconIndexService(this.ContentsManager, this.DirectoriesManager);
+            _iconIndex = new IconIndexService(this.ContentsManager);
             _presenceLoop = new PresenceLoop(_presenceService);
             _tokens = new GW2TokenVerification(this.Gw2ApiManager);
             _sync = new ServerSync(
@@ -144,8 +144,6 @@ namespace rp.spark
 
             if (_windows.ShouldHideGameplayWindows())
                 _windows.CloseGameplayWindows();
-
-            _windows.UnloadIdleIconIndex();
         }
 
         protected override void OnModuleLoaded(EventArgs e)
