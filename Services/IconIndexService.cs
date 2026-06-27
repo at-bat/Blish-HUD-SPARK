@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace rp.spark.Services
 {
     // Maintains a compact searchable GW2 icon index for the 'at a glance' editor.
-    // This only uses a local bundled .gzip. Previously it had an updated feature, but it added too much extra code.
+    // This only uses a local bundled .gzip. Previously it had an update feature, but it added too much extra code.
     // This has been rewritten to search on demand instead of being in-memory to reduce module file size by just over 50% (index alone went from 23mb to 3mb roughly)
     // Search is slightly slower than in-memory but we're not needlessly consuming RAM.
     // Stripped several parts of this that felt redundant or unwieldy to reduce complexity.
@@ -23,7 +23,6 @@ namespace rp.spark.Services
         private static readonly Logger Logger = Logger.GetLogger<IconIndexService>();
         private static readonly char[] SearchWordSeparators = { ' ', '\t', '\r', '\n', ',', ';', ':', '/', '\\', '|', '-', '_' };
 
-        private const int MaxIndexUrlLength = 2048;
         // Max 5MB gzip, and 25MB uncompressed JSON.
         // Current sizes are below this, but leaving this semi-larger in case this changes.
         private const int MaxDecompressedIndexBytes = 25 * 1024 * 1024;
@@ -166,7 +165,7 @@ namespace rp.spark.Services
                             continue;
                         }
 
-                        // Limit backup list of matches so we don't use too much memoyr
+                        // Limit backup list of matches so we don't use too much memory
                         if (fallbackResults.Count < limit * 4
                             && EntryContainsAllTerms(entry, terms)
                             && fallbackAssetIds.Add(entry.AssetId))
