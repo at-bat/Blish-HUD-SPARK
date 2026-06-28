@@ -18,6 +18,8 @@ namespace rp.spark.Services
 
         public string LocationName { get; set; } = string.Empty;
 
+        public bool IsLocationResolved { get; set; } = true;
+
         public string AccountName { get; set; } = string.Empty;
 
         public bool IsCharacterApiVerified { get; set; }

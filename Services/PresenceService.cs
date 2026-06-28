@@ -57,6 +57,7 @@ namespace rp.spark.Services
             var status = NormalizeStatus(_settings?.CurrentStatus?.Value ?? RPStatus.Online);
             var broadcastEnabled = _settings?.BroadcastProfile?.Value ?? false;
             var locationHidden = _settings?.HideLocation?.Value ?? false;
+            var locationResolved = locationHidden || state.IsLocationResolved;
             var isInGame = state.CanEditProfile;
 
             var snapshot = new PlayerPresence
@@ -84,22 +85,23 @@ namespace rp.spark.Services
                 LastSeen = DateTime.UtcNow
             };
 
-            snapshot.CanShare = CanShare(snapshot);
-            snapshot.ShareBlockReason = GetShareBlockReason(snapshot);
+            snapshot.CanShare = CanShare(snapshot, locationResolved);
+            snapshot.ShareBlockReason = GetShareBlockReason(snapshot, locationResolved);
 
             return snapshot;
         }
 
-        private static bool CanShare(PlayerPresence snapshot)
+        private static bool CanShare(PlayerPresence snapshot, bool locationResolved)
         {
             return snapshot.ShareEnabled
                 && snapshot.Status != RPStatus.Invisible
                 && snapshot.HasActiveProfile
                 && !string.IsNullOrWhiteSpace(snapshot.AccountName)
-                && !string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName);
+                && !string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName)
+                && locationResolved;
         }
 
-        private static string GetShareBlockReason(PlayerPresence snapshot)
+        private static string GetShareBlockReason(PlayerPresence snapshot, bool locationResolved)
         {
             if (!snapshot.ShareEnabled)
                 return snapshot.IsInGame ? "Profile sharing is disabled." : "No character detected.";
@@ -115,6 +117,9 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName))
                 return "Character name unavailable.";
+
+            if (!locationResolved)
+                return "Map name is still loading.";
 
             return string.Empty;
         }
