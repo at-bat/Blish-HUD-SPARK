@@ -100,8 +100,6 @@ namespace rp.spark.UI
             if (!CanShowGameplayWindow())
                 return;
 
-            EnsureIconIndexLoaded();
-
             var state = _playerState.GetCached();
 
             if (_profileWindow != null && _profileWindow.Visible)
@@ -377,7 +375,7 @@ namespace rp.spark.UI
         }
 
         // Fixing this so we removed saved entries if we cannot load them
-        private async void OpenSavedProfile(SavedProfileSummary summary)
+        private async void OpenSavedProfile(SavedProfileSummary summary, Action<string> showStatus)
         {
             if (summary == null)
                 return;
@@ -392,6 +390,10 @@ namespace rp.spark.UI
                 if (record == null)
                 {
                     _profileActions.RemoveSavedProfile(summary);
+
+                    var profileName = ProfileText.SavedCharacterName(summary);
+                    showStatus?.Invoke($"Warning: {profileName} not found. Entry removed from list.");
+
                     return;
                 }
 
@@ -413,6 +415,7 @@ namespace rp.spark.UI
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Failed to open saved SPARK profile");
+                showStatus?.Invoke("Couldn't open this saved profile.");
             }
         }
 
@@ -498,22 +501,6 @@ namespace rp.spark.UI
             _viewedPresence = null;
             ViewedProfileId = null;
             ViewedOfficialCharacterName = null;
-        }
-
-        private async void EnsureIconIndexLoaded()
-        {
-            if (_iconIndexService == null)
-                return;
-
-            try
-            {
-                _iconIndexService.Start();
-                await _iconIndexService.EnsureLoadedAsync();
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to load GW2 icon index.");
-            }
         }
 
         public void Dispose()

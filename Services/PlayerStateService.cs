@@ -15,6 +15,7 @@ namespace rp.spark.Services
         private static readonly TimeSpan AccountRefreshInterval = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan CharacterRefreshInterval = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan ApiFailureRetryInterval = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan MapResolveRetryInterval = TimeSpan.FromSeconds(15);
 
         private readonly Gw2ApiManager _gw2ApiManager;
         private readonly SparkSettings _settings;
@@ -41,9 +42,20 @@ namespace rp.spark.Services
 
             state.AccountName = await GetAccountNameAsync(cancellationToken);
             await TryVerifyCharacterAsync(state, cancellationToken);
-            state.LocationName = IsLocationHidden()
-                ? HiddenLocationName
-                : await GetLocationNameAsync(state.MapId, cancellationToken);
+
+            if (IsLocationHidden())
+            {
+                state.MapId = 0;
+                state.LocationName = HiddenLocationName;
+                state.IsLocationResolved = true;
+            }
+            else
+            {
+                var location = await GetLocationNameAsync(state.MapId, cancellationToken);
+                state.LocationName = location.Name;
+                state.IsLocationResolved = location.IsResolved;
+            }
+
             SetLastState(state);
 
             return state;
@@ -80,18 +92,25 @@ namespace rp.spark.Services
                 }
 
                 if (state.MapId > 0 && state.MapId == lastState.MapId)
+                {
                     state.LocationName = lastState.LocationName;
+                    state.IsLocationResolved = lastState.IsLocationResolved;
+                }
             }
 
             if (IsLocationHidden())
             {
                 state.MapId = 0;
                 state.LocationName = HiddenLocationName;
+                state.IsLocationResolved = true;
                 return state;
             }
 
             if (string.IsNullOrWhiteSpace(state.LocationName))
+            {
                 state.LocationName = GetLocationFallback(state.MapId);
+                state.IsLocationResolved = state.MapId <= 0;
+            }
 
             return state;
         }
@@ -164,10 +183,12 @@ namespace rp.spark.Services
             if (IsLocationHidden())
             {
                 state.LocationName = HiddenLocationName;
+                state.IsLocationResolved = true;
             }
             else
             {
                 state.MapId = GameService.Gw2Mumble.CurrentMap.Id;
+                state.IsLocationResolved = state.MapId <= 0;
             }
 
             return state;
@@ -206,21 +227,22 @@ namespace rp.spark.Services
         }
 
         // Fix for new presence cache so location doesn't cache bad map names (Map 139 instead of Rata Sum, etc.)
-        private async Task<string> GetLocationNameAsync(int mapId, CancellationToken cancellationToken)
+        // Secondary fix by marking it unresolved so presence waits for it before publishing
+        private async Task<LocationNameResult> GetLocationNameAsync(int mapId, CancellationToken cancellationToken)
         {
             if (mapId <= 0)
-                return GetLocationFallback(mapId);
+                return LocationNameResult.Resolved(GetLocationFallback(mapId));
 
             lock (_mapNameCache)
             {
                 if (_mapNameCache.TryGetValue(mapId, out var cachedName))
-                    return cachedName;
+                    return LocationNameResult.Resolved(cachedName);
             }
 
             try
             {
                 if (IsMapRetryCoolingDown(mapId))
-                    return GetLocationFallback(mapId);
+                    return LocationNameResult.Unresolved(GetLocationFallback(mapId));
 
                 var map = await GameService.Gw2WebApi.AnonymousConnection.Client.V2.Maps.GetAsync(mapId, cancellationToken);
                 var mapName = map?.Name?.Trim() ?? string.Empty;
@@ -228,7 +250,7 @@ namespace rp.spark.Services
                 if (string.IsNullOrWhiteSpace(mapName))
                 {
                     SetMapRetry(mapId);
-                    return GetLocationFallback(mapId);
+                    return LocationNameResult.Unresolved(GetLocationFallback(mapId));
                 }
 
                 lock (_mapNameCache)
@@ -237,7 +259,7 @@ namespace rp.spark.Services
                 }
 
                 ClearMapRetry(mapId);
-                return mapName;
+                return LocationNameResult.Resolved(mapName);
             }
             catch (OperationCanceledException)
             {
@@ -248,7 +270,7 @@ namespace rp.spark.Services
                 SetMapRetry(mapId);
                 BlishWarnings.HttpBlocked(ex, "resolve your current GW2 map");
                 Logger.Warn(ex, "Failed to resolve GW2 map id {mapId}.", mapId);
-                return GetLocationFallback(mapId);
+                return LocationNameResult.Unresolved(GetLocationFallback(mapId));
             }
         }
 
@@ -398,7 +420,7 @@ namespace rp.spark.Services
         {
             lock (_mapRetryAfter)
             {
-                _mapRetryAfter[mapId] = DateTime.UtcNow + ApiFailureRetryInterval;
+                _mapRetryAfter[mapId] = DateTime.UtcNow + MapResolveRetryInterval;
             }
         }
 
@@ -447,6 +469,7 @@ namespace rp.spark.Services
                 Specialization = state.Specialization,
                 MapId = state.MapId,
                 LocationName = state.LocationName,
+                IsLocationResolved = state.IsLocationResolved,
                 AccountName = state.AccountName,
                 IsCharacterApiVerified = state.IsCharacterApiVerified,
                 HasCharactersPermission = state.HasCharactersPermission
@@ -456,6 +479,31 @@ namespace rp.spark.Services
         private static bool IsFresh(DateTime fetchedAt, TimeSpan interval)
         {
             return fetchedAt != default && DateTime.UtcNow - fetchedAt < interval;
+        }
+
+        private class LocationNameResult
+        {
+            public string Name { get; set; } = string.Empty;
+
+            public bool IsResolved { get; set; }
+
+            public static LocationNameResult Resolved(string name)
+            {
+                return new LocationNameResult
+                {
+                    Name = name ?? string.Empty,
+                    IsResolved = true
+                };
+            }
+
+            public static LocationNameResult Unresolved(string name)
+            {
+                return new LocationNameResult
+                {
+                    Name = name ?? string.Empty,
+                    IsResolved = false
+                };
+            }
         }
 
         private class CharacterApiSnapshot

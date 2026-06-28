@@ -8,6 +8,7 @@ using rp.spark.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace rp.spark.UI.Views
 {
@@ -389,13 +390,13 @@ namespace rp.spark.UI.Views
             };
 
             assetIdBox.TextChanged += (s, e) => UpdateIconPreview(assetIdBox, selectedIcon);
-            iconSearchBox.EnterPressed += (s, e) => SearchIcons(
+            iconSearchBox.EnterPressed += async (s, e) => await SearchIconsAsync(
                 iconSearchBox.Text,
                 assetIdBox,
                 selectedIcon,
                 iconResultsList,
                 status);
-            searchButton.Click += (s, e) => SearchIcons(
+            searchButton.Click += async (s, e) => await SearchIconsAsync(
                 iconSearchBox.Text,
                 assetIdBox,
                 selectedIcon,
@@ -442,7 +443,7 @@ namespace rp.spark.UI.Views
             };
         }
 
-        private void SearchIcons(
+        private async Task SearchIconsAsync(
             string queryText,
             TextBox assetIdBox,
             AssetIcon selectedIcon,
@@ -457,24 +458,25 @@ namespace rp.spark.UI.Views
                 return;
             }
 
-            if (!_iconIndex.IsLoaded)
-            {
-                status.Text = _iconIndex.IsLoading
-                    ? "Icon index loading."
-                    : "Icon index not loaded yet.";
-                return;
-            }
-
             var query = queryText?.Trim() ?? string.Empty;
 
             if (query.Length < 2)
             {
-                status.Text = $"{_iconIndex.EntryCount} icons ready.";
+                status.Text = "Enter at least 2 characters.";
                 return;
             }
 
-            var results = _iconIndex.Search(query, IconSearchResultLimit);
-            ShowIconResults(results, assetIdBox, selectedIcon, resultsList, status);
+            status.Text = "Searching...";
+
+            try
+            {
+                var results = await _iconIndex.SearchAsync(query, IconSearchResultLimit);
+                ShowIconResults(results, assetIdBox, selectedIcon, resultsList, status);
+            }
+            catch
+            {
+                status.Text = "Icon search failed.";
+            }
         }
 
         private void ShowIconResults(

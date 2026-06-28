@@ -24,7 +24,7 @@ namespace rp.spark.UI.Views
         private static readonly TimeSpan LivePresenceWindow = TimeSpan.FromSeconds(45);
 
         private readonly Func<IReadOnlyList<SavedProfileSummary>> _loadSavedProfiles;
-        private readonly Action<SavedProfileSummary> _openProfile;
+        private readonly Action<SavedProfileSummary, Action<string>> _openProfile;
         private readonly Action<SavedProfileSummary> _removeBookmark;
         private readonly Func<string, bool> _isBlockedAccount;
         private readonly Func<bool> _showMatureProfiles;
@@ -40,12 +40,11 @@ namespace rp.spark.UI.Views
         private Dropdown _sortDropdown;
         private ProfileScrollList _profileList;
         private Label _status;
-        private string _pendingOpenCacheKey = string.Empty;
-        private string _pendingOpenName = string.Empty;
+        private string _statusOverride = string.Empty;
 
         public SavedProfilesView(
             Func<IReadOnlyList<SavedProfileSummary>> getSavedProfiles,
-            Action<SavedProfileSummary> openProfile,
+            Action<SavedProfileSummary, Action<string>> openProfile,
             SavedProfilesMode mode,
             Func<string, bool> isBlockedAccount = null,
             Action<SavedProfileSummary> removeBookmark = null,
@@ -165,28 +164,7 @@ namespace rp.spark.UI.Views
                 .Where(MatchesSearch);
 
             var rows = SortRows(filteredRows).ToList();
-            var statusOverride = string.Empty;
-
-            if (!string.IsNullOrWhiteSpace(_pendingOpenCacheKey))
-            {
-                var pendingEntryStillExists = rows.Any(savedProfile =>
-                    string.Equals(
-                        savedProfile.CacheKey?.Trim(),
-                        _pendingOpenCacheKey,
-                        StringComparison.OrdinalIgnoreCase));
-
-                if (!pendingEntryStillExists)
-                {
-                    var missingName = string.IsNullOrWhiteSpace(_pendingOpenName)
-                        ? "Profile"
-                        : _pendingOpenName;
-
-                    statusOverride = $"Warning: {missingName} not found. Entry removed from list.";
-                }
-
-                _pendingOpenCacheKey = string.Empty;
-                _pendingOpenName = string.Empty;
-            }
+            var statusOverride = _statusOverride;
 
             if (resetPage)
                 _page.Reset();
@@ -288,11 +266,16 @@ namespace rp.spark.UI.Views
         {
             ProfileScrollList.WireInteraction(control, tooltipText, () =>
             {
-                _pendingOpenCacheKey = savedProfile?.CacheKey?.Trim() ?? string.Empty;
-                _pendingOpenName = ProfileText.SavedCharacterName(savedProfile);
-
-                _openProfile?.Invoke(savedProfile);
+                _openProfile?.Invoke(savedProfile, ShowStatusOverride);
             });
+        }
+
+        private void ShowStatusOverride(string message)
+        {
+            _statusOverride = message ?? string.Empty;
+
+            if (_status != null && !_isUnloaded)
+                _status.Text = _statusOverride;
         }
 
         private bool IsHidden(SavedProfileSummary savedProfile)
