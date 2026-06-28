@@ -15,6 +15,19 @@ SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers
 - Report option to report offensive profiles or users who promote hate or bigotry.
 - Mature Profile opt-in / filtering
 
+## Installing SPARK
+
+1. Close Blish HUD if it's currently running.
+2. Go to the [Release Page](https://github.com/at-bat/Blish-HUD-SPARK/releases). Download the `.bhm` file and place it in your Blish HUD directory.
+	On Windows this is typically here: `Documents\Guild Wars 2\addons\blishhud\modules`.
+3. Once it's added to this folder, start Guild Wars 2 and Blish HUD and you should see SPARK in the Blish HUD sidebar.
+
+SPARK contains a server status and a module status to let you know if something isn't working to troubleshoot problems.
+
+**Please make sure you have an API key added into Blish HUD, or SPARK will not work.**
+
+API keys can only read your account data, like your account name, character names, etc. It cannot modify or change anything on your account and are safe to put into Blish HUD.
+
 ## Requirements
 
 - [Blish HUD](https://blishhud.com) 1.3.0 or newer
