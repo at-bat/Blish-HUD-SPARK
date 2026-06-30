@@ -2,6 +2,8 @@
 
 SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers. It lets players create character profiles, share their current roleplay status, discover other SPARK users, and save notes or bookmarks for profiles they have viewed.
 
+There is now a [Discord server](https://discord.gg/nJ3UstHcAg) for SPARK if you wish to report bugs, provide feedback, or need assistance while using it.
+
 ## Features
 
 - Multiple profiles for each character
@@ -18,7 +20,10 @@ SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers
 ## Installing SPARK
 
 1. Close Blish HUD if it's currently running.
-2. Go to the [Release Page](https://github.com/at-bat/Blish-HUD-SPARK/releases). Download the `.bhm` file and place it in your Blish HUD directory.
+2. Go to the [Release Page](https://github.com/at-bat/Blish-HUD-SPARK/releases). 
+3. At the bottom of a release is a section called Assets. Click on this to see all of the attached files in a release.
+4. Download JUST the `.bhm` file. You do not need anything else.
+5. Add the `.bhm` file to your Blish HUD modules folder.
 	On Windows this is typically here: `Documents\Guild Wars 2\addons\blishhud\modules`.
 3. Once it's added to this folder, start Guild Wars 2 and Blish HUD and you should see SPARK in the Blish HUD sidebar.
 
@@ -105,14 +110,6 @@ These snapshots are retained for moderation review purposes only. They are not e
 If the profile appears to be breaking any TOS or promotes hate/bigotry, they will be added to a ban list on the server. This prevents any uploads from their GW2 account to SPARK permanently until removed from the ban list.
 
 If a SPARK user includes explicit information in a profile without marking it as 18+, SPARK may force all of that account's profiles to be marked as 18+ indefinitely.
-
-## Installation
-
-Eventually, this will be done through Blish HUD itself. For now, if you're looking to test this, see below:
-
-Place the ``.bhm`` file from the Releases page in your Blish HUD module folder. On Windows this is typically `Documents\Guild Wars 2\addons\blishhud\modules`.
-
-Once it's added, start Guild Wars 2 and Blish HUD and you should see it in the Blish HUD sidebar.
 
 ## LICENSE
 
