@@ -35,6 +35,10 @@ namespace rp.spark.UI.Views
 
         protected override void Build(Container buildPanel)
         {
+            _preferenceCheckboxes.Clear();
+            _themeCheckboxes.Clear();
+            _styleCheckboxes.Clear();
+
             if (!_session.InitialState.CanEditProfile)
             {
                 ProfileEditorUI.ShowUnavailableMessage(buildPanel);

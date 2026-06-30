@@ -44,6 +44,8 @@ namespace rp.spark.UI.Views
 
         public void Build(FlowPanel settingsStack, int contentWidth, int listHeight = DefaultListHeight)
         {
+            _isDisposed = false;
+
             var blockedStack = SparkFormLayout.AddAutoStack(settingsStack, contentWidth, 5);
             var inputRow = SparkFormLayout.AddRow(blockedStack, contentWidth, InputHeight, 8);
 

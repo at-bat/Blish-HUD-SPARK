@@ -443,6 +443,11 @@ namespace rp.spark.UI.Views
             };
         }
 
+        private static bool IsIconSearchUiAlive(ProfileScrollList resultsList, Label status)
+        {
+            return resultsList?.Parent != null && status?.Parent != null;
+        }
+
         private async Task SearchIconsAsync(
             string queryText,
             TextBox assetIdBox,
@@ -450,6 +455,9 @@ namespace rp.spark.UI.Views
             ProfileScrollList resultsList,
             Label status)
         {
+            if (!IsIconSearchUiAlive(resultsList, status))
+                return;
+
             resultsList.ClearRows();
 
             if (_iconIndex == null)
@@ -471,11 +479,16 @@ namespace rp.spark.UI.Views
             try
             {
                 var results = await _iconIndex.SearchAsync(query, IconSearchResultLimit);
+
+                if (!IsIconSearchUiAlive(resultsList, status))
+                    return;
+
                 ShowIconResults(results, assetIdBox, selectedIcon, resultsList, status);
             }
             catch
             {
-                status.Text = "Icon search failed.";
+                if (IsIconSearchUiAlive(resultsList, status))
+                    status.Text = "Icon search failed.";
             }
         }
 
@@ -486,6 +499,9 @@ namespace rp.spark.UI.Views
             ProfileScrollList resultsList,
             Label status)
         {
+            if (!IsIconSearchUiAlive(resultsList, status))
+                return;
+
             resultsList.ClearRows();
 
             status.Text = results.Count == 0
@@ -544,6 +560,9 @@ namespace rp.spark.UI.Views
             AssetIcon selectedIcon,
             Label status)
         {
+            if (assetIdBox?.Parent == null || selectedIcon?.Parent == null || status?.Parent == null)
+                return;
+
             assetIdBox.Text = result.AssetId.ToString();
             selectedIcon.SetAssetId(result.AssetId);
 

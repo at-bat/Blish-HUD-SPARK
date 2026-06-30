@@ -86,21 +86,29 @@ namespace rp.spark.UI.Views
 
         private void RefreshProfile()
         {
-            if (_contentPanel == null)
+            var contentPanel = _contentPanel;
+            if (contentPanel == null)
                 return;
 
-            ClearChildren(_contentPanel);
+            ClearChildren(contentPanel);
+
+            if (!ReferenceEquals(_contentPanel, contentPanel))
+                return;
 
             _scrollViewport = null;
             _layout = null;
             _status = null;
 
-            _headerOffset = BuildHeader(_contentPanel);
-            _layout = new Layout(_headerOffset, _contentPanel.Size);
-            BuildGlance(_contentPanel);
-            BuildStatus(_contentPanel);
-            BuildBody(_contentPanel);
-            BuildScrollBar(_contentPanel);
+            _headerOffset = BuildHeader(contentPanel);
+
+            if (!ReferenceEquals(_contentPanel, contentPanel))
+                return;
+
+            _layout = new Layout(_headerOffset, contentPanel.Size);
+            BuildGlance(contentPanel);
+            BuildStatus(contentPanel);
+            BuildBody(contentPanel);
+            BuildScrollBar(contentPanel);
         }
 
         private static void ClearChildren(Container container)
@@ -308,6 +316,10 @@ namespace rp.spark.UI.Views
 
         private void BuildGlance(Container buildPanel)
         {
+            var layout = _layout;
+            if (buildPanel == null || layout == null)
+                return;
+
             var entries = GetGlanceEntries().ToList();
 
             if (!entries.Any())
@@ -316,7 +328,7 @@ namespace rp.spark.UI.Views
             for (var i = 0; i < entries.Count; i++)
             {
                 var entry = entries[i];
-                var bounds = _layout.GlanceIconBounds(i);
+                var bounds = layout.GlanceIconBounds(i);
                 var icon = new AssetIcon
                 {
                     Location = bounds.Location,
@@ -332,10 +344,14 @@ namespace rp.spark.UI.Views
 
         private void BuildStatus(Container buildPanel)
         {
+            var layout = _layout;
+            if (buildPanel == null || layout == null)
+                return;
+
             if (_presence.Status == RPStatus.Invisible)
                 return;
 
-            var bounds = _layout.ProfileStatusBounds;
+            var bounds = layout.ProfileStatusBounds;
             var statusText = ProfileLabels.StatusLabel(_presence.Status);
             var statusWidth = GetStatusTextWidth(statusText);
             var prefixWidth = GetStatusTextWidth("Status:");
@@ -376,9 +392,13 @@ namespace rp.spark.UI.Views
 
         private void BuildBody(Container buildPanel)
         {
-            var viewportBounds = _layout.ViewportBounds;
+            var layout = _layout;
+            if (buildPanel == null || layout == null)
+                return;
 
-            _scrollViewport = new MouseWheelPanel
+            var viewportBounds = layout.ViewportBounds;
+
+            var scrollViewport = new MouseWheelPanel
             {
                 ShowBorder = false,
                 Location = viewportBounds.Location,
@@ -388,33 +408,41 @@ namespace rp.spark.UI.Views
                 BackgroundColor = new Color(0, 0, 0, 60)
             };
 
-            var y = _layout.TextStartY;
+            _scrollViewport = scrollViewport;
+
+            var y = layout.TextStartY;
             var currently = GetCurrentlyText();
             if (!string.IsNullOrWhiteSpace(currently))
             {
-                y = AddSection(_scrollViewport, "Currently:", currently, y);
-                y += _layout.SectionGap;
+                y = AddSection(scrollViewport, layout, "Currently:", currently, y);
+                y += layout.SectionGap;
             }
 
-            y = AddSection(_scrollViewport, "Known for:", GetKnownForText(), y);
-            y += _layout.SectionGap;
-            y = AddSection(_scrollViewport, "Description:", GetDescriptionText(), y);
+            y = AddSection(scrollViewport, layout, "Known for:", GetKnownForText(), y);
+            y += layout.SectionGap;
+            y = AddSection(scrollViewport, layout, "Description:", GetDescriptionText(), y);
 
             var outOfCharacterInfo = GetOtherInfoText();
             if (!string.IsNullOrWhiteSpace(outOfCharacterInfo))
             {
-                y += _layout.SectionGap;
-                AddSection(_scrollViewport, "Other information:", outOfCharacterInfo, y);
+                y += layout.SectionGap;
+                AddSection(scrollViewport, layout, "Other information:", outOfCharacterInfo, y);
             }
 
-            _scrollViewport.VerticalScrollOffset = 0;
+            scrollViewport.VerticalScrollOffset = 0;
         }
 
         private void BuildScrollBar(Container buildPanel)
         {
-            var bounds = _layout.ScrollbarBounds;
+            var layout = _layout;
+            var scrollViewport = _scrollViewport;
 
-            new Scrollbar(_scrollViewport)
+            if (buildPanel == null || layout == null || scrollViewport == null)
+                return;
+
+            var bounds = layout.ScrollbarBounds;
+
+            new Scrollbar(scrollViewport)
             {
                 Location = bounds.Location,
                 Size = bounds.Size,
@@ -422,21 +450,24 @@ namespace rp.spark.UI.Views
             };
         }
 
-        private int AddSection(Container parent, string title, string text, int y)
+        private int AddSection(Container parent, Layout layout, string title, string text, int y)
         {
+            if (parent == null || layout == null)
+                return y;
+
             new Label
             {
                 Text = title,
                 Font = GameService.Content.DefaultFont18,
                 TextColor = new Color(255, 233, 180),
                 StrokeText = true,
-                Location = new Point(_layout.TextX, y),
-                Size = new Point(_layout.TextLabelWidth, 28),
+                Location = new Point(layout.TextX, y),
+                Size = new Point(layout.TextLabelWidth, 28),
                 Parent = parent
             };
 
             y += 32;
-            return AddWrappedLabel(parent, text, y, GameService.Content.DefaultFont16, _layout.TextLineHeight);
+            return AddWrappedLabel(parent, layout, text, y, GameService.Content.DefaultFont16, layout.TextLineHeight);
         }
 
         private void BuildProfileTraits(Container parent, int y)
@@ -577,13 +608,16 @@ namespace rp.spark.UI.Views
                     .Select(option => option.Value));
         }
 
-        private int AddWrappedLabel(Container parent, string text, int y, MonoGame.Extended.BitmapFonts.BitmapFont font, int lineHeight)
+        private int AddWrappedLabel(Container parent, Layout layout, string text, int y, MonoGame.Extended.BitmapFonts.BitmapFont font, int lineHeight)
         {
-            foreach (var line in WrapTextLines(text, _layout.TextWidth, font))
+            if (parent == null || layout == null)
+                return y;
+
+            foreach (var line in WrapTextLines(text, layout.TextWidth, font))
             {
                 if (line.Length == 0)
                 {
-                    y += _layout.ParagraphGap;
+                    y += layout.ParagraphGap;
                     continue;
                 }
 
@@ -593,15 +627,15 @@ namespace rp.spark.UI.Views
                     Font = font,
                     TextColor = Color.White,
                     WrapText = false,
-                    Location = new Point(_layout.TextX, y),
-                    Size = new Point(_layout.TextLabelWidth, lineHeight),
+                    Location = new Point(layout.TextX, y),
+                    Size = new Point(layout.TextLabelWidth, lineHeight),
                     Parent = parent
                 };
 
                 y += lineHeight;
             }
 
-            return y + _layout.ParagraphGap;
+            return y + layout.ParagraphGap;
         }
 
         private IEnumerable<AtAGlanceEntry> GetGlanceEntries()

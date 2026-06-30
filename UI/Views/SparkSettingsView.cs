@@ -95,6 +95,7 @@ namespace rp.spark.UI.Views
 
         protected override void Build(Container buildPanel)
         {
+            _isUnloaded = false;
             _buildPanel = buildPanel;
             BuildSettings(buildPanel);
             WatchServer();

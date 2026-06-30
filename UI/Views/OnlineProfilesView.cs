@@ -65,6 +65,8 @@ namespace rp.spark.UI.Views
 
         protected override void Build(Container buildPanel)
         {
+            _isUnloaded = false;
+
             ProfileListViewUI.AddTitle(buildPanel, "Online Profiles", 300);
             var refreshButton = ProfileListViewUI.AddRefreshButton(buildPanel);
             SparkUiActions.BindClick(

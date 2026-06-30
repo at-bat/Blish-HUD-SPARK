@@ -56,6 +56,8 @@ namespace rp.spark.UI.Views
         // Rebuilding to be a single view
         public void Build(Container buildPanel)
         {
+            _isDisposed = false;
+
             var buttonRow = new FlowPanel
             {
                 Parent = buildPanel,
