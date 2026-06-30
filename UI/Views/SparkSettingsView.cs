@@ -117,6 +117,7 @@ namespace rp.spark.UI.Views
             _buttons.Build(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
+            BuildPresence(settingsStack);
             BuildGlobalSettings(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
@@ -195,6 +196,26 @@ namespace rp.spark.UI.Views
                 _settings.CurrentStatus.Value = ProfileLabels.ParseStatus(statusDropdown.SelectedItem?.ToString());
                 _requestServerSync?.Invoke();
             };
+
+            var broadcastCheckbox = SparkFormLayout.AddCheckbox(
+                statusRow,
+                "Share my profile",
+                _settings.BroadcastProfile.Value,
+                230,
+                ControlHeight);
+
+            broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
+            broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
+
+            var hideLocationCheckbox = SparkFormLayout.AddCheckbox(
+                statusRow,
+                "Hide my location",
+                _settings.HideLocation.Value,
+                180,
+                ControlHeight);
+
+            hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
+            hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
         }
 
         private void BuildBlockSummary(FlowPanel settingsStack)
@@ -368,28 +389,6 @@ namespace rp.spark.UI.Views
 
         private void BuildGlobalSettings(FlowPanel settingsStack)
         {
-            var sharingRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
-
-            var broadcastCheckbox = SparkFormLayout.AddCheckbox(
-                sharingRow,
-                "Share my profile",
-                _settings.BroadcastProfile.Value,
-                230,
-                ControlHeight);
-
-            broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
-            broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
-
-            var hideLocationCheckbox = SparkFormLayout.AddCheckbox(
-                sharingRow,
-                "Hide my location",
-                _settings.HideLocation.Value,
-                180,
-                ControlHeight);
-
-            hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
-            hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
-
             var optionsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
 
             SparkFormLayout.AddLabel(
