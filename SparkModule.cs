@@ -29,9 +29,12 @@ namespace rp.spark
     {
         private static readonly Logger Logger = Logger.GetLogger<SparkModule>();
         private static readonly TimeSpan GameplayVisibilityCheckInterval = TimeSpan.FromMilliseconds(250);
-        
+        private static readonly TimeSpan GameplayVisibilityWarningInterval = TimeSpan.FromSeconds(5);
+
         // This is to check UI ticks, if they stop, game is likely on a load screen.
         private TimeSpan _gameplayVisibilityCheckElapsed;
+        private DateTime _lastGameplayVisibilityWarningAt = DateTime.MinValue;
+        private int _closeGameplayWindowsQueued;
 
         internal SettingsManager SettingsManager => this.ModuleParameters.SettingsManager;
         internal ContentsManager ContentsManager => this.ModuleParameters.ContentsManager;
@@ -142,8 +145,26 @@ namespace rp.spark
 
             _gameplayVisibilityCheckElapsed = TimeSpan.Zero;
 
-            if (_windows.ShouldHideGameplayWindows())
-                _windows.CloseGameplayWindows();
+            try
+            {
+                if (_windows.ShouldHideGameplayWindows())
+                    _windows.CloseGameplayWindows();
+            }
+            catch (Exception ex)
+            {
+                WarnGameplayVisibilityFailure(ex);
+            }
+        }
+
+        private void WarnGameplayVisibilityFailure(Exception ex)
+        {
+            var now = DateTime.UtcNow;
+
+            if (now - _lastGameplayVisibilityWarningAt < GameplayVisibilityWarningInterval)
+                return;
+
+            _lastGameplayVisibilityWarningAt = now;
+            Logger.Warn(ex, "SPARK failed while updating gameplay window visibility.");
         }
 
         protected override void OnModuleLoaded(EventArgs e)
@@ -333,10 +354,24 @@ namespace rp.spark
 
         private void CloseGameplayWindowsIfUnavailableSoon()
         {
+            if (Interlocked.Exchange(ref _closeGameplayWindowsQueued, 1) == 1)
+                return;
+
             SparkUiThread.Queue(() =>
             {
-                if (_windows?.ShouldHideGameplayWindows() == true)
-                    _windows.CloseGameplayWindows();
+                try
+                {
+                    if (_windows?.ShouldHideGameplayWindows() == true)
+                        _windows.CloseGameplayWindows();
+                }
+                catch (Exception ex)
+                {
+                    WarnGameplayVisibilityFailure(ex);
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _closeGameplayWindowsQueued, 0);
+                }
             });
         }
 

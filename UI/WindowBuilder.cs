@@ -10,6 +10,8 @@ namespace rp.spark.UI
 {
     internal class WindowBuilder
     {
+        private static readonly Logger Logger = Logger.GetLogger<WindowBuilder>();
+
         private const int WindowBackgroundAssetId = 155985;
         private const int WindowEmblemAssetId = 3307061;
         private const int TabbedWindowContentX = 96;
@@ -85,8 +87,15 @@ namespace rp.spark.UI
             if (window == null)
                 return;
 
-            ReleaseEmblem(window);
-            window.Dispose();
+            try
+            {
+                ReleaseEmblem(window);
+                window.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "SPARK failed to dispose a window.");
+            }
         }
 
         public void Clear()
