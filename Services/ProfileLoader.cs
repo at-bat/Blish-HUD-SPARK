@@ -99,7 +99,8 @@ namespace rp.spark.Services
 
             RemoveOwnServerRows(rows);
 
-            foreach (var localPresence in await GetOwnPresenceRowsAsync(cancellationToken))
+            // Use cached/local state instead of waiting on GW2 API refreshes.
+            foreach (var localPresence in GetOwnPresenceRows())
                 UpdatePresence(rows, localPresence);
 
             return NormalizePresenceRows(rows);
@@ -227,27 +228,6 @@ namespace rp.spark.Services
                 return null;
 
             return new ProfileViewData(profile, presence);
-        }
-
-        private async Task<IReadOnlyList<PlayerPresence>> GetOwnPresenceRowsAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                var presence = _presenceLoop == null
-                    ? await _presenceService.GetCurrentPresenceAsync(cancellationToken)
-                    : await _presenceLoop.RefreshAsync(cancellationToken);
-
-                return ToOwnPresenceRows(presence);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex, "Failed to refresh local SPARK presence for the online list.");
-                return GetOwnPresenceRows();
-            }
         }
 
         private IReadOnlyList<PlayerPresence> GetOwnPresenceRows()

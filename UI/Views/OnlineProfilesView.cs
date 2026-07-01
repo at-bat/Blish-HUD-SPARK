@@ -23,6 +23,7 @@ namespace rp.spark.UI.Views
         // The open online list refreshes periodically; players can still refresh manually if they want it sooner
         // Server-side throttling may be added depending on performance.
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(15);
         private readonly Func<bool> _isAutoRefreshEnabled;
 
         private readonly PageList _page = new PageList();
@@ -237,9 +238,16 @@ namespace rp.spark.UI.Views
                         ? "Refreshing profiles..."
                         : "Loading profiles...");
 
-                var rows = _loadRows == null
-                    ? new List<PlayerPresence>()
-                    : await _loadRows(cancellationToken);
+                IReadOnlyList<PlayerPresence> rows;
+
+                using (var refreshTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    refreshTimeout.CancelAfter(RefreshTimeout);
+
+                    rows = _loadRows == null
+                        ? new List<PlayerPresence>()
+                        : await _loadRows(refreshTimeout.Token);
+                }
 
                 cancellationToken.ThrowIfCancellationRequested();
 

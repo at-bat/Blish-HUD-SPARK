@@ -850,12 +850,9 @@ namespace rp.spark.UI.Views
 
         private bool CanReportViewedProfile()
         {
-            return _presence != null
-                && _presence.Status != RPStatus.Offline
-                && _presence.Status != RPStatus.Invisible
-                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence.AccountName, _profile?.AccountName))
-                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence.OfficialCharacterName, _profile?.CharacterName))
-                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence.ActiveProfileId, _profile?.ProfileId));
+            return !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence?.AccountName, _profile?.AccountName))
+                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence?.OfficialCharacterName, _profile?.CharacterName))
+                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(_presence?.ActiveProfileId, _profile?.ProfileId));
         }
 
         private string GetPronounsText()

@@ -610,15 +610,9 @@ namespace rp.spark.Services
 
         private static bool CanReportProfile(CharacterProfile profile, PlayerPresence presence)
         {
-            if (presence == null)
-                return false;
-
-            if (presence.Status == RPStatus.Offline || presence.Status == RPStatus.Invisible)
-                return false;
-
-            return !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence.AccountName, profile?.AccountName))
-                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence.OfficialCharacterName, profile?.CharacterName))
-                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence.ActiveProfileId, profile?.ProfileId));
+            return !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence?.AccountName, profile?.AccountName))
+                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence?.OfficialCharacterName, profile?.CharacterName))
+                && !string.IsNullOrWhiteSpace(TextUtil.FirstNonEmpty(presence?.ActiveProfileId, profile?.ProfileId));
         }
 
         private static bool CanSaveToRecent(CharacterProfile profile, PlayerPresence presence)

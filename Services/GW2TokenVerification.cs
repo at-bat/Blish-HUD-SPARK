@@ -16,6 +16,7 @@ namespace rp.spark.Services
         private static readonly Logger Logger = Logger.GetLogger<GW2TokenVerification>();
         private static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan TokenRequestTimeout = TimeSpan.FromSeconds(3);
 
         private readonly Gw2ApiManager _gw2ApiManager;
         private readonly SemaphoreSlim _tokenGate = new SemaphoreSlim(1, 1);
@@ -56,54 +57,70 @@ namespace rp.spark.Services
             if (TryGetFreshToken(out var cachedToken))
                 return cachedToken;
 
-            await _tokenGate.WaitAsync(cancellationToken);
+            var hasTokenGate = false;
 
-            try
+            using (var tokenTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                if (!HasRequiredPermissions())
+                tokenTimeout.CancelAfter(TokenRequestTimeout);
+
+                try
                 {
-                    Clear();
+                    await _tokenGate.WaitAsync(tokenTimeout.Token);
+                    hasTokenGate = true;
+
+                    if (!HasRequiredPermissions())
+                    {
+                        Clear();
+                        return string.Empty;
+                    }
+
+                    if (TryGetFreshToken(out cachedToken))
+                        return cachedToken;
+
+                    var cacheVersion = GetCacheVersion();
+                    var expiresAt = DateTimeOffset.UtcNow.Add(TokenLifetime);
+
+                    var subtoken = await _gw2ApiManager.Gw2ApiClient.V2.CreateSubtoken
+                        .Expires(expiresAt)
+                        .WithPermissions(new[] { TokenPermission.Account, TokenPermission.Characters })
+                        .GetAsync(tokenTimeout.Token);
+
+                    var token = subtoken?.Subtoken?.Trim() ?? string.Empty;
+
+                    lock (_cacheLock)
+                    {
+                        if (cacheVersion != _cacheVersion)
+                            return string.Empty;
+
+                        _cachedToken = token;
+                        _expiresAt = string.IsNullOrWhiteSpace(_cachedToken)
+                            ? DateTimeOffset.MinValue
+                            : expiresAt;
+
+                        return _cachedToken;
+                    }
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    Logger.Warn("Timed out while creating a GW2 API verification subtoken for SPARK.");
                     return string.Empty;
                 }
-
-                if (TryGetFreshToken(out cachedToken))
-                    return cachedToken;
-
-                var cacheVersion = GetCacheVersion();
-                var expiresAt = DateTimeOffset.UtcNow.Add(TokenLifetime);
-                var subtoken = await _gw2ApiManager.Gw2ApiClient.V2.CreateSubtoken
-                    .Expires(expiresAt)
-                    .WithPermissions(new[] { TokenPermission.Account, TokenPermission.Characters })
-                    .GetAsync(cancellationToken);
-
-                var token = subtoken?.Subtoken?.Trim() ?? string.Empty;
-                lock (_cacheLock)
+                catch (OperationCanceledException)
                 {
-                    if (cacheVersion != _cacheVersion)
-                        return string.Empty;
-
-                    _cachedToken = token;
-                    _expiresAt = string.IsNullOrWhiteSpace(_cachedToken)
-                        ? DateTimeOffset.MinValue
-                        : expiresAt;
-
-                    return _cachedToken;
+                    throw;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Clear();
-                BlishWarnings.HttpBlocked(ex, "create a temporary GW2 API verification token");
-                Logger.Warn(ex, "Failed to create a GW2 API verification subtoken for SPARK.");
-                return string.Empty;
-            }
-            finally
-            {
-                _tokenGate.Release();
+                catch (Exception ex)
+                {
+                    Clear();
+                    BlishWarnings.HttpBlocked(ex, "create a temporary GW2 API verification token");
+                    Logger.Warn(ex, "Failed to create a GW2 API verification subtoken for SPARK.");
+                    return string.Empty;
+                }
+                finally
+                {
+                    if (hasTokenGate)
+                        _tokenGate.Release();
+                }
             }
         }
 
