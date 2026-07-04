@@ -4,6 +4,7 @@ using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
 using rp.spark.Models;
 using rp.spark.Services;
+using rp.spark.UI.Controls;
 using System;
 
 namespace rp.spark.UI.Views
@@ -19,7 +20,7 @@ namespace rp.spark.UI.Views
         private CharacterProfile _profile;
         private PlayerPresence _presence;
         private Label _title;
-        private MultilineTextBox _notesBox;
+        private SparkMultiline _notesBox;
         private Label _status;
         private bool _isLoading;
         private bool _isDirty;
@@ -46,7 +47,7 @@ namespace rp.spark.UI.Views
                 Parent = buildPanel
             };
 
-            _notesBox = new MultilineTextBox
+            _notesBox = new SparkMultiline
             {
                 PlaceholderText = "Private notes for this profile.",
                 MaxLength = MaxNoteLength,
@@ -54,6 +55,8 @@ namespace rp.spark.UI.Views
                 Size = new Point(760, 430),
                 Parent = buildPanel
             };
+
+            _notesBox.AttachWheelSource(buildPanel);
 
             _notesBox.TextChanged += (s, e) =>
             {

@@ -2,6 +2,7 @@ using Blish_HUD;
 using Blish_HUD.Controls;
 using Microsoft.Xna.Framework;
 using MonoGame.Extended.BitmapFonts;
+using rp.spark.UI.Controls;
 using System.Collections.Generic;
 
 namespace rp.spark.UI.Views
@@ -98,7 +99,7 @@ namespace rp.spark.UI.Views
             return textBox;
         }
 
-        public static MultilineTextBox AddMultilineTextBox(
+        public static SparkMultiline AddMultilineTextBox(
             Container parent,
             string text,
             string placeholderText,
@@ -106,7 +107,7 @@ namespace rp.spark.UI.Views
             int height,
             int? maxLength = null)
         {
-            var textBox = new MultilineTextBox
+            var textBox = new SparkMultiline
             {
                 Text = text ?? string.Empty,
                 PlaceholderText = placeholderText ?? string.Empty,
@@ -118,10 +119,11 @@ namespace rp.spark.UI.Views
             if (maxLength.HasValue)
                 textBox.MaxLength = maxLength.Value;
 
+            textBox.AttachWheelSource(parent);
             return textBox;
         }
 
-        public static MultilineTextBox AddLabeledMultilineTextBox(
+        public static SparkMultiline AddLabeledMultilineTextBox(
             FlowPanel parent,
             string labelText,
             string text,

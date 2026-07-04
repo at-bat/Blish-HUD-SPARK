@@ -12,19 +12,20 @@ using System.Threading.Tasks;
 
 namespace rp.spark.UI.Views
 {
-    // Multi-line text boxes currently do not wrap yet
+    // While multi-line text boxes don't normally support wrapping (pending in this PR below)
+    // I've instead added my own version based on the PR until we have something official as a temporary solution
     // https://github.com/blish-hud/Blish-HUD/pull/984
-    // Won't touch this and wait for it to be supported
     public class ProfileEditorView : View
     {
         private const int EmptyGlanceAssetId = 0;
         private const int GlanceEditorWidth = 500;
         private const int GlanceEditorHeight = 595;
-        private const int TextBoxWidth = 820;
+        private const int TextBoxWidth = 760;
         private const int ShortTextBoxWidth = 400;
         private const int GlanceSlotSize = 50;
         private const int GlancePadding = 8;
         private const int DescriptionHeight = 185;
+        private const int KnownForHeight = 58;
         private const int GlanceY = 435;
         private const int IconSearchResultLimit = 50;
         private const int IconResultListWidth = 444;
@@ -43,7 +44,7 @@ namespace rp.spark.UI.Views
         private TextBox _displayName;
         private TextBox _customProfession;
         private TextBox _pronouns;
-        private TextBox _knownFor;
+        private MultilineTextBox _knownFor;
         private MultilineTextBox _description;
         private AssetIcon[] _glanceSlots;
         private Panel _glanceEditorPanel;
@@ -78,7 +79,7 @@ namespace rp.spark.UI.Views
 
         private void BuildFields(Container buildPanel)
         {
-            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, GlanceY - 10, 10);
+            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, GlanceY - 10, 4);
 
             _displayName = SparkFormLayout.AddLabeledTextBox(
                 form,
@@ -124,13 +125,14 @@ namespace rp.spark.UI.Views
                     _session.Profile.Pronouns = _pronouns.Text?.Trim() ?? string.Empty;
             };
 
-            _knownFor = SparkFormLayout.AddLabeledTextBox(
+            _knownFor = SparkFormLayout.AddLabeledMultilineTextBox(
                 form,
                 "Known For",
                 string.Empty,
                 string.Empty,
                 TextBoxWidth,
-                maxLength: ProfileLimits.MaxKnownForLength);
+                KnownForHeight,
+                ProfileLimits.MaxKnownForLength);
 
             _knownFor.TextChanged += (s, e) =>
             {
@@ -160,7 +162,7 @@ namespace rp.spark.UI.Views
                 buildPanel,
                 _session,
                 statusX: 455,
-                statusWidth: 365);
+                statusWidth: TextBoxWidth - 455);
 
             _matureCheckbox = SparkViewUI.AddCheckbox(
                 buildPanel,
@@ -354,7 +356,7 @@ namespace rp.spark.UI.Views
 
             ProfileEditorUI.AddLabel(_glanceEditorPanel, "Description", 405);
 
-            var descriptionBox = new MultilineTextBox
+            var descriptionBox = new SparkMultiline
             {
                 Text = entry.Description ?? string.Empty,
                 PlaceholderText = "Description",
@@ -363,6 +365,8 @@ namespace rp.spark.UI.Views
                 Size = new Point(460, 55),
                 Parent = _glanceEditorPanel
             };
+
+            descriptionBox.AttachWheelSource(_glanceEditorPanel);
 
             var confirmButton = new StandardButton
             {
