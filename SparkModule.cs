@@ -174,6 +174,8 @@ namespace rp.spark
             GameService.Gw2Mumble.IsAvailableChanged += HandleMumbleAvailableChanged;
             GameService.GameIntegration.Gw2Instance.IsInGameChanged += HandleIsInGameChanged;
             GameService.Gw2Mumble.UI.IsMapOpenChanged += HandleMapOpenChanged;
+            GameService.Gw2Mumble.FinishedLoading += HandlePlayerStateChanged;
+            GameService.Gw2Mumble.PlayerCharacter.NameChanged += HandlePlayerStateChanged;
             EnsurePlayerStateLoad();
             _serviceHost.Start();
         }
@@ -567,12 +569,19 @@ namespace rp.spark
             return string.Empty;
         }
 
+        private void HandlePlayerStateChanged(object sender, EventArgs e)
+        {
+            ReloadPlayerState();
+        }
+
         protected override void Unload()
         {
             this.Gw2ApiManager.SubtokenUpdated -= HandleSubtokenUpdated;
             GameService.Gw2Mumble.IsAvailableChanged -= HandleMumbleAvailableChanged;
             GameService.GameIntegration.Gw2Instance.IsInGameChanged -= HandleIsInGameChanged;
             GameService.Gw2Mumble.UI.IsMapOpenChanged -= HandleMapOpenChanged;
+            GameService.Gw2Mumble.FinishedLoading -= HandlePlayerStateChanged;
+            GameService.Gw2Mumble.PlayerCharacter.NameChanged -= HandlePlayerStateChanged;
             CancelPlayerStateLoad();
             _initialStateTask = null;
             _windows?.Dispose();
