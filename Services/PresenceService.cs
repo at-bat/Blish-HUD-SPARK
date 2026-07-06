@@ -75,7 +75,7 @@ namespace rp.spark.Services
                 Status = status,
                 Currently = hasActiveProfile ? activeProfile.Currently?.Trim() ?? string.Empty : string.Empty,
                 OutOfCharacterInfo = hasActiveProfile ? activeProfile.OutOfCharacterInfo?.Trim() ?? string.Empty : string.Empty,
-                LocationName = GetLocationName(state, locationHidden),
+                LocationName = GetLocationName(state, locationHidden, locationResolved),
                 IsLocationHidden = locationHidden,
                 Region = _settings?.RegionFilter?.Value ?? ProfileRegion.NA,
                 IsVerified = state.IsCharacterApiVerified,
@@ -85,24 +85,22 @@ namespace rp.spark.Services
                 LastSeen = DateTime.UtcNow
             };
 
-            snapshot.CanShare = CanShare(snapshot, locationResolved);
-            snapshot.ShareBlockReason = GetShareBlockReason(snapshot, locationResolved);
+            snapshot.CanShare = CanShare(snapshot);
+            snapshot.ShareBlockReason = GetShareBlockReason(snapshot);
 
             return snapshot;
         }
 
-        private static bool CanShare(PlayerPresence snapshot, bool locationResolved)
+        private static bool CanShare(PlayerPresence snapshot)
         {
             return snapshot.ShareEnabled
                 && snapshot.Status != RPStatus.Invisible
                 && snapshot.HasActiveProfile
                 && !string.IsNullOrWhiteSpace(snapshot.AccountName)
-                && !string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName)
-                && snapshot.IsVerified
-                && locationResolved;
+                && !string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName);
         }
 
-        private static string GetShareBlockReason(PlayerPresence snapshot, bool locationResolved)
+        private static string GetShareBlockReason(PlayerPresence snapshot)
         {
             if (!snapshot.ShareEnabled)
                 return snapshot.IsInGame ? "Profile sharing is disabled." : "No character detected.";
@@ -119,19 +117,16 @@ namespace rp.spark.Services
             if (string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName))
                 return "Character name unavailable.";
 
-            if (!snapshot.IsVerified)
-                return "Current character is still being verified with the GW2 API. Hang tight!";
-
-            if (!locationResolved)
-                return "Map name is still loading.";
-
             return string.Empty;
         }
 
-        private static string GetLocationName(PlayerState state, bool locationHidden)
+        private static string GetLocationName(PlayerState state, bool locationHidden, bool locationResolved)
         {
             if (locationHidden)
                 return HiddenLocationName;
+
+            if (!locationResolved)
+                return UnknownLocationName;
 
             return string.IsNullOrWhiteSpace(state.LocationName)
                 ? UnknownLocationName
