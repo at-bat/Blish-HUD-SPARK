@@ -31,6 +31,9 @@ namespace rp.spark
         private static readonly TimeSpan GameplayVisibilityCheckInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan GameplayVisibilityWarningInterval = TimeSpan.FromSeconds(5);
 
+        // Timer for status checks to force refresh
+        private static readonly TimeSpan StatusRefreshInterval = TimeSpan.FromSeconds(15);
+
         // This is to check UI ticks, if they stop, game is likely on a load screen.
         private TimeSpan _gameplayVisibilityCheckElapsed;
         private DateTime _lastGameplayVisibilityWarningAt = DateTime.MinValue;
@@ -59,6 +62,7 @@ namespace rp.spark
         private SparkWindows _windows;
         private Task<PlayerState> _initialStateTask;
         private CancellationTokenSource _stateLoadCancel;
+        private DateTime _nextStatusRefreshAt = DateTime.MinValue;
 
         // From the example module: Ideally you should keep the constructor as is (empty). Instead use LoadAsync() to handle initializing the module.
         [ImportingConstructor]
@@ -539,7 +543,7 @@ namespace rp.spark
                 : "Load into the game on a character to use SPARK.";
         }
 
-        // Adding new status messages based on API for clarity
+        // Various messages to show to player based on what's going on until things are fully loaded
         private string GetApiStatus(PlayerState state)
         {
             var stateTask = _initialStateTask;
@@ -553,6 +557,8 @@ namespace rp.spark
 
             if (!HasValidApiKey())
                 return "Waiting for GW2 API access from Blish HUD. Add an API key with account and characters permissions.";
+            
+            RefreshStateIfStatusBlocked(state);
 
             if (state == null || !state.HasCharactersPermission)
                 return "Refreshing GW2 API permissions...";
@@ -572,6 +578,31 @@ namespace rp.spark
         private void HandlePlayerStateChanged(object sender, EventArgs e)
         {
             ReloadPlayerState();
+        }
+
+        // Another force refresh to statuses to try and make them get stuck less often
+        private void RefreshStateIfStatusBlocked(PlayerState state)
+        {
+            var stateTask = _initialStateTask;
+
+            if (stateTask != null && !stateTask.IsCompleted)
+                return;
+
+            if (state == null || !state.CanEditProfile)
+                return;
+
+            if (state.HasCharactersPermission
+                && !string.IsNullOrWhiteSpace(state.AccountName)
+                && state.IsCharacterApiVerified)
+                return;
+
+            var now = DateTime.UtcNow;
+
+            if (now < _nextStatusRefreshAt)
+                return;
+
+            _nextStatusRefreshAt = now + StatusRefreshInterval;
+            LoadPlayerState();
         }
 
         protected override void Unload()
