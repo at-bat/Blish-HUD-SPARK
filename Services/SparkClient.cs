@@ -30,6 +30,10 @@ namespace rp.spark.Services
     // - PUT  /blocks/
     // - DELETE /blocks/?account={account}
     // - POST /reports/
+    // PLANNED:
+    // - POST /nearby/
+    // - DELETE /nearby/
+    // - POST /nearby/search/
 
     public class SparkClient
     {

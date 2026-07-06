@@ -21,6 +21,8 @@ namespace rp.spark.Services
         private const string BlockedAccountsKey = "BlockedAccounts";
         private const string AutoRefreshOnlineProfilesKey = "AutoRefreshOnlineProfiles";
         private const string ShowMatureProfilesKey = "ShowMatureProfiles";
+        private const string ShowNearbyPresenceKey = "ShowNearbyPresence";
+        private const string AutoRefreshNearbyRpersKey = "AutoRefreshNearbyRpers";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -36,6 +38,8 @@ namespace rp.spark.Services
         public SettingEntry<ProfileRegion> RegionFilter { get; }
         public SettingEntry<bool> AutoRefreshOnlineProfiles { get; }
         public SettingEntry<string> BlockedAccounts { get; }
+        public SettingEntry<bool> ShowNearbyPresence { get; }
+        public SettingEntry<bool> AutoRefreshNearbyRpers { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -77,6 +81,12 @@ namespace rp.spark.Services
                 () => "Hide my location",
                 () => "When enabled, SPARK will show your location as Hidden instead of showing where you are.");
 
+            ShowNearbyPresence = SharingSettings.DefineSetting(
+                ShowNearbyPresenceKey,
+                false,
+                () => "Show me to nearby RPers",
+                () => "When enabled, SPARK will publish your nearby RP presence to other opted-in SPARK users.");
+
             AutoHideGameUi = UiSettings.DefineSetting(
                 AutoHideGameUiKey,
                 true,
@@ -100,6 +110,12 @@ namespace rp.spark.Services
                 true,
                 () => "Auto-refresh online profiles",
                 () => "Refreshes the open online profile list every 30 seconds.");
+
+            AutoRefreshNearbyRpers = DiscoverySettings.DefineSetting(
+                AutoRefreshNearbyRpersKey,
+                true,
+                () => "Auto-refresh nearby RPers",
+                () => "Refreshes the nearby RPers window automatically.");
 
             BlockedAccounts = PrivacySettings.DefineSetting(
                 BlockedAccountsKey,
