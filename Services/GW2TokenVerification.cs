@@ -14,8 +14,8 @@ namespace rp.spark.Services
     public class GW2TokenVerification : IDisposable
     {
         private static readonly Logger Logger = Logger.GetLogger<GW2TokenVerification>();
-        private static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(30);
+        private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan TokenRequestTimeout = TimeSpan.FromSeconds(3);
 
         private readonly Gw2ApiManager _gw2ApiManager;

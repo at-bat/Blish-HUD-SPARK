@@ -16,6 +16,7 @@ namespace rp.spark.Services
         // Back off after failed sync attempts in case the server is down or GW2 API is having issues
         private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan AuthRetryDelay = TimeSpan.FromSeconds(15);
 
         // Presence refreshes locally more often than it is published to reduce server load and for better UX (even if it's slightly false)
         // Any meaningful changes (updating profile, status, etc.) still publish immediately when they pass the sync checks though.
@@ -363,7 +364,11 @@ namespace rp.spark.Services
                 return false;
             }
 
-            var verificationToken = await GetVerificationTokenAsync(cancellationToken);
+            var verificationToken = await GetRequiredVerificationTokenAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(verificationToken))
+                return false;
+
             var result = await _apiClient.UploadProfileResultAsync(profile, presence, verificationToken, cancellationToken);
 
             if (!result.Succeeded)
@@ -381,7 +386,11 @@ namespace rp.spark.Services
 
         private async Task PublishPresenceAsync(PlayerPresence presence, CancellationToken cancellationToken)
         {
-            var verificationToken = await GetVerificationTokenAsync(cancellationToken);
+            var verificationToken = await GetRequiredVerificationTokenAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(verificationToken))
+                return;
+
             var result = await _apiClient.PublishPresenceResultAsync(presence, verificationToken, cancellationToken);
 
             if (!result.Succeeded)
@@ -401,7 +410,11 @@ namespace rp.spark.Services
         private async Task RemovePresenceAsync(PlayerPresence presence, CancellationToken cancellationToken)
         {
             var removalPresence = PresenceMapper.CreateOfflinePresence(presence);
-            var verificationToken = await GetVerificationTokenAsync(cancellationToken);
+            var verificationToken = await GetRequiredVerificationTokenAsync(cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(verificationToken))
+                return;
+
             var result = await _apiClient.PublishPresenceResultAsync(removalPresence, verificationToken, cancellationToken);
 
             if (!result.Succeeded)
@@ -417,7 +430,8 @@ namespace rp.spark.Services
                 _lastPublishedPresence = null;
 
             LastPublishedAt = DateTime.UtcNow;
-            Success("Presence removed.");
+            // Removing this from saying "Presence removed." since multiple things can cause this (character swap, verification delay, presence not shareable yet, etc.)
+            Success(string.Empty);
         }
 
         private bool NeedsProfileUpload(PlayerPresence presence)
@@ -527,6 +541,29 @@ namespace rp.spark.Services
                 : await _tokens.GetTokenAsync(cancellationToken);
         }
 
+        private async Task<string> GetRequiredVerificationTokenAsync(CancellationToken cancellationToken)
+        {
+            var verificationToken = await GetVerificationTokenAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(verificationToken))
+                return verificationToken;
+
+            SetWaitingForAuthStatus();
+            return string.Empty;
+        }
+
+        private void SetWaitingForAuthStatus()
+        {
+            _failureCount = 0;
+            _nextSyncAttempt = DateTime.UtcNow + AuthRetryDelay;
+
+            SetStatus(new ServerSyncStatus(
+                ServerSyncState.Info,
+                "Waiting for GW2 API verification before syncing to SPARK.",
+                DateTime.UtcNow,
+                CurrentStatus?.LastSuccess ?? default));
+        }
+
         private static bool HasPresenceIdentity(PlayerPresence presence)
         {
             return !string.IsNullOrWhiteSpace(presence?.AccountName)
@@ -551,6 +588,14 @@ namespace rp.spark.Services
 
         private void Fail<T>(ApiResult<T> result, string fallbackMessage)
         {
+            // Treating 401 as auth pending instead of the server being down
+            if (result?.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                _tokens?.Clear();
+                SetWaitingForAuthStatus();
+                return;
+            }
+
             _failureCount++;
             _nextSyncAttempt = DateTime.UtcNow + GetRetryDelay(_failureCount);
 

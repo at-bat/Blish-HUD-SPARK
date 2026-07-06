@@ -98,6 +98,7 @@ namespace rp.spark.Services
                 && snapshot.HasActiveProfile
                 && !string.IsNullOrWhiteSpace(snapshot.AccountName)
                 && !string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName)
+                && snapshot.IsVerified
                 && locationResolved;
         }
 
@@ -117,6 +118,9 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(snapshot.OfficialCharacterName))
                 return "Character name unavailable.";
+
+            if (!snapshot.IsVerified)
+                return "Current character is still being verified with the GW2 API. Hang tight!";
 
             if (!locationResolved)
                 return "Map name is still loading.";
