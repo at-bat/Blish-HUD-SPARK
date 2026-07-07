@@ -50,6 +50,7 @@ namespace rp.spark
         private ProfileNotes _notes;
         private PlayerStateService _playerState;
         private PresenceService _presenceService;
+        private NearbyPresenceService _nearbyPresenceService;
         private PresenceLoop _presenceLoop;
         private ServerSync _sync;
         private GW2TokenVerification _tokens;
@@ -88,6 +89,11 @@ namespace rp.spark
             _iconIndex = new IconIndexService(this.ContentsManager);
             _presenceLoop = new PresenceLoop(_presenceService);
             _tokens = new GW2TokenVerification(this.Gw2ApiManager);
+            _nearbyPresenceService = new NearbyPresenceService(
+                _sparkClient,
+                _sparkSettings,
+                _presenceLoop,
+                _tokens);
             _sync = new ServerSync(
                 _sparkClient,
                 _sparkSettings,
@@ -118,6 +124,7 @@ namespace rp.spark
             _serviceHost.Add(_tokens);
             _serviceHost.Add(_profileActions, service => service.Start());
             _serviceHost.Add(_sync, service => service.Start());
+            _serviceHost.Add(_nearbyPresenceService, service => service.Start());
 
             _windows = new SparkWindows(
                 new WindowBuilder(),
@@ -128,7 +135,8 @@ namespace rp.spark
                 _iconIndex,
                 _sparkSettings,
                 _profileLoader,
-                _profileActions);
+                _profileActions,
+                _nearbyPresenceService);
         }
 
         protected override Task LoadAsync()
