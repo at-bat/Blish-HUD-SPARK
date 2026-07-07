@@ -35,7 +35,7 @@ namespace rp.spark.UI
         private ProfileViewerView _profileViewerView;
         private ProfileNotesView _profileNotesView;
         private StandardWindow _onlineListWindow;
-        private StandardWindow _nearbyWindow;
+        private SparkCompactWindow _nearbyWindow;
         private StandardWindow _aboutWindow;
         private StandardWindow _blocklistWindow;
         private CharacterProfile _viewedProfile;
@@ -336,10 +336,11 @@ namespace rp.spark.UI
 
         private void CreateNearbyWindow()
         {
-            _nearbyWindow = _windowBuilder.MakeWindow(
+            _nearbyWindow = _windowBuilder.MakeCompactWindow(
                 "Nearby RPers",
-                "rp.spark.nearby-window",
-                new Rectangle(58, 42, 470, 420));
+                new Point(640, 350));
+
+            _nearbyWindow.Location = new Point(40, 240);
         }
 
         private void CreateSavedWindow()
@@ -523,7 +524,7 @@ namespace rp.spark.UI
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
 
-            _windowBuilder.DisposeWindow(_nearbyWindow);
+            _nearbyWindow?.Dispose();
             _nearbyWindow = null;
 
             _viewedProfile = null;

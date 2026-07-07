@@ -200,6 +200,7 @@ namespace rp.spark
                 _windows.OpenProfileManager,
                 _windows.OpenMyProfile,
                 _windows.OpenOnlineList,
+                _windows.OpenNearby,
                 _windows.OpenSavedProfiles,
                 _windows.OpenAbout,
                 _windows.OpenBlocklist,

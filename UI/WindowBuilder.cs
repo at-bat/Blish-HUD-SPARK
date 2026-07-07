@@ -50,7 +50,10 @@ namespace rp.spark.UI
             return window;
         }
 
-        public StandardWindow MakeWindow(string subtitle, string id, Rectangle contentBounds)
+        public StandardWindow MakeWindow(
+            string subtitle, 
+            string id, 
+            Rectangle contentBounds)
         {
             var window = new StandardWindow(
                 GetWindowBackground(),
@@ -66,6 +69,33 @@ namespace rp.spark.UI
 
             AttachEmblem(window);
             return window;
+        }
+
+        public StandardWindow MakeWindow(
+            string subtitle,
+            string id,
+            Rectangle windowBounds,
+            Rectangle contentBounds)
+        {
+            var window = new StandardWindow(
+                GetWindowBackground(),
+                windowBounds,
+                contentBounds)
+            {
+                Parent = GameService.Graphics.SpriteScreen,
+                Title = "SPARK",
+                Subtitle = subtitle,
+                SavesPosition = true,
+                Id = id
+            };
+
+            AttachEmblem(window);
+            return window;
+        }
+
+        public SparkCompactWindow MakeCompactWindow(string title, Point size)
+        {
+            return new SparkCompactWindow(title, GetWindowBackground(), StandardWindowBounds, size);
         }
 
         public AsyncTexture2D IconFromAsset(int assetId)

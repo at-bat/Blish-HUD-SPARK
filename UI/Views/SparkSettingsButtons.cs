@@ -16,9 +16,12 @@ namespace rp.spark.UI.Views
         private readonly Action _openOnlineList;
         private readonly Action _openSavedProfiles;
         private readonly Action _openAbout;
+        private readonly Action _openNearby;
         private readonly Func<Task<string>> _waitForPlayerStateMessageAsync;
         private readonly Func<string> _getPlayerStateMessage;
         private readonly Action _reloadPlayerState;
+        private readonly Func<string> _getMatureProfilesButtonText;
+        private readonly Action _toggleMatureProfiles;
 
         private bool _isDisposed;
         private int _refreshId;
@@ -29,14 +32,19 @@ namespace rp.spark.UI.Views
         private StandardButton _viewButton;
         private StandardButton _onlineListButton;
         private StandardButton _savedProfilesButton;
+        private StandardButton _nearbyButton;
+        private StandardButton _matureProfilesButton;
         private readonly Func<bool> _shouldHideGameplayWindows;
 
         public SparkSettingsButtons(
             Action openProfileManager,
             Action openProfileViewer,
             Action openOnlineList,
+            Action openNearby,
             Action openSavedProfiles,
             Action openAbout,
+            Func<string> getMatureProfilesButtonText,
+            Action toggleMatureProfiles,
             Func<Task<string>> waitForPlayerStateMessageAsync,
             Func<string> getPlayerStateMessage,
             Action reloadPlayerState,
@@ -47,10 +55,13 @@ namespace rp.spark.UI.Views
             _openOnlineList = openOnlineList;
             _openSavedProfiles = openSavedProfiles;
             _openAbout = openAbout;
+            _openNearby = openNearby;
             _waitForPlayerStateMessageAsync = waitForPlayerStateMessageAsync;
             _getPlayerStateMessage = getPlayerStateMessage;
             _reloadPlayerState = reloadPlayerState;
             _shouldHideGameplayWindows = shouldHideGameplayWindows;
+            _getMatureProfilesButtonText = getMatureProfilesButtonText;
+            _toggleMatureProfiles = toggleMatureProfiles;
         }
 
         // Rebuilding to be a single view
@@ -58,29 +69,32 @@ namespace rp.spark.UI.Views
         {
             _isDisposed = false;
 
-            var buttonRow = new FlowPanel
-            {
-                Parent = buildPanel,
-                Width = 660,
-                Height = 30,
-                FlowDirection = ControlFlowDirection.SingleLeftToRight,
-                ControlPadding = new Vector2(8, 0)
-            };
+            var buttonStack = SparkFormLayout.AddAutoStack(buildPanel, 660, 6);
 
-            _openButton = SparkFormLayout.AddButton(buttonRow, "Profile Editor", 122, 30, false);
+            var firstRow = SparkFormLayout.AddRow(buttonStack, 660, 30, 8);
+
+            _openButton = SparkFormLayout.AddButton(firstRow, "Profile Editor", 122, 30, false);
             _openButton.Click += (s, e) => _openProfileManager();
 
-            _viewButton = SparkFormLayout.AddButton(buttonRow, "My Profile", 110, 30, false);
+            _viewButton = SparkFormLayout.AddButton(firstRow, "My Profile", 110, 30, false);
             _viewButton.Click += (s, e) => _openProfileViewer();
 
-            _onlineListButton = SparkFormLayout.AddButton(buttonRow, "Online List", 110, 30);
+            _onlineListButton = SparkFormLayout.AddButton(firstRow, "Online List", 110, 30);
             _onlineListButton.Click += (s, e) => _openOnlineList();
 
-            _savedProfilesButton = SparkFormLayout.AddButton(buttonRow, "Saved Profiles", 126, 30);
+            _nearbyButton = SparkFormLayout.AddButton(firstRow, "Nearby RPers", 126, 30);
+            _nearbyButton.Click += (s, e) => _openNearby();
+
+            var secondRow = SparkFormLayout.AddRow(buttonStack, 660, 30, 8);
+
+            _savedProfilesButton = SparkFormLayout.AddButton(secondRow, "Saved Profiles", 126, 30);
             _savedProfilesButton.Click += (s, e) => _openSavedProfiles();
 
-            var aboutButton = SparkFormLayout.AddButton(buttonRow, "About", 80, 30);
+            var aboutButton = SparkFormLayout.AddButton(secondRow, "About", 80, 30);
             aboutButton.Click += (s, e) => _openAbout();
+
+            _matureProfilesButton = SparkFormLayout.AddButton(secondRow, MatureProfilesButtonText(), 190, 30);
+            _matureProfilesButton.Click += (s, e) => _toggleMatureProfiles?.Invoke();
 
             WatchGameState();
             StartStatePolling();
@@ -162,6 +176,24 @@ namespace rp.spark.UI.Views
             }
         }
 
+        public void RefreshMatureButtonText()
+        {
+            if (_matureProfilesButton != null)
+                _matureProfilesButton.Text = MatureProfilesButtonText();
+        }
+
+        private string MatureProfilesButtonText()
+        {
+            try
+            {
+                return _getMatureProfilesButtonText?.Invoke() ?? "Mature Profiles";
+            }
+            catch
+            {
+                return "Mature Profiles";
+            }
+        }
+
         // Enhancing UX here to disable buttons when you can't access things yet based on feedback
         private void ApplyButtonState(string resultText)
         {
@@ -185,6 +217,9 @@ namespace rp.spark.UI.Views
 
             if (_savedProfilesButton != null)
                 _savedProfilesButton.Enabled = !hideGameplayWindows;
+
+            if (_nearbyButton != null)
+                _nearbyButton.Enabled = !hideGameplayWindows;
         }
 
         private bool ShouldHideGameplayWindows()

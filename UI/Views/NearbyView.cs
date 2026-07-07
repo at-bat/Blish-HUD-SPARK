@@ -17,12 +17,12 @@ namespace rp.spark.UI.Views
     // TODO: Extract more common window behavior to make building new UI windows less of a pain
     public class NearbyView : View
     {
-        private const int BodyWidth = 430;
-        private const int HeaderY = 82;
-        private const int ListY = 110;
-        private const int ListHeight = 250;
-        private const int RowHeight = 32;
-        private const int StatusY = 370;
+        private const int BodyWidth = 590;
+        private const int HeaderY = 38;
+        private const int ListY = 62;
+        private const int ListHeight = 188;
+        private const int StatusY = 258;
+        private const int RowHeight = 30;
 
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(15);
@@ -37,8 +37,6 @@ namespace rp.spark.UI.Views
         private Task _autoRefreshTask;
         private ProfileScrollList _nearbyList;
         private Label _status;
-        private Checkbox _showNearbyCheckbox;
-        private Checkbox _autoRefreshCheckbox;
 
         public NearbyView(
             NearbyPresenceService nearby,
@@ -54,47 +52,46 @@ namespace rp.spark.UI.Views
         {
             _isUnloaded = false;
 
-            ProfileListViewUI.AddTitle(buildPanel, "Nearby RPers", 240);
-
-            var refreshButton = SparkViewUI.AddButton(buildPanel, "Refresh", BodyWidth - 100, 0, 100, 30);
+            var refreshButton = SparkViewUI.AddButton(buildPanel, "Refresh", BodyWidth - 100, 0, 100, 28);
             SparkUiActions.BindClick(
                 refreshButton,
                 () => RefreshAsync(false),
                 SetStatusText,
                 "Couldn't refresh nearby RPers.");
 
-            _showNearbyCheckbox = SparkViewUI.AddCheckbox(
+            var showNearbyCheckbox = SparkViewUI.AddCheckbox(
                 buildPanel,
                 "Show me nearby",
                 _settings.ShowNearbyPresence.Value,
                 0,
-                42,
-                180,
-                30);
+                0,
+                170,
+                28);
 
-            _showNearbyCheckbox.CheckedChanged += async (s, e) =>
+            showNearbyCheckbox.CheckedChanged += async (s, e) =>
             {
-                await SetNearbySharingAsync(_showNearbyCheckbox.Checked);
+                await SetNearbySharingAsync(showNearbyCheckbox.Checked);
             };
 
-            _autoRefreshCheckbox = SparkViewUI.AddCheckbox(
+            var autoRefreshCheckbox = SparkViewUI.AddCheckbox(
                 buildPanel,
                 "Auto-refresh",
                 _settings.AutoRefreshNearbyRpers.Value,
-                190,
-                42,
-                160,
-                30);
+                180,
+                0,
+                150,
+                28);
 
-            _autoRefreshCheckbox.CheckedChanged += (s, e) =>
+            autoRefreshCheckbox.CheckedChanged += (s, e) =>
             {
-                _settings.AutoRefreshNearbyRpers.Value = _autoRefreshCheckbox.Checked;
+                _settings.AutoRefreshNearbyRpers.Value = autoRefreshCheckbox.Checked;
             };
 
-            AddHeader(buildPanel, "Character", 8, 150);
-            AddHeader(buildPanel, "Race", 160, 75);
-            AddHeader(buildPanel, "Status", 240, 80);
-            AddHeader(buildPanel, "Distance", 326, 90);
+            AddHeader(buildPanel, "Character", 8, 170);
+            AddHeader(buildPanel, "Race", 186, 70);
+            AddHeader(buildPanel, "Status", 264, 110);
+            AddHeader(buildPanel, "Map IP", 382, 70);
+            AddHeader(buildPanel, "Distance", 460, 80);
 
             _nearbyList = new ProfileScrollList(BodyWidth, ListHeight, RowHeight)
             {
@@ -122,7 +119,7 @@ namespace rp.spark.UI.Views
             new Label
             {
                 Text = text,
-                Font = GameService.Content.DefaultFont16,
+                Font = GameService.Content.DefaultFont14,
                 TextColor = new Color(255, 233, 180),
                 StrokeText = true,
                 Location = new Point(x, HeaderY),
@@ -269,14 +266,16 @@ namespace rp.spark.UI.Views
             var rows = (nearbyRows ?? new List<NearbyPresence>())
                 .Where(row => row?.Presence != null)
                 .Where(row => row.Presence.Status != RPStatus.Invisible)
-                .OrderBy(row => row.DistanceMeters < 0 ? double.MaxValue : row.DistanceMeters)
+                .OrderBy(row => _nearby.IsCurrentMapIp(row) ? 0 : 1)
+                .ThenBy(row => row.DistanceMeters < 0 ? double.MaxValue : row.DistanceMeters)
+                .ThenBy(row => MapIpText(row.ServerAddress), StringComparer.OrdinalIgnoreCase)
                 .ThenBy(row => row.VisibleName(), StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (rows.Count == 0)
             {
                 _nearbyList.ShowEmptyMessage("No nearby RPers found.");
-                SetStatusText(IsAutoRefreshEnabled()
+                SetStatusText(_settings.AutoRefreshNearbyRpers.Value
                     ? "0 nearby RPers."
                     : "0 nearby RPers. Auto-refresh is off.");
                 return;
@@ -298,22 +297,20 @@ namespace rp.spark.UI.Views
             var presence = nearby.Presence;
             var tooltipText = TooltipText(nearby);
             var row = _nearbyList.AddRow(index, tooltipText);
+            var sameMapIp = _nearby.IsCurrentMapIp(nearby);
+            var mapIpColor = sameMapIp ? new Color(140, 220, 140) : SparkViewUI.SecondaryTextColor;
+            var distanceText = sameMapIp ? DistanceText(nearby.DistanceMeters) : "-";
 
-            MakeClickable(row, presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, presence.VisibleName(), 8, 6, 148, Color.White), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, ProfileText.PresenceRace(presence), 160, 6, 72, SparkViewUI.SecondaryTextColor), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 240, 6, 78, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, DistanceText(nearby.DistanceMeters), 326, 6, 90, SparkViewUI.SecondaryTextColor), presence, tooltipText);
+            MakeClickable(_nearbyList.AddCell(row, presence.VisibleName(), 8, 5, 170, Color.White), presence, tooltipText);
+            MakeClickable(_nearbyList.AddCell(row, ProfileText.PresenceRace(presence), 186, 5, 70, SparkViewUI.SecondaryTextColor), presence, tooltipText);
+            MakeClickable(_nearbyList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 264, 5, 110, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
+            MakeClickable(_nearbyList.AddCell(row, MapIpText(nearby.ServerAddress), 382, 5, 70, mapIpColor), presence, tooltipText);
+            MakeClickable(_nearbyList.AddCell(row, distanceText, 460, 5, 80, SparkViewUI.SecondaryTextColor), presence, tooltipText);
         }
 
         private void MakeClickable(Control control, PlayerPresence presence, string tooltipText)
         {
             ProfileScrollList.WireInteraction(control, tooltipText, () => _openProfile?.Invoke(presence));
-        }
-
-        private bool IsAutoRefreshEnabled()
-        {
-            return _settings.AutoRefreshNearbyRpers.Value;
         }
 
         private static string DistanceText(double meters)
@@ -343,6 +340,23 @@ namespace rp.spark.UI.Views
                 lines.Add($"Currently: {presence.Currently.Trim()}");
 
             return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+        }
+
+        private static string MapIpText(string serverAddress)
+        {
+            var text = serverAddress?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(text))
+                return "-";
+
+            var parts = text.Split('.');
+            var lastPart = parts.Length > 0 ? parts[parts.Length - 1].Trim() : text;
+
+            if (string.IsNullOrWhiteSpace(lastPart))
+                return "-";
+
+            return lastPart.Length <= 3
+                ? lastPart
+                : lastPart.Substring(lastPart.Length - 3);
         }
 
         private void SetStatusText(string text)

@@ -24,6 +24,9 @@ namespace rp.spark.Services
         private bool _published;
 
         public string LastStatus { get; private set; } = string.Empty;
+        public int CurrentMapId { get; private set; }
+        public uint CurrentShardId { get; private set; }
+        public string CurrentServerAddress { get; private set; } = string.Empty;
 
         public NearbyPresenceService(
             SparkClient apiClient,
@@ -77,8 +80,6 @@ namespace rp.spark.Services
             LastStatus = "Nearby RPers updated.";
             return (result.Value?.Entries ?? new List<NearbyPresence>())
                 .Where(entry => entry?.Presence != null)
-                .OrderBy(entry => entry.DistanceMeters < 0 ? double.MaxValue : entry.DistanceMeters)
-                .ThenBy(entry => entry.VisibleName())
                 .ToList();
         }
 
@@ -171,7 +172,7 @@ namespace rp.spark.Services
                 return null;
             }
 
-            if (!TryGetLocation(out var mapId, out var shardId, out var x, out var y, out var z))
+            if (!TryGetLocation(out var mapId, out var shardId, out var serverAddress, out var x, out var y, out var z))
                 return null;
 
             return new NearbyPresence
@@ -179,6 +180,7 @@ namespace rp.spark.Services
                 Presence = presence,
                 MapId = mapId,
                 ShardId = shardId,
+                ServerAddress = serverAddress,
                 HasPosition = true,
                 X = x,
                 Y = y,
@@ -189,7 +191,7 @@ namespace rp.spark.Services
 
         private NearbyPresenceSearchRequest BuildSearchRequest()
         {
-            if (!TryGetLocation(out var mapId, out var shardId, out var x, out var y, out var z))
+            if (!TryGetLocation(out var mapId, out var shardId, out var serverAddress, out var x, out var y, out var z))
                 return null;
 
             return new NearbyPresenceSearchRequest
@@ -198,6 +200,7 @@ namespace rp.spark.Services
                 IncludeMature = _settings.ShowMatureProfiles.Value,
                 MapId = mapId,
                 ShardId = shardId,
+                ServerAddress = serverAddress,
                 HasPosition = true,
                 X = x,
                 Y = y,
@@ -206,11 +209,22 @@ namespace rp.spark.Services
             };
         }
 
-        private bool TryGetLocation(out int mapId, out uint shardId, out double x, out double y, out double z)
+        private bool TryGetLocation(
+            out int mapId,
+            out uint shardId,
+            out string serverAddress,
+            out double x,
+            out double y,
+            out double z)
         {
             mapId = 0;
             shardId = 0;
+            serverAddress = string.Empty;
             x = y = z = 0;
+
+            CurrentMapId = 0;
+            CurrentShardId = 0;
+            CurrentServerAddress = string.Empty;
 
             if (_settings.HideLocation.Value)
             {
@@ -226,6 +240,7 @@ namespace rp.spark.Services
 
             mapId = GameService.Gw2Mumble.CurrentMap.Id;
             shardId = GameService.Gw2Mumble.Info.ShardId;
+            serverAddress = Convert.ToString(GameService.Gw2Mumble.Info.ServerAddress)?.Trim() ?? string.Empty;
 
             var position = GameService.Gw2Mumble.PlayerCharacter.Position;
             x = position.X;
@@ -238,6 +253,10 @@ namespace rp.spark.Services
                 return false;
             }
 
+            CurrentMapId = mapId;
+            CurrentShardId = shardId;
+            CurrentServerAddress = serverAddress;
+
             return true;
         }
 
@@ -249,6 +268,23 @@ namespace rp.spark.Services
             return _presenceLoop == null
                 ? null
                 : await _presenceLoop.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public bool IsCurrentMapIp(NearbyPresence nearby)
+        {
+            if (nearby == null)
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(CurrentServerAddress)
+                && !string.IsNullOrWhiteSpace(nearby.ServerAddress))
+            {
+                return string.Equals(
+                    nearby.ServerAddress.Trim(),
+                    CurrentServerAddress.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
+            return CurrentShardId != 0 && nearby.ShardId == CurrentShardId;
         }
 
         private Task<string> GetTokenAsync(CancellationToken cancellationToken)

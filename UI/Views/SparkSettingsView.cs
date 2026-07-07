@@ -35,7 +35,6 @@ namespace rp.spark.UI.Views
 
         // Mature content window
         private Container _buildPanel;
-        private StandardButton _matureButton;
         private Panel _matureConfirmationPanel;
 
         private bool _isUnloaded;
@@ -52,6 +51,7 @@ namespace rp.spark.UI.Views
             Action openProfileManager,
             Action openProfileViewer,
             Action openOnlineList,
+            Action openNearby,
             Action openSavedProfiles,
             Action openAbout,
             Action openBlocklist,
@@ -81,8 +81,11 @@ namespace rp.spark.UI.Views
                 openProfileManager,
                 openProfileViewer,
                 openOnlineList,
+                openNearby,
                 openSavedProfiles,
                 openAbout,
+                GetMatureProfilesButtonText,
+                ToggleMatureProfiles,
                 waitForInitialState,
                 getCurrentStateMessage,
                 requestStateRefresh,
@@ -119,9 +122,6 @@ namespace rp.spark.UI.Views
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildPresence(settingsStack);
             BuildGlobalSettings(settingsStack);
-
-            SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
-            BuildMatureProfileSetting(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildBlockSummary(settingsStack);
@@ -443,49 +443,11 @@ namespace rp.spark.UI.Views
             };
         }
 
-        private void BuildMatureProfileSetting(FlowPanel settingsStack)
-        {
-            var row = SparkFormLayout.AddRow(
-                settingsStack,
-                ContentWidth,
-                ControlHeight,
-                12);
-
-            _matureButton = SparkFormLayout.AddButton(
-                row,
-                string.Empty,
-                210,
-                ControlHeight);
-
-            _matureButton.Click += (s, e) =>
-            {
-                if (_settings.ShowMatureProfiles.Value)
-                {
-                    SetMatureProfilesEnabled(false);
-                    return;
-                }
-
-                OpenMatureConfirmation();
-            };
-
-            RefreshMatureSettingUi();
-        }
-
         private void SetMatureProfilesEnabled(bool enabled)
         {
             _settings.ShowMatureProfiles.Value = enabled;
-            RefreshMatureSettingUi();
+            _buttons.RefreshMatureButtonText();
             _maturePreferenceChanged?.Invoke(enabled);
-        }
-
-        private void RefreshMatureSettingUi()
-        {
-            if (_matureButton == null)
-                return;
-
-            _matureButton.Text = _settings.ShowMatureProfiles.Value
-                ? "Mature Profiles Visible"
-                : "Mature Profiles Hidden";
         }
 
         private void OpenMatureConfirmation()
@@ -568,6 +530,24 @@ namespace rp.spark.UI.Views
         {
             _matureConfirmationPanel?.Dispose();
             _matureConfirmationPanel = null;
+        }
+
+        private string GetMatureProfilesButtonText()
+        {
+            return _settings.ShowMatureProfiles.Value
+                ? "Mature Profiles Visible"
+                : "Mature Profiles Hidden";
+        }
+
+        private void ToggleMatureProfiles()
+        {
+            if (_settings.ShowMatureProfiles.Value)
+            {
+                SetMatureProfilesEnabled(false);
+                return;
+            }
+
+            OpenMatureConfirmation();
         }
 
         private static Point GetCenteredPopupLocation(

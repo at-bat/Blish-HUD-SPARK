@@ -12,6 +12,8 @@ namespace rp.spark.Models
 
         public uint ShardId { get; set; }
 
+        public string ServerAddress { get; set; } = string.Empty;
+
         public bool HasPosition { get; set; }
 
         public double X { get; set; }
