@@ -24,7 +24,6 @@ namespace rp.spark.Services
         private bool _published;
 
         public string LastStatus { get; private set; } = string.Empty;
-        public int CurrentMapId { get; private set; }
         public uint CurrentShardId { get; private set; }
         public string CurrentServerAddress { get; private set; } = string.Empty;
 
@@ -165,10 +164,11 @@ namespace rp.spark.Services
 
         private async Task<NearbyPresence> BuildNearbyPresenceAsync(CancellationToken cancellationToken)
         {
-            var presence = await GetPresenceAsync(cancellationToken).ConfigureAwait(false);
-            if (presence == null || !presence.CanShare || presence.IsLocationHidden || presence.Status == RPStatus.Invisible)
+            var presence = await GetPresenceAsync(cancellationToken, forceRefresh: true).ConfigureAwait(false);
+            var sharingNotice = BuildSharingNotice(presence);
+            if (!string.IsNullOrWhiteSpace(sharingNotice))
             {
-                LastStatus = "Nearby presence is not shared while your profile/location is hidden.";
+                LastStatus = sharingNotice;
                 return null;
             }
 
@@ -222,7 +222,6 @@ namespace rp.spark.Services
             serverAddress = string.Empty;
             x = y = z = 0;
 
-            CurrentMapId = 0;
             CurrentShardId = 0;
             CurrentServerAddress = string.Empty;
 
@@ -253,21 +252,54 @@ namespace rp.spark.Services
                 return false;
             }
 
-            CurrentMapId = mapId;
             CurrentShardId = shardId;
             CurrentServerAddress = serverAddress;
 
             return true;
         }
 
-        private async Task<PlayerPresence> GetPresenceAsync(CancellationToken cancellationToken)
+        private async Task<PlayerPresence> GetPresenceAsync(
+            CancellationToken cancellationToken,
+            bool forceRefresh = false)
         {
-            if (_presenceLoop?.CurrentPresence != null)
+            if (!forceRefresh && _presenceLoop?.CurrentPresence != null)
                 return _presenceLoop.CurrentPresence;
 
             return _presenceLoop == null
                 ? null
                 : await _presenceLoop.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<string> GetSharingNoticeAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_settings.ShowNearbyPresence.Value)
+                return string.Empty;
+
+            var presence = await GetPresenceAsync(cancellationToken, forceRefresh: true).ConfigureAwait(false);
+            return BuildSharingNotice(presence);
+        }
+
+        private static string BuildSharingNotice(PlayerPresence presence)
+        {
+            if (presence == null)
+                return "'Show me nearby' is on, but your presence is not available yet.";
+
+            if (!presence.HasActiveProfile)
+                return "'Show me nearby' is on, but no active profile is selected, so you will not appear to other nearby RPers.";
+
+            if (presence.IsLocationHidden)
+                return "'Show me nearby' is on, but location is hidden, so you will not appear to other nearby RPers.";
+
+            if (presence.Status == RPStatus.Invisible)
+                return "'Show me nearby is on', but invisible status prevents nearby sharing.";
+
+            if (!presence.CanShare && !string.IsNullOrWhiteSpace(presence.ShareBlockReason))
+                return $"'Show me nearby is on', but you will not appear: {presence.ShareBlockReason}";
+
+            if (!presence.CanShare)
+                return "'Show me nearby is on', but your profile is not currently shareable.";
+
+            return string.Empty;
         }
 
         public bool IsCurrentMapIp(NearbyPresence nearby)

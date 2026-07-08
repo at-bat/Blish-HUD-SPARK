@@ -17,6 +17,9 @@ namespace rp.spark.UI
         private const int RecentlySeenIcon = 156680;
         private const int BookmarkIcon = 156722;
 
+        private static readonly Point NearbyWindowSize = new Point(640, 350);
+        private static readonly Point NearbyWindowDefaultLocation = new Point(40, 240);
+
         private readonly WindowBuilder _windowBuilder;
         private readonly ProfileRepository _profileRepository;
         private readonly ProfileCache _profileCache;
@@ -338,9 +341,36 @@ namespace rp.spark.UI
         {
             _nearbyWindow = _windowBuilder.MakeCompactWindow(
                 "Nearby RPers",
-                new Point(640, 350));
+                NearbyWindowSize);
 
-            _nearbyWindow.Location = new Point(40, 240);
+            _nearbyWindow.Location = ClampToScreen(
+                _settings.GetNearbyWindowLocation(NearbyWindowDefaultLocation),
+                NearbyWindowSize);
+
+            _nearbyWindow.LocationSaved += location =>
+            {
+                _settings.SetNearbyWindowLocation(ClampToScreen(location, NearbyWindowSize));
+            };
+        }
+
+        private static Point ClampToScreen(Point location, Point size)
+        {
+            var screenSize = GameService.Graphics.SpriteScreen.Size;
+
+            var maxX = Math.Max(0, screenSize.X - size.X);
+            var maxY = Math.Max(0, screenSize.Y - size.Y);
+
+            return new Point(
+                Clamp(location.X, 0, maxX),
+                Clamp(location.Y, 0, maxY));
+        }
+
+        private static int Clamp(int value, int min, int max)
+        {
+            if (value < min)
+                return min;
+
+            return value > max ? max : value;
         }
 
         private void CreateSavedWindow()

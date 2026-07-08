@@ -39,6 +39,9 @@ namespace rp.spark.UI
         private Rectangle _rightTitleBarDrawBounds = Rectangle.Empty;
         private bool _mouseOverTitleBar;
 
+        public event Action<Point> LocationSaved;
+        private bool _movedDuringDrag;
+
         public SparkCompactWindow(string title, AsyncTexture2D background, Rectangle backgroundSource, Point size)
         {
             _background = background;
@@ -105,7 +108,13 @@ namespace rp.spark.UI
             if (_dragging)
             {
                 var delta = GameService.Input.Mouse.Position - _dragStart;
-                Location += delta;
+
+                if (delta.X != 0 || delta.Y != 0)
+                {
+                    Location += delta;
+                    _movedDuringDrag = true;
+                }
+
                 _dragStart = GameService.Input.Mouse.Position;
             }
 
@@ -126,6 +135,7 @@ namespace rp.spark.UI
             if (_mouseOverTitleBar)
             {
                 _dragging = true;
+                _movedDuringDrag = false;
                 _dragStart = GameService.Input.Mouse.Position;
             }
 
@@ -217,7 +227,11 @@ namespace rp.spark.UI
 
         private void HandleGlobalMouseReleased(object sender, MouseEventArgs e)
         {
+            if (_dragging && _movedDuringDrag)
+                LocationSaved?.Invoke(Location);
+
             _dragging = false;
+            _movedDuringDrag = false;
         }
 
         private void HandleTextureSwapped(object sender, ValueChangedEventArgs<Texture2D> e)

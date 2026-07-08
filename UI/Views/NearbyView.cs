@@ -222,10 +222,12 @@ namespace rp.spark.UI.Views
                 SetStatusText("Refreshing nearby RPers...");
 
                 IReadOnlyList<NearbyPresence> rows;
+                string sharingNotice;
 
                 using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
                     timeout.CancelAfter(RefreshTimeout);
+                    sharingNotice = await _nearby.GetSharingNoticeAsync(timeout.Token);
                     rows = await _nearby.SearchAsync(timeout.Token);
                 }
 
@@ -234,7 +236,7 @@ namespace rp.spark.UI.Views
                     if (_isUnloaded || _nearbyList == null)
                         return;
 
-                    ShowRows(rows, resetScroll);
+                    ShowRows(rows, resetScroll, sharingNotice);
                 });
             }
             catch (OperationCanceledException)
@@ -259,7 +261,7 @@ namespace rp.spark.UI.Views
             }
         }
 
-        private void ShowRows(IReadOnlyList<NearbyPresence> nearbyRows, bool resetScroll)
+        private void ShowRows(IReadOnlyList<NearbyPresence> nearbyRows, bool resetScroll, string sharingNotice)
         {
             _nearbyList.ClearRows(resetScroll);
 
@@ -275,9 +277,11 @@ namespace rp.spark.UI.Views
             if (rows.Count == 0)
             {
                 _nearbyList.ShowEmptyMessage("No nearby RPers found.");
-                SetStatusText(_settings.AutoRefreshNearbyRpers.Value
-                    ? "0 nearby RPers."
-                    : "0 nearby RPers. Auto-refresh is off.");
+                SetStatusText(WithSharingNotice(
+                    _settings.AutoRefreshNearbyRpers.Value
+                        ? "0 nearby RPers."
+                        : "0 nearby RPers. Auto-refresh is off.",
+                    sharingNotice));
                 return;
             }
 
@@ -287,9 +291,11 @@ namespace rp.spark.UI.Views
             if (resetScroll)
                 _nearbyList.ResetScroll();
 
-            SetStatusText(rows.Count == 1
-                ? "1 nearby RPer."
-                : $"{rows.Count} nearby RPers.");
+            SetStatusText(WithSharingNotice(
+                rows.Count == 1
+                    ? "1 nearby RPer."
+                    : $"{rows.Count} nearby RPers.",
+                sharingNotice));
         }
 
         private void AddRow(NearbyPresence nearby, int index)
@@ -369,6 +375,17 @@ namespace rp.spark.UI.Views
                 if (_status != null && !_isUnloaded)
                     _status.Text = text ?? string.Empty;
             });
+        }
+
+        private static string WithSharingNotice(string status, string sharingNotice)
+        {
+            if (string.IsNullOrWhiteSpace(sharingNotice))
+                return status ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(status))
+                return sharingNotice.Trim();
+
+            return $"{status} {sharingNotice.Trim()}";
         }
 
         protected override void Unload()
