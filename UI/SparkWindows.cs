@@ -157,7 +157,8 @@ namespace rp.spark.UI
             _nearbyWindow.Show(new NearbyView(
                 _nearbyPresenceService,
                 _settings,
-                OpenPresence));
+                OpenPresence,
+                locked => _nearbyWindow.DraggingLocked = locked));
         }
 
         public void OpenSavedProfiles()
@@ -351,6 +352,8 @@ namespace rp.spark.UI
             {
                 _settings.SetNearbyWindowLocation(ClampToScreen(location, NearbyWindowSize));
             };
+
+            _nearbyWindow.DraggingLocked = _settings.NearbyWindowLock.Value;
         }
 
         private static Point ClampToScreen(Point location, Point size)

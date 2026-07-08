@@ -25,6 +25,7 @@ namespace rp.spark.Services
         private const string ShowNearbyPresenceKey = "ShowNearbyPresence";
         private const string AutoRefreshNearbyRpersKey = "AutoRefreshNearbyRpers";
         private const string NearbyWindowLocationKey = "NearbyWindowLocation";
+        private const string NearbyWindowLockKey = "NearbyWindowLock";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -43,6 +44,7 @@ namespace rp.spark.Services
         public SettingEntry<bool> ShowNearbyPresence { get; }
         public SettingEntry<bool> AutoRefreshNearbyRpers { get; }
         public SettingEntry<string> NearbyWindowLocation { get; }
+        public SettingEntry<bool> NearbyWindowLock { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -131,6 +133,12 @@ namespace rp.spark.Services
                 string.Empty,
                 () => "Nearby Players window location",
                 () => "Stores the last screen position of the Nearby Players window.");
+
+            NearbyWindowLock = UiSettings.DefineSetting(
+                NearbyWindowLockKey,
+                false,
+                () => "Lock Nearby Players window",
+                () => "Prevents dragging the Nearby Players window while still allowing profile clicks, refresh, and scrolling.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.

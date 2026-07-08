@@ -38,6 +38,7 @@ namespace rp.spark.UI
         private Rectangle _leftTitleBarDrawBounds = Rectangle.Empty;
         private Rectangle _rightTitleBarDrawBounds = Rectangle.Empty;
         private bool _mouseOverTitleBar;
+        private bool _draggingLocked;
 
         public event Action<Point> LocationSaved;
         private bool _movedDuringDrag;
@@ -172,7 +173,7 @@ namespace rp.spark.UI
 
         private void DrawTitleBar(SpriteBatch spriteBatch)
         {
-            var active = _dragging || _mouseOverTitleBar;
+            var active = !DraggingLocked && (_dragging || _mouseOverTitleBar);
 
             spriteBatch.DrawOnCtrl(
                 this,
@@ -187,6 +188,9 @@ namespace rp.spark.UI
 
         private bool IsInTitleDragRegion(Point position)
         {
+            if (DraggingLocked)
+                return false;
+
             return position.Y >= 0
                 && position.Y < HeaderHeight
                 && position.X >= 0
@@ -237,6 +241,22 @@ namespace rp.spark.UI
         private void HandleTextureSwapped(object sender, ValueChangedEventArgs<Texture2D> e)
         {
             _windowBackgroundTexture = e.NewValue;
+        }
+
+        public bool DraggingLocked
+        {
+            get => _draggingLocked;
+            set
+            {
+                _draggingLocked = value;
+
+                if (_draggingLocked)
+                {
+                    _dragging = false;
+                    _movedDuringDrag = false;
+                    _mouseOverTitleBar = false;
+                }
+            }
         }
 
         protected override void DisposeControl()

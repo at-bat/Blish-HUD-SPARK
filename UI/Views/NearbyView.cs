@@ -31,6 +31,7 @@ namespace rp.spark.UI.Views
         private readonly SparkSettings _settings;
         private readonly Action<PlayerPresence> _openProfile;
         private readonly SemaphoreSlim _refreshGate = new SemaphoreSlim(1, 1);
+        private readonly Action<bool> _setWindowLocked;
 
         private bool _isUnloaded;
         private CancellationTokenSource _refreshCancellation;
@@ -41,11 +42,13 @@ namespace rp.spark.UI.Views
         public NearbyView(
             NearbyPresenceService nearby,
             SparkSettings settings,
-            Action<PlayerPresence> openProfile)
+            Action<PlayerPresence> openProfile,
+            Action<bool> setWindowLocked)
         {
             _nearby = nearby;
             _settings = settings;
             _openProfile = openProfile;
+            _setWindowLocked = setWindowLocked;
         }
 
         protected override void Build(Container buildPanel)
@@ -86,6 +89,23 @@ namespace rp.spark.UI.Views
             {
                 _settings.AutoRefreshNearbyRpers.Value = autoRefreshCheckbox.Checked;
             };
+
+            var lockWindowCheckbox = SparkViewUI.AddCheckbox(
+                buildPanel,
+                "Lock position",
+                _settings.NearbyWindowLock.Value,
+                330,
+                0,
+                140,
+                28);
+
+            lockWindowCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.NearbyWindowLock.Value = lockWindowCheckbox.Checked;
+                _setWindowLocked?.Invoke(lockWindowCheckbox.Checked);
+            };
+
+            _setWindowLocked?.Invoke(lockWindowCheckbox.Checked);
 
             AddHeader(buildPanel, "Character", 8, 170);
             AddHeader(buildPanel, "Race", 186, 70);
