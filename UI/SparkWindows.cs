@@ -340,7 +340,7 @@ namespace rp.spark.UI
         private void CreateNearbyWindow()
         {
             _nearbyWindow = _windowBuilder.MakeCompactWindow(
-                "Nearby RPers",
+                "Nearby Players",
                 NearbyWindowSize);
 
             _nearbyWindow.Location = ClampToScreen(

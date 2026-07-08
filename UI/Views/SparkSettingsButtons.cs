@@ -82,7 +82,7 @@ namespace rp.spark.UI.Views
             _onlineListButton = SparkFormLayout.AddButton(firstRow, "Online List", 110, 30);
             _onlineListButton.Click += (s, e) => _openOnlineList();
 
-            _nearbyButton = SparkFormLayout.AddButton(firstRow, "Nearby RPers", 126, 30);
+            _nearbyButton = SparkFormLayout.AddButton(firstRow, "Nearby Players", 126, 30);
             _nearbyButton.Click += (s, e) => _openNearby();
 
             var secondRow = SparkFormLayout.AddRow(buttonStack, 660, 30, 8);

@@ -57,7 +57,7 @@ namespace rp.spark.UI.Views
                 refreshButton,
                 () => RefreshAsync(false),
                 SetStatusText,
-                "Couldn't refresh nearby RPers.");
+                "Couldn't refresh nearby players.");
 
             var showNearbyCheckbox = SparkViewUI.AddCheckbox(
                 buildPanel,
@@ -219,7 +219,7 @@ namespace rp.spark.UI.Views
                 if (!hasRefreshLock)
                     return;
 
-                SetStatusText("Refreshing nearby RPers...");
+                SetStatusText("Refreshing nearby players...");
 
                 IReadOnlyList<NearbyPresence> rows;
                 string sharingNotice;
@@ -250,7 +250,7 @@ namespace rp.spark.UI.Views
                     if (_isUnloaded || _nearbyList == null)
                         return;
 
-                    _nearbyList.ShowEmptyMessage("Could not load nearby RPers.");
+                    _nearbyList.ShowEmptyMessage("Could not load nearby players.");
                     SetStatusText("Nearby list unavailable.");
                 });
             }
@@ -276,11 +276,11 @@ namespace rp.spark.UI.Views
 
             if (rows.Count == 0)
             {
-                _nearbyList.ShowEmptyMessage("No nearby RPers found.");
+                _nearbyList.ShowEmptyMessage("No nearby players found.");
                 SetStatusText(WithSharingNotice(
                     _settings.AutoRefreshNearbyRpers.Value
-                        ? "0 nearby RPers."
-                        : "0 nearby RPers. Auto-refresh is off.",
+                        ? "0 nearby players."
+                        : "0 nearby players. Auto-refresh is off.",
                     sharingNotice));
                 return;
             }
@@ -293,8 +293,8 @@ namespace rp.spark.UI.Views
 
             SetStatusText(WithSharingNotice(
                 rows.Count == 1
-                    ? "1 nearby RPer."
-                    : $"{rows.Count} nearby RPers.",
+                    ? "1 nearby player."
+                    : $"{rows.Count} nearby players.",
                 sharingNotice));
         }
 

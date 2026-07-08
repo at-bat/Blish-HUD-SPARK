@@ -65,18 +65,18 @@ namespace rp.spark.Services
             var token = await GetTokenAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(token))
             {
-                LastStatus = "Add a valid GW2 API key before checking nearby RPers.";
+                LastStatus = "Add a valid GW2 API key before checking nearby players.";
                 return Array.Empty<NearbyPresence>();
             }
 
             var result = await _apiClient.SearchNearbyPresenceResultAsync(query, token, cancellationToken).ConfigureAwait(false);
             if (!result.Succeeded)
             {
-                LastStatus = result.ErrorMessage ?? "Unable to refresh nearby RPers.";
+                LastStatus = result.ErrorMessage ?? "Unable to refresh nearby players.";
                 return Array.Empty<NearbyPresence>();
             }
 
-            LastStatus = "Nearby RPers updated.";
+            LastStatus = "Nearby players updated.";
             return (result.Value?.Entries ?? new List<NearbyPresence>())
                 .Where(entry => entry?.Presence != null)
                 .ToList();
@@ -227,7 +227,7 @@ namespace rp.spark.Services
 
             if (_settings.HideLocation.Value)
             {
-                LastStatus = "Nearby RPers are unavailable while location is hidden.";
+                LastStatus = "Nearby Players are unavailable while location is hidden.";
                 return false;
             }
 
@@ -248,7 +248,7 @@ namespace rp.spark.Services
 
             if (mapId <= 0 || shardId == 0)
             {
-                LastStatus = "Enter a map before checking nearby RPers.";
+                LastStatus = "Enter a map before checking nearby players.";
                 return false;
             }
 
@@ -285,10 +285,10 @@ namespace rp.spark.Services
                 return "'Show me nearby' is on, but your presence is not available yet.";
 
             if (!presence.HasActiveProfile)
-                return "'Show me nearby' is on, but no active profile is selected, so you will not appear to other nearby RPers.";
+                return "'Show me nearby' is on, but no active profile is selected, so you will not appear to other nearby players.";
 
             if (presence.IsLocationHidden)
-                return "'Show me nearby' is on, but location is hidden, so you will not appear to other nearby RPers.";
+                return "'Show me nearby' is on, but location is hidden, so you will not appear to other nearby players.";
 
             if (presence.Status == RPStatus.Invisible)
                 return "'Show me nearby is on', but invisible status prevents nearby sharing.";

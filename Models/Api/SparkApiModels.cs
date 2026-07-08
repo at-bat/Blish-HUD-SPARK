@@ -160,7 +160,7 @@ namespace rp.spark.Models.Api
         public List<PlayerPresence> Entries { get; set; } = new List<PlayerPresence>();
     }
 
-    // This is for publishing your nearby data to players on the same map (not necessarily the same instance) to see nearby RPers.
+    // This is for publishing your nearby data to players on the same map (not necessarily the same instance) to see nearby players.
     // Best thing we can do since we can't replicate Total RP 3 and see who has an RP profile by resolving on a nameplate click, etc.
     // This will be for a window that polls the map for which SPARK users are on it and let you see how close you are (approximately) to them if on the same shard
     public class NearbyPresencePublishRequest

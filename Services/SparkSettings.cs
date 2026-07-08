@@ -87,7 +87,7 @@ namespace rp.spark.Services
             ShowNearbyPresence = SharingSettings.DefineSetting(
                 ShowNearbyPresenceKey,
                 false,
-                () => "Show me to nearby RPers",
+                () => "Show me to nearby players",
                 () => "When enabled, SPARK will publish your nearby RP presence to other opted-in SPARK users.");
 
             AutoHideGameUi = UiSettings.DefineSetting(
@@ -117,8 +117,8 @@ namespace rp.spark.Services
             AutoRefreshNearbyRpers = DiscoverySettings.DefineSetting(
                 AutoRefreshNearbyRpersKey,
                 true,
-                () => "Auto-refresh nearby RPers",
-                () => "Refreshes the nearby RPers window automatically.");
+                () => "Auto-refresh nearby player list",
+                () => "Refreshes the nearby players window automatically.");
 
             BlockedAccounts = PrivacySettings.DefineSetting(
                 BlockedAccountsKey,
@@ -129,8 +129,8 @@ namespace rp.spark.Services
             NearbyWindowLocation = UiSettings.DefineSetting(
                 NearbyWindowLocationKey,
                 string.Empty,
-                () => "Nearby RPers window location",
-                () => "Stores the last screen position of the Nearby RPers window.");
+                () => "Nearby Players window location",
+                () => "Stores the last screen position of the Nearby Players window.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.
