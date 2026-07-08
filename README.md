@@ -2,6 +2,8 @@
 
 SPARK is a [Blish HUD](https://blishhud.com) module for Guild Wars 2 roleplayers. It lets players create character profiles, share their current roleplay status, discover other SPARK users, and save notes or bookmarks for profiles they have viewed.
 
+Want more information or want to see screenshots of the module in action? Check out [getspark.fyi](https://getspark.fyi) for more details!
+
 There is now a [Discord server](https://discord.gg/nJ3UstHcAg) for SPARK if you wish to report bugs, provide feedback, or need assistance while using it.
 
 ## Features
@@ -9,6 +11,7 @@ There is now a [Discord server](https://discord.gg/nJ3UstHcAg) for SPARK if you 
 - Multiple profiles for each character
 - RP Statuses (Online, Looking for RP, Busy, Invisible (appear offline))
 - 'At a Glance' icons with custom tooltips including a fast, built-in icon search with over 57,000 icons from the game to use
+- Nearby players tracking: an opt-in feature to display your location to others on the same map, which map IP you are on, and how far away you are!
 - Bookmarks for your favourite RP profiles
 - Private notes that you can save to any profile you view
 - Privacy options to hide your current location or appear offline
@@ -19,19 +22,9 @@ There is now a [Discord server](https://discord.gg/nJ3UstHcAg) for SPARK if you 
 
 ## Installing SPARK
 
-1. Close Blish HUD if it's currently running.
-2. Go to the [Release Page](https://github.com/at-bat/Blish-HUD-SPARK/releases). 
-3. At the bottom of a release is a section called Assets. Click on this to see all of the attached files in a release.
-4. Download JUST the `.bhm` file. You do not need anything else.
-5. Add the `.bhm` file to your Blish HUD modules folder.
-	On Windows this is typically here: `Documents\Guild Wars 2\addons\blishhud\modules`.
-3. Once it's added to this folder, start Guild Wars 2 and Blish HUD and you should see SPARK in the Blish HUD sidebar.
+Please follow the instructions on the [Release Page](https://github.com/at-bat/Blish-HUD-SPARK/releases) or on the [SPARK website](https://getspark.fyi/install/)
 
-SPARK contains a server status and a module status to let you know if something isn't working to troubleshoot problems.
-
-**Please make sure you have an API key added into Blish HUD, or SPARK will not work.**
-
-API keys can only read your account data, like your account name, character names, etc. It cannot modify or change anything on your account and are safe to put into Blish HUD.
+**This process will be simplified once it has been added to Blish HUD's module repository.**
 
 ## Requirements
 
@@ -41,6 +34,8 @@ API keys can only read your account data, like your account name, character name
 SPARK uses these permissions to verify account and character ownership and tie profiles to your GW2 account.
 
 This is done to prevent potential impersonation or abuse issues and provide SPARK with the ability to restrict malicious users from using the module.
+
+Guild Wars 2 API Keys provide read-only access to your account for information like account name and your characters, their race, profession, etc., and are safe to use within Blish HUD.
 
 ## Privacy / Data
 
@@ -94,6 +89,16 @@ Presence is a mini-snippet of your profile, used for tooltips when hovering over
 - Character Race
 - Character Profession
 - Custom Profession (if set)
+
+**Nearby Players:**
+
+- Character Name
+- Race
+- RP Status
+- Map IP (last 3 digits)
+- Distance from you
+
+Nearby Players is an opt-in feature. Your information is not shared by default.
 
 **Account Blocks:**
 

@@ -2,7 +2,7 @@
   "name": "Simple Profile And Roleplay Kit",
   "version": "1.0.0",
   "namespace": "rp.spark",
-  "package": "Blish HUD SPARK.dll",
+  "package": "SPARK.dll",
   "manifest_version": 1,
 
   "description": "An RP module that allows you to create character profiles for roleplaying, advertise your profiles and RP status to others, and view other player's RP profiles.",
