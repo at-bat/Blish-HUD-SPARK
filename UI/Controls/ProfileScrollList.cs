@@ -31,7 +31,7 @@ namespace rp.spark.UI.Controls
                 ShowBorder = false,
                 Location = Point.Zero,
                 Size = new Point(listWidth, listHeight),
-                BackgroundColor = new Color(0, 0, 0, 45),
+                BackgroundColor = new Color(0, 0, 0, 0),
                 ClipsBounds = true,
                 Parent = this
             };

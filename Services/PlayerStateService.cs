@@ -14,7 +14,8 @@ namespace rp.spark.Services
         private const string HiddenLocationName = "Hidden";
         private static readonly TimeSpan AccountRefreshInterval = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan CharacterRefreshInterval = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan ApiFailureRetryInterval = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan AccountFailureRetryInterval = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan CharacterFailureRetryInterval = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan MapResolveRetryInterval = TimeSpan.FromSeconds(15);
 
         private readonly Gw2ApiManager _gw2ApiManager;
@@ -161,7 +162,7 @@ namespace rp.spark.Services
         {
             lock (_accountCacheLock)
             {
-                _nextAccountLookup = DateTime.UtcNow + ApiFailureRetryInterval;
+                _nextAccountLookup = DateTime.UtcNow + AccountFailureRetryInterval;
             }
         }
 
@@ -392,7 +393,7 @@ namespace rp.spark.Services
 
             lock (_characterRetryAfter)
             {
-                _characterRetryAfter[characterName.Trim()] = DateTime.UtcNow + ApiFailureRetryInterval;
+                _characterRetryAfter[characterName.Trim()] = DateTime.UtcNow + CharacterFailureRetryInterval;
             }
         }
 

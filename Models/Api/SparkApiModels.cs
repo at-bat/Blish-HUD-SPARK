@@ -160,6 +160,44 @@ namespace rp.spark.Models.Api
         public List<PlayerPresence> Entries { get; set; } = new List<PlayerPresence>();
     }
 
+    // This is for publishing your nearby data to players on the same map (not necessarily the same instance) to see nearby players.
+    // Best thing we can do since we can't replicate Total RP 3 and see who has an RP profile by resolving on a nameplate click, etc.
+    // This will be for a window that polls the map for which SPARK users are on it and let you see how close you are (approximately) to them if on the same shard
+    public class NearbyPresencePublishRequest
+    {
+        public NearbyPresence Nearby { get; set; } = new NearbyPresence();
+    }
+
+    public class NearbyPresenceSearchRequest
+    {
+        public ProfileRegion Region { get; set; } = ProfileRegion.NA;
+
+        public bool IncludeMature { get; set; }
+
+        public int MapId { get; set; }
+
+        public uint ShardId { get; set; }
+
+        public string ServerAddress { get; set; } = string.Empty;
+
+        public bool HasPosition { get; set; }
+
+        public double X { get; set; }
+
+        public double Y { get; set; }
+
+        public double Z { get; set; }
+
+        public double MaxDistanceMeters { get; set; } = 600;
+    }
+
+    public class NearbyPresenceListResponse
+    {
+        public DateTime ServerTime { get; set; } = DateTime.UtcNow;
+
+        public List<NearbyPresence> Entries { get; set; } = new List<NearbyPresence>();
+    }
+
     // These fields are validated on the server. Account and character fields aren't trusted until the GW2 subtoken verifies them.
     // Server rejects falsified account/character names if there's some mismatch.
     public class ProfileUploadRequest

@@ -17,6 +17,9 @@ namespace rp.spark.UI
         private const int RecentlySeenIcon = 156680;
         private const int BookmarkIcon = 156722;
 
+        private static readonly Point NearbyWindowSize = new Point(640, 350);
+        private static readonly Point NearbyWindowDefaultLocation = new Point(40, 240);
+
         private readonly WindowBuilder _windowBuilder;
         private readonly ProfileRepository _profileRepository;
         private readonly ProfileCache _profileCache;
@@ -26,6 +29,7 @@ namespace rp.spark.UI
         private readonly SparkSettings _settings;
         private readonly ProfileLoader _profileLoader;
         private readonly ProfileActions _profileActions;
+        private readonly NearbyPresenceService _nearbyPresenceService;
 
         private ProfileEditorSession _profileEditorSession;
         private TabbedWindow2 _profileWindow;
@@ -34,6 +38,7 @@ namespace rp.spark.UI
         private ProfileViewerView _profileViewerView;
         private ProfileNotesView _profileNotesView;
         private StandardWindow _onlineListWindow;
+        private SparkCompactWindow _nearbyWindow;
         private StandardWindow _aboutWindow;
         private StandardWindow _blocklistWindow;
         private CharacterProfile _viewedProfile;
@@ -48,7 +53,8 @@ namespace rp.spark.UI
             IconIndexService iconIndexService,
             SparkSettings settings,
             ProfileLoader profileLoader,
-            ProfileActions profileActions)
+            ProfileActions profileActions,
+            NearbyPresenceService nearbyPresenceService)
         {
             _windowBuilder = windowBuilder;
             _profileRepository = profileRepository;
@@ -59,6 +65,7 @@ namespace rp.spark.UI
             _settings = settings;
             _profileLoader = profileLoader;
             _profileActions = profileActions;
+            _nearbyPresenceService = nearbyPresenceService;
         }
 
         public string ViewedProfileId { get; private set; }
@@ -137,6 +144,21 @@ namespace rp.spark.UI
                 _profileActions.WatchSavedProfiles,
                 _profileActions.UnwatchSavedProfiles,
                 () => _settings.AutoRefreshOnlineProfiles.Value));
+        }
+
+        public void OpenNearby()
+        {
+            if (!CanShowGameplayWindow())
+                return;
+
+            if (_nearbyWindow == null)
+                CreateNearbyWindow();
+
+            _nearbyWindow.Show(new NearbyView(
+                _nearbyPresenceService,
+                _settings,
+                OpenPresence,
+                locked => _nearbyWindow.DraggingLocked = locked));
         }
 
         public void OpenSavedProfiles()
@@ -314,6 +336,44 @@ namespace rp.spark.UI
                 "Online Profiles",
                 "rp.spark.online-list-window",
                 new Rectangle(96, 22, 783, 654));
+        }
+
+        private void CreateNearbyWindow()
+        {
+            _nearbyWindow = _windowBuilder.MakeCompactWindow(
+                "Nearby Players",
+                NearbyWindowSize);
+
+            _nearbyWindow.Location = ClampToScreen(
+                _settings.GetNearbyWindowLocation(NearbyWindowDefaultLocation),
+                NearbyWindowSize);
+
+            _nearbyWindow.LocationSaved += location =>
+            {
+                _settings.SetNearbyWindowLocation(ClampToScreen(location, NearbyWindowSize));
+            };
+
+            _nearbyWindow.DraggingLocked = _settings.NearbyWindowLock.Value;
+        }
+
+        private static Point ClampToScreen(Point location, Point size)
+        {
+            var screenSize = GameService.Graphics.SpriteScreen.Size;
+
+            var maxX = Math.Max(0, screenSize.X - size.X);
+            var maxY = Math.Max(0, screenSize.Y - size.Y);
+
+            return new Point(
+                Clamp(location.X, 0, maxX),
+                Clamp(location.Y, 0, maxY));
+        }
+
+        private static int Clamp(int value, int min, int max)
+        {
+            if (value < min)
+                return min;
+
+            return value > max ? max : value;
         }
 
         private void CreateSavedWindow()
@@ -496,6 +556,9 @@ namespace rp.spark.UI
 
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
+
+            _nearbyWindow?.Dispose();
+            _nearbyWindow = null;
 
             _viewedProfile = null;
             _viewedPresence = null;

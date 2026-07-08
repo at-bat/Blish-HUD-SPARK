@@ -30,6 +30,9 @@ namespace rp.spark.Services
     // - PUT  /blocks/
     // - DELETE /blocks/?account={account}
     // - POST /reports/
+    // - POST /nearby/
+    // - DELETE /nearby/
+    // - POST /nearby/search/
 
     public class SparkClient
     {
@@ -537,6 +540,36 @@ namespace rp.spark.Services
                 responseBody);
         }
 
+        public Task<ApiResult<bool>> PublishNearbyPresenceResultAsync(
+            NearbyPresence nearby,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync(
+                "nearby/",
+                new NearbyPresencePublishRequest { Nearby = nearby },
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<NearbyPresenceListResponse>> SearchNearbyPresenceResultAsync(
+            NearbyPresenceSearchRequest query,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync<NearbyPresenceSearchRequest, NearbyPresenceListResponse>(
+                "nearby/search/",
+                query,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<bool>> RemoveNearbyPresenceResultAsync(
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteAsync("nearby/", cancellationToken, gw2Subtoken);
+        }
         private static ApiResult<T> CreateStatusFailure<T>(
             HttpMethod method,
             string relativePath,

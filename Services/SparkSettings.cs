@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Xna.Framework;
 
 namespace rp.spark.Services
 {
@@ -21,6 +22,10 @@ namespace rp.spark.Services
         private const string BlockedAccountsKey = "BlockedAccounts";
         private const string AutoRefreshOnlineProfilesKey = "AutoRefreshOnlineProfiles";
         private const string ShowMatureProfilesKey = "ShowMatureProfiles";
+        private const string ShowNearbyPresenceKey = "ShowNearbyPresence";
+        private const string AutoRefreshNearbyRpersKey = "AutoRefreshNearbyRpers";
+        private const string NearbyWindowLocationKey = "NearbyWindowLocation";
+        private const string NearbyWindowLockKey = "NearbyWindowLock";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -36,6 +41,10 @@ namespace rp.spark.Services
         public SettingEntry<ProfileRegion> RegionFilter { get; }
         public SettingEntry<bool> AutoRefreshOnlineProfiles { get; }
         public SettingEntry<string> BlockedAccounts { get; }
+        public SettingEntry<bool> ShowNearbyPresence { get; }
+        public SettingEntry<bool> AutoRefreshNearbyRpers { get; }
+        public SettingEntry<string> NearbyWindowLocation { get; }
+        public SettingEntry<bool> NearbyWindowLock { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -77,6 +86,12 @@ namespace rp.spark.Services
                 () => "Hide my location",
                 () => "When enabled, SPARK will show your location as Hidden instead of showing where you are.");
 
+            ShowNearbyPresence = SharingSettings.DefineSetting(
+                ShowNearbyPresenceKey,
+                false,
+                () => "Show me to nearby players",
+                () => "When enabled, SPARK will publish your nearby RP presence to other opted-in SPARK users.");
+
             AutoHideGameUi = UiSettings.DefineSetting(
                 AutoHideGameUiKey,
                 true,
@@ -101,11 +116,29 @@ namespace rp.spark.Services
                 () => "Auto-refresh online profiles",
                 () => "Refreshes the open online profile list every 30 seconds.");
 
+            AutoRefreshNearbyRpers = DiscoverySettings.DefineSetting(
+                AutoRefreshNearbyRpersKey,
+                true,
+                () => "Auto-refresh nearby player list",
+                () => "Refreshes the nearby players window automatically.");
+
             BlockedAccounts = PrivacySettings.DefineSetting(
                 BlockedAccountsKey,
                 string.Empty,
                 () => "Block list",
                 () => "One account per line. Blocked accounts will be hidden from results.");
+
+            NearbyWindowLocation = UiSettings.DefineSetting(
+                NearbyWindowLocationKey,
+                string.Empty,
+                () => "Nearby Players window location",
+                () => "Stores the last screen position of the Nearby Players window.");
+
+            NearbyWindowLock = UiSettings.DefineSetting(
+                NearbyWindowLockKey,
+                false,
+                () => "Lock Nearby Players window",
+                () => "Prevents dragging the Nearby Players window while still allowing profile clicks, refresh, and scrolling.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.
@@ -175,6 +208,27 @@ namespace rp.spark.Services
         public string GetServerBaseUrl()
         {
             return SparkServiceConfig.ServerURL;
+        }
+
+        // Since NearbyRPers is a panel, we need to do this to store the location like we do with standard windows
+        public Point GetNearbyWindowLocation(Point fallback)
+        {
+            var value = NearbyWindowLocation.Value?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(value))
+                return fallback;
+
+            var parts = value.Split(',');
+            if (parts.Length != 2)
+                return fallback;
+
+            return int.TryParse(parts[0], out var x) && int.TryParse(parts[1], out var y)
+                ? new Point(x, y)
+                : fallback;
+        }
+
+        public void SetNearbyWindowLocation(Point location)
+        {
+            NearbyWindowLocation.Value = $"{location.X},{location.Y}";
         }
 
         public static bool IsValidAccountName(string accountName)
