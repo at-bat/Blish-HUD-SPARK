@@ -9,6 +9,14 @@ using System.Linq;
 
 namespace rp.spark.Services
 {
+    // Small class for importing profiles from your other characters on your account with profiles
+    public class ProfileImportGroup
+    {
+        public string CharacterName { get; set; } = string.Empty;
+
+        public List<CharacterProfile> Profiles { get; set; } = new List<CharacterProfile>();
+    }
+
     public class ProfileRepository
     {
         private static readonly Logger Logger = Logger.GetLogger<ProfileRepository>();
@@ -59,6 +67,30 @@ namespace rp.spark.Services
                 .Where(profile => IsSameCharacter(profile, normalizedAccountName, normalizedCharacterName))
                 .OrderBy(profile => profile.ProfileName)
                 .ThenByDescending(profile => profile.UpdatedAt)
+                .ToList();
+        }
+
+        public IReadOnlyList<ProfileImportGroup> ListImports(string accountName, string currentCharacterName)
+        {
+            if (string.IsNullOrWhiteSpace(accountName) || string.IsNullOrWhiteSpace(currentCharacterName))
+                return new List<ProfileImportGroup>();
+
+            var cleanAccount = accountName.Trim();
+            var cleanCharacter = currentCharacterName.Trim();
+
+            return LoadAll()
+                .Where(profile => CanImport(profile, cleanAccount, cleanCharacter))
+                .GroupBy(profile => profile.CharacterName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(group => new ProfileImportGroup
+                {
+                    CharacterName = group.Key,
+                    Profiles = group
+                        .OrderBy(profile => ProfileName(profile), StringComparer.OrdinalIgnoreCase)
+                        .ThenByDescending(profile => profile.UpdatedAt)
+                        .Select(CloneProfile)
+                        .ToList()
+                })
+                .OrderBy(group => group.CharacterName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -180,6 +212,31 @@ namespace rp.spark.Services
             Save(duplicate);
 
             return duplicate;
+        }
+
+        public CharacterProfile Import(CharacterProfile sourceProfile, PlayerState targetState)
+        {
+            if (sourceProfile == null)
+                throw new InvalidOperationException("No profile selected to import.");
+
+            if (targetState == null 
+                || !targetState.CanEditProfile
+                || string.IsNullOrWhiteSpace(targetState.AccountName)
+                || !targetState.IsCharacterApiVerified)
+                throw new InvalidOperationException("Cannot import profiles until SPARK syncs your current character.");
+
+            if (!CanImport(sourceProfile, targetState.AccountName, targetState.OfficialCharacterName))
+                throw new InvalidOperationException("This profile cannot be imported for the current account.");
+
+            var imported = CloneProfile(sourceProfile);
+            imported.ProfileId = Guid.NewGuid().ToString();
+            imported.ProfileName = GetImportName(ProfileName(sourceProfile), targetState);
+            ApplyImportTarget(imported, targetState);
+            imported.CreatedAt = DateTime.UtcNow;
+            imported.UpdatedAt = DateTime.UtcNow;
+
+            Save(imported);
+            return imported;
         }
 
         public void Delete(string profileId)
@@ -395,6 +452,35 @@ namespace rp.spark.Services
                 StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool CanImport(CharacterProfile profile, string accountName, string currentCharacterName)
+        {
+            if (profile == null
+                || string.IsNullOrWhiteSpace(profile.ProfileId)
+                || string.IsNullOrWhiteSpace(profile.CharacterName)
+                || string.IsNullOrWhiteSpace(profile.AccountName)
+                || string.IsNullOrWhiteSpace(accountName)
+                || string.IsNullOrWhiteSpace(currentCharacterName))
+                return false;
+
+            if (string.Equals(profile.CharacterName.Trim(), currentCharacterName.Trim(), StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.Equals(profile.AccountName.Trim(), accountName.Trim(), StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return profile.IsCharacterVerified;
+        }
+
+        private static void ApplyImportTarget(CharacterProfile profile, PlayerState targetState)
+        {
+            profile.CharacterName = targetState.OfficialCharacterName.Trim();
+            profile.AccountName = targetState.AccountName.Trim();
+            profile.Race = targetState.Race?.Trim() ?? string.Empty;
+            profile.Profession = targetState.Profession?.Trim() ?? string.Empty;
+            profile.Specialization = targetState.Specialization?.Trim() ?? string.Empty;
+            profile.IsCharacterVerified = targetState.IsCharacterApiVerified;
+        }
+
         private static string ProfileName(CharacterProfile profile)
         {
             return string.IsNullOrWhiteSpace(profile?.ProfileName)
@@ -408,6 +494,39 @@ namespace rp.spark.Services
             return profile == null
                 ? null
                 : JsonConvert.DeserializeObject<CharacterProfile>(JsonConvert.SerializeObject(profile));
+        }
+
+        // Prevent duplicate profile names from imports, so it appends (2), (3), etc. at the end of them as needed.
+        private string GetImportName(string sourceName, PlayerState targetState)
+        {
+            var baseName = LimitProfileName(sourceName);
+            var candidate = baseName;
+            var suffix = 2;
+
+            var existingNames = ListForCharacter(targetState.AccountName, targetState.OfficialCharacterName)
+                .Select(ProfileName)
+                .ToList();
+
+            while (existingNames.Any(name => string.Equals(name, candidate, StringComparison.OrdinalIgnoreCase)))
+            {
+                var suffixText = $" ({suffix})";
+                var maxBaseLength = Math.Max(1, ProfileLimits.MaxProfileNameLength - suffixText.Length);
+
+                candidate = $"{LimitProfileName(baseName, maxBaseLength)}{suffixText}";
+                suffix++;
+            }
+
+            return candidate;
+        }
+
+        private static string LimitProfileName(string value, int maxLength = ProfileLimits.MaxProfileNameLength)
+        {
+            var name = string.IsNullOrWhiteSpace(value) ? "Profile" : value.Trim();
+
+            if (name.Length <= maxLength)
+                return name;
+
+            return name.Substring(0, maxLength).TrimEnd();
         }
 
         private static string GetActiveProfileKey(string accountName, string officialCharacterName)

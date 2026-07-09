@@ -28,7 +28,7 @@ namespace rp.spark.UI.Views
 
         protected override void Build(Container buildPanel)
         {
-            if (!_session.InitialState.CanEditProfile)
+            if (!_session.State.CanEditProfile)
             {
                 ProfileEditorUI.ShowUnavailableMessage(buildPanel);
                 return;

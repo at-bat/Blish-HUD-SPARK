@@ -39,7 +39,7 @@ namespace rp.spark.UI.Views
             _themeCheckboxes.Clear();
             _styleCheckboxes.Clear();
 
-            if (!_session.InitialState.CanEditProfile)
+            if (!_session.State.CanEditProfile)
             {
                 ProfileEditorUI.ShowUnavailableMessage(buildPanel);
                 return;
