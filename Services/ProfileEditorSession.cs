@@ -11,16 +11,18 @@ namespace rp.spark.Services
         private readonly ProfileRepository _profiles;
         private readonly PlayerStateService _playerState;
         private List<CharacterProfile> _availableProfiles = new List<CharacterProfile>();
+        private List<ProfileImportGroup> _importGroups = new List<ProfileImportGroup>();
 
         public CharacterProfile Profile { get; private set; }
-
-        public PlayerState InitialState { get; }
-
+        public PlayerState State { get; private set; }
+        public bool HasImportState =>
+            State.CanEditProfile
+            && !string.IsNullOrWhiteSpace(State.AccountName)
+            && State.IsCharacterApiVerified;
         public AtAGlanceEntry[] Glance { get; }
-
         public IReadOnlyList<CharacterProfile> Profiles => _availableProfiles;
-
-        public string ActiveProfileId => _profiles.GetActiveProfileId(InitialState.AccountName, InitialState.OfficialCharacterName);
+        public IReadOnlyList<ProfileImportGroup> ImportGroups => _importGroups;
+        public string ActiveProfileId => _profiles.GetActiveProfileId(State.AccountName, State.OfficialCharacterName);
 
         public bool IsSelectedProfileActive =>
             Profile != null
@@ -31,12 +33,13 @@ namespace rp.spark.Services
 
         public event Action<string> StatusChanged;
         public event Action ProfileChanged;
+        public event Action ImportsChanged;
 
         public ProfileEditorSession(ProfileRepository profiles, PlayerStateService playerState, PlayerState initialState)
         {
             _profiles = profiles;
             _playerState = playerState;
-            InitialState = initialState ?? new PlayerState();
+            State = initialState ?? new PlayerState();
             Glance = new AtAGlanceEntry[ProfileLimits.MaxAtAGlanceEntries];
 
             RefreshProfiles(preferActive: true);
@@ -79,6 +82,48 @@ namespace rp.spark.Services
 
             RefreshProfiles(duplicate.ProfileId);
             SetStatus("Profile duplicated.");
+        }
+
+        public async Task<bool> ImportAsync(string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                SetStatus("Choose a profile to import.");
+                return false;
+            }
+
+            SetStatus("Importing profile...");
+
+            var state = await _playerState.GetCurrentAsync();
+
+            if (!state.CanEditProfile)
+            {
+                SetStatus("Character info unavailable.");
+                return false;
+            }
+
+            var source = _profiles.Load(profileId);
+
+            if (source == null)
+            {
+                RefreshProfiles(Profile?.ProfileId);
+                SetStatus("Profile not found.");
+                return false;
+            }
+
+            try
+            {
+                var imported = _profiles.Import(source, state);
+                RefreshProfiles(imported.ProfileId);
+                SetStatus($"Imported {GetProfileName(imported)}.");
+                return true;
+            }
+            catch
+            {
+                RefreshImportGroups();
+                SetStatus("Import failed.");
+                return false;
+            }
         }
 
         public void DeleteProfile()
@@ -157,19 +202,19 @@ namespace rp.spark.Services
 
         public string GetHeaderText()
         {
-            var characterName = string.IsNullOrWhiteSpace(InitialState.OfficialCharacterName)
+            var characterName = string.IsNullOrWhiteSpace(State.OfficialCharacterName)
                 ? "Unknown character"
-                : InitialState.OfficialCharacterName.Trim();
-            var accountName = string.IsNullOrWhiteSpace(InitialState.AccountName)
+                : State.OfficialCharacterName.Trim();
+            var accountName = string.IsNullOrWhiteSpace(State.AccountName)
                 ? "API account unavailable"
-                : InitialState.AccountName.Trim();
-            var locationName = string.IsNullOrWhiteSpace(InitialState.LocationName)
+                : State.AccountName.Trim();
+            var locationName = string.IsNullOrWhiteSpace(State.LocationName)
                 ? "Unknown location"
-                : InitialState.LocationName.Trim();
-            var characterDetails = GetCharacterDetailsText(InitialState);
-            var verification = InitialState.IsCharacterApiVerified
+                : State.LocationName.Trim();
+            var characterDetails = GetCharacterDetailsText(State);
+            var verification = State.IsCharacterApiVerified
                 ? "API character verified"
-                : InitialState.HasCharactersPermission
+                : State.HasCharactersPermission
                     ? "API character not verified yet"
                     : "Characters API unavailable";
 
@@ -184,9 +229,11 @@ namespace rp.spark.Services
 
         private void RefreshProfiles(string selectedProfileId = null, bool preferActive = false)
         {
-            _availableProfiles = InitialState.CanEditProfile
-                ? _profiles.ListForCharacter(InitialState.AccountName, InitialState.OfficialCharacterName).ToList()
+            _availableProfiles = State.CanEditProfile
+                ? _profiles.ListForCharacter(State.AccountName, State.OfficialCharacterName).ToList()
                 : new List<CharacterProfile>();
+
+            RefreshImportGroups();
 
             CharacterProfile selectedProfile = null;
 
@@ -215,6 +262,27 @@ namespace rp.spark.Services
             ProfileChanged?.Invoke();
         }
 
+        private void RefreshImportGroups()
+        {
+            _importGroups = State.CanEditProfile
+                ? _profiles.ListImports(State.AccountName, State.OfficialCharacterName).ToList()
+                : new List<ProfileImportGroup>();
+        }
+
+        public async Task<bool> RefreshImportsAsync()
+        {
+            var state = await _playerState.GetCurrentAsync();
+
+            if (!state.CanEditProfile)
+                return false;
+
+            State = state;
+            RefreshImportGroups();
+            ImportsChanged?.Invoke();
+
+            return HasImportState;
+        }
+
         private CharacterProfile CreateBlankProfile(string profileName)
         {
             var profile = new CharacterProfile
@@ -222,8 +290,8 @@ namespace rp.spark.Services
                 ProfileName = LimitProfileName(string.IsNullOrWhiteSpace(profileName) ? "Default" : profileName.Trim())
             };
 
-            if (InitialState.CanEditProfile)
-                ApplyStateToProfile(InitialState, profile);
+            if (State.CanEditProfile)
+                ApplyStateToProfile(State, profile);
 
             return profile;
         }
@@ -322,7 +390,7 @@ namespace rp.spark.Services
 
         private void EnsureEditable()
         {
-            if (!InitialState.CanEditProfile)
+            if (!State.CanEditProfile)
                 throw new InvalidOperationException("Cannot manage profiles until Mumble Link detects your current character.");
         }
 

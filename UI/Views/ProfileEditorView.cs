@@ -61,7 +61,7 @@ namespace rp.spark.UI.Views
         {
             _buildPanel = buildPanel;
 
-            if (!_session.InitialState.CanEditProfile)
+            if (!_session.State.CanEditProfile)
             {
                 ProfileEditorUI.ShowUnavailableMessage(buildPanel);
                 return;
