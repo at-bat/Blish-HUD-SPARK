@@ -255,7 +255,7 @@ namespace rp.spark.UI.Views
                     if (cancellationToken.IsCancellationRequested || _session.HasImportState)
                         return;
 
-                    await _session.RefreshImportsAsync(quiet: true);
+                    await _session.RefreshImportsAsync();
 
                     if (_session.HasImportState)
                         return;
