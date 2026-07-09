@@ -108,7 +108,7 @@ namespace rp.spark.Services
                 return NormalizeLoadedRecord(record, path);
 
             if (record != null)
-                Logger.Warn("Skipping unsupported SPARK cached profile at {path}.", path);
+                Logger.Warn("Skipping unsupported SPARK cached profile.");
 
             return null;
         }
@@ -428,7 +428,7 @@ namespace rp.spark.Services
                 };
 
             if (snapshot != null)
-                Logger.Warn("Skipping unsupported SPARK cached profile at {path}.", path);
+                Logger.Warn("Skipping unsupported SPARK cached profile index.");
 
             return null;
         }

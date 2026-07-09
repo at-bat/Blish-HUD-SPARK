@@ -253,7 +253,7 @@ namespace rp.spark.Services
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Failed to block SPARK account {accountName}.", accountName);
+                Logger.Warn(ex, "Failed to block a SPARK account.");
                 return "Couldn't update the block list.";
             }
         }
@@ -334,7 +334,7 @@ namespace rp.spark.Services
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Failed to unblock SPARK account {accountName}.", accountName);
+                Logger.Warn(ex, "Failed to unblock a SPARK account.");
                 return "Couldn't update the block list.";
             }
         }
@@ -470,8 +470,8 @@ namespace rp.spark.Services
                     Logger.Warn("SPARK full block-list sync endpoint is unavailable.");
 
                 Logger.Warn(
-                    "Failed to sync the full SPARK block list to the server. {message}",
-                    result.ErrorMessage);
+                    "Failed to sync the full SPARK block list to the server. Status: {status}.",
+                    result.StatusCode);
                 return false;
             }
             finally
@@ -510,10 +510,9 @@ namespace rp.spark.Services
                 if (!result.Succeeded)
                 {
                     Logger.Warn(
-                        "Failed to publish SPARK account {action} for {accountName}. {message}",
+                        "Failed to publish SPARK account {action}. Status: {status}.",
                         isBlocked ? "block" : "unblock",
-                        accountName,
-                        result.ErrorMessage);
+                        result.StatusCode);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -521,7 +520,7 @@ namespace rp.spark.Services
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Failed to publish SPARK account block change for {accountName}.", accountName);
+                Logger.Warn(ex, "Failed to publish SPARK account block change.");
             }
         }
 

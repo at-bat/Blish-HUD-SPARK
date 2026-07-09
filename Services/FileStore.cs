@@ -18,12 +18,18 @@ namespace rp.spark.Services
             catch (UnauthorizedAccessException ex)
             {
                 BlishWarnings.FileSaveBlocked(ex, directory, $"create the {description} directory");
-                logger.Warn(ex, "Failed to create {description} directory at {directory}.", description, directory);
+                logger.Warn(
+                    "Failed to create {description} directory ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 throw;
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Failed to create {description} directory at {directory}.", description, directory);
+                logger.Warn(
+                    "Failed to create {description} directory ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 throw;
             }
         }
@@ -44,12 +50,18 @@ namespace rp.spark.Services
             catch (UnauthorizedAccessException ex)
             {
                 BlishWarnings.FileSaveBlocked(ex, directory, $"read {description} files");
-                logger.Warn(ex, "Failed to enumerate {description} JSON files in {directory}.", description, directory);
+                logger.Warn(
+                    "Failed to enumerate {description} JSON files ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 return new List<string>();
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Failed to enumerate {description} JSON files in {directory}.", description, directory);
+                logger.Warn(
+                    "Failed to enumerate {description} JSON files ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 return new List<string>();
             }
         }
@@ -75,12 +87,18 @@ namespace rp.spark.Services
             catch (UnauthorizedAccessException ex)
             {
                 BlishWarnings.FileSaveBlocked(ex, path, $"read {description} data");
-                logger.Warn(ex, "Failed to read {description} JSON file at {path}.", description, path);
+                logger.Warn(
+                    "Failed to read {description} JSON file ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 return null;
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Failed to read {description} JSON file at {path}.", description, path);
+                logger.Warn(
+                    "Failed to read {description} JSON file ({errorType}).",
+                    description,
+                    ErrorType(ex));
                 return null;
             }
         }
@@ -123,12 +141,20 @@ namespace rp.spark.Services
             catch (UnauthorizedAccessException ex)
             {
                 BlishWarnings.FileSaveBlocked(ex, path, $"save {description} data");
-                logger.Warn(ex, "Failed to write {description} {fileKind} file at {path}.", description, fileKind, path);
+                logger.Warn(
+                    "Failed to write {description} {fileKind} file ({errorType}).",
+                    description,
+                    fileKind,
+                    ErrorType(ex));
                 return false;
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Failed to write {description} {fileKind} file at {path}.", description, fileKind, path);
+                logger.Warn(
+                    "Failed to write {description} {fileKind} file ({errorType}).",
+                    description,
+                    fileKind,
+                    ErrorType(ex));
                 return false;
             }
         }
@@ -203,6 +229,11 @@ namespace rp.spark.Services
             return string.IsNullOrWhiteSpace(safe)
                 ? "unknown"
                 : safe;
+        }
+
+        private static string ErrorType(Exception ex)
+        {
+            return ex?.GetType().Name ?? "Unknown";
         }
     }
 }

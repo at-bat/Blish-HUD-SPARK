@@ -270,7 +270,9 @@ namespace rp.spark.Services
             {
                 SetMapRetry(mapId);
                 BlishWarnings.HttpBlocked(ex, "resolve your current GW2 map");
-                Logger.Warn(ex, "Failed to resolve GW2 map id {mapId}.", mapId);
+                Logger.Warn(
+                    "Failed to resolve the current GW2 map ({errorType}).",
+                    ex.GetType().Name);
                 return LocationNameResult.Unresolved(GetLocationFallback(mapId));
             }
         }
@@ -329,7 +331,9 @@ namespace rp.spark.Services
             {
                 SetCharacterRetry(state.OfficialCharacterName);
                 BlishWarnings.HttpBlocked(ex, "verify your GW2 character");
-                Logger.Warn(ex, "Failed to verify character {characterName} with the GW2 API.", state.OfficialCharacterName);
+                Logger.Warn(
+                    "Failed to verify the current GW2 character with the GW2 API ({errorType}).",
+                    ex.GetType().Name);
                 state.IsCharacterApiVerified = false;
             }
         }

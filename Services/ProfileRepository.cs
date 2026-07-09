@@ -257,12 +257,12 @@ namespace rp.spark.Services
             catch (UnauthorizedAccessException ex)
             {
                 BlishWarnings.FileSaveBlocked(ex, profileId, "delete a SPARK profile");
-                Logger.Warn(ex, "Failed to delete SPARK profile {profileId}.", profileId);
+                Logger.Warn("Failed to delete a SPARK profile ({errorType}).", ex.GetType().Name);
                 throw new InvalidOperationException("Could not delete the profile file. Check file permissions and try again.");
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Failed to delete SPARK profile {profileId}.", profileId);
+                Logger.Warn("Failed to delete a SPARK profile ({errorType}).", ex.GetType().Name);
                 throw new InvalidOperationException("Could not delete the profile file. Check file permissions and try again.");
             }
 
@@ -330,7 +330,7 @@ namespace rp.spark.Services
             if (validation.IsValid)
                 return profile;
 
-            Logger.Warn("Skipping invalid SPARK profile file at {path}: {errors}", path, string.Join("; ", validation.Errors));
+            Logger.Warn("Skipping invalid SPARK profile file: {errors}", string.Join("; ", validation.Errors));
             return null;
         }
 

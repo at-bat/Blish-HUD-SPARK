@@ -68,7 +68,7 @@ namespace rp.spark.Services
                 return note;
 
             if (note != null)
-                Logger.Warn("Skipping unsupported SPARK profile notes file for {cacheKey}.", cacheKey);
+                Logger.Warn("Skipping unsupported SPARK profile notes file.");
 
             return null;
         }
