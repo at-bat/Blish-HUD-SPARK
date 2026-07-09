@@ -200,10 +200,7 @@ namespace rp.spark.Services
             try
             {
                 if (!HasApiPermissions(TokenPermission.Account))
-                {
-                    Logger.Debug("Skipping this, account API permission is unavailable.");
                     return string.Empty;
-                }
 
                 if (TryGetCachedAccountName(out var cachedAccountName))
                     return cachedAccountName;
@@ -290,12 +287,7 @@ namespace rp.spark.Services
             state.HasCharactersPermission = HasApiPermissions(TokenPermission.Account, TokenPermission.Characters);
 
             if (!state.CanEditProfile || !state.HasCharactersPermission)
-            {
-                if (state.CanEditProfile)
-                    Logger.Debug("Skipping, characters API permission is unavailable.");
-
                 return;
-            }
 
             try
             {
