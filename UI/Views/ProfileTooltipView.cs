@@ -5,119 +5,165 @@ using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
 using MonoGame.Extended.BitmapFonts;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace rp.spark.UI.Views
 {
     internal class ProfileTooltipView : View, ITooltipView
     {
-        private const int MinWidth = 220;
-        private const int MaxWidth = 520;
-        private const int Padding = 2;
-        private const int TitleHeight = 28;
-        private const int TitleGap = 2;
+        private const int MinWidth = 270;
+        private const int MaxWidth = 390;
+        private const int Padding = 7;
+        private const int TitleHeight = 23;
+        private const int DescriptionGap = 2;
         private const int DescriptionLineHeight = 22;
-        private const int DescriptionMaxLines = 6;
+        private const int DescriptionMaxLines = 12;
+        private const int WrapMeasurePadding = 14;
 
-        private static readonly Color TooltipBackground = new Color(8, 12, 14, 245);
-        private static readonly Color TitleColor = new Color(235, 186, 108);
-        private static readonly Color DescriptionColor = new Color(235, 235, 235);
+        private static readonly Color TooltipBackground = new Color(7, 10, 12, 190);
+        private static readonly Color TitleColor = new Color(255, 194, 55);
+        private static readonly Color DescriptionColor = new Color(238, 238, 238);
 
         private readonly string _title;
         private readonly string _description;
 
         public ProfileTooltipView(string title, string description, string fallbackTitle = "Profile")
         {
-            _title = string.IsNullOrWhiteSpace(title) ? fallbackTitle : title.Trim();
-            _description = string.IsNullOrWhiteSpace(description) ? "No description set." : description.Trim();
+            _title = string.IsNullOrWhiteSpace(title)
+                ? fallbackTitle?.Trim() ?? string.Empty
+                : title.Trim();
+
+            _description = description?.Trim() ?? string.Empty;
         }
 
         protected override void Build(Container buildPanel)
         {
+            var hasTitle = !string.IsNullOrWhiteSpace(_title);
+            var hasDescription = !string.IsNullOrWhiteSpace(_description);
             var tooltipWidth = GetTooltipWidth(_title);
             var contentWidth = tooltipWidth - (Padding * 2);
-            var descriptionHeight = GetWrappedTextHeight(
-                _description,
-                contentWidth,
-                GameService.Content.DefaultFont16,
-                DescriptionLineHeight,
-                DescriptionMaxLines);
+            var descriptionLines = hasDescription
+                ? WrapTextLines(
+                    _description,
+                    contentWidth - WrapMeasurePadding,
+                    GameService.Content.DefaultFont16)
+                    .Take(DescriptionMaxLines)
+                    .ToList()
+                : new List<string>();
 
-            buildPanel.Size = new Point(
-                tooltipWidth,
-                (Padding * 2) + TitleHeight + TitleGap + descriptionHeight);
+            var descriptionHeight = descriptionLines.Count * DescriptionLineHeight;
+
+            var height = Padding;
+
+            if (hasTitle)
+                height += TitleHeight;
+
+            if (hasDescription)
+            {
+                if (hasTitle)
+                    height += DescriptionGap;
+
+                height += descriptionHeight;
+            }
+
+            height += Padding;
+
+            buildPanel.Size = new Point(tooltipWidth, height);
             buildPanel.BackgroundColor = TooltipBackground;
 
-            new Label
-            {
-                Text = _title,
-                Font = GameService.Content.DefaultFont16,
-                TextColor = TitleColor,
-                StrokeText = true,
-                WrapText = false,
-                ShowShadow = true,
-                Location = new Point(Padding, Padding),
-                Size = new Point(contentWidth, TitleHeight),
-                Parent = buildPanel
-            };
+            if (buildPanel is Panel tooltipPanel)
+                tooltipPanel.ShowBorder = true;
 
-            new Label
+            var y = Padding;
+
+            if (hasTitle)
             {
-                Text = _description,
-                Font = GameService.Content.DefaultFont14,
-                TextColor = DescriptionColor,
-                WrapText = true,
-                Location = new Point(Padding, Padding + TitleHeight + TitleGap),
-                Size = new Point(contentWidth, descriptionHeight),
-                Parent = buildPanel
-            };
+                new Label
+                {
+                    Text = _title,
+                    Font = GameService.Content.DefaultFont16,
+                    TextColor = TitleColor,
+                    StrokeText = false,
+                    WrapText = false,
+                    ShowShadow = true,
+                    Location = new Point(Padding, y),
+                    Size = new Point(contentWidth, TitleHeight),
+                    Parent = buildPanel,
+                    ZIndex = 1
+                };
+
+                y += TitleHeight;
+            }
+
+            if (hasDescription)
+            {
+                if (hasTitle)
+                    y += DescriptionGap;
+
+                foreach (var line in descriptionLines)
+                {
+                    new Label
+                    {
+                        Text = line,
+                        Font = GameService.Content.DefaultFont14,
+                        TextColor = DescriptionColor,
+                        WrapText = false,
+                        ShowShadow = true,
+                        Location = new Point(Padding, y),
+                        Size = new Point(contentWidth, DescriptionLineHeight),
+                        Parent = buildPanel,
+                        ZIndex = 1
+                    };
+
+                    y += DescriptionLineHeight;
+                }
+            }
         }
 
         private static int GetTooltipWidth(string title)
         {
             var screenWidth = GameService.Graphics.SpriteScreen.Size.X;
-            var maxWidth = Math.Min(MaxWidth, screenWidth - 16);
-            var titleWidth = (int)Math.Ceiling(GameService.Content.DefaultFont18.MeasureString(title).Width);
+            var maxWidth = Math.Max(MinWidth, Math.Min(MaxWidth, screenWidth - 16));
+            var titleWidth = (int)Math.Ceiling(GameService.Content.DefaultFont16.MeasureString(title ?? string.Empty).Width)
+                           + (Padding * 2);
 
-            return Math.Max(MinWidth, Math.Min(maxWidth, titleWidth + (Padding * 2)));
+            return Math.Max(MinWidth, Math.Min(maxWidth, titleWidth));
         }
 
-        private static int GetWrappedTextHeight(
-            string text,
-            float maxWidth,
-            BitmapFont font,
-            int lineHeight,
-            int maxLines)
+        private static IEnumerable<string> WrapTextLines(string text, float maxWidth, BitmapFont font)
         {
             var normalized = (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
-            var lineCount = normalized.Split('\n').Sum(line => CountWrappedLines(line, maxWidth, font));
 
-            return Math.Max(1, Math.Min(maxLines, lineCount)) * lineHeight;
-        }
-
-        private static int CountWrappedLines(string line, float maxWidth, BitmapFont font)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-                return 1;
-
-            var lineCount = 1;
-            var currentLine = string.Empty;
-
-            foreach (var word in line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var paragraph in normalized.Split('\n'))
             {
-                var candidate = string.IsNullOrEmpty(currentLine) ? word : $"{currentLine} {word}";
-
-                if (font.MeasureString(candidate).Width <= maxWidth || string.IsNullOrEmpty(currentLine))
+                if (string.IsNullOrWhiteSpace(paragraph))
                 {
-                    currentLine = candidate;
+                    yield return string.Empty;
                     continue;
                 }
 
-                lineCount++;
-                currentLine = word;
-            }
+                var currentLine = string.Empty;
 
-            return lineCount;
+                foreach (var word in paragraph.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var candidate = string.IsNullOrEmpty(currentLine) ? word : $"{currentLine} {word}";
+
+                    if (font.MeasureString(candidate).Width <= maxWidth)
+                    {
+                        currentLine = candidate;
+                        continue;
+                    }
+
+                    if (!string.IsNullOrEmpty(currentLine))
+                        yield return currentLine;
+
+                    currentLine = word;
+                }
+
+                if (!string.IsNullOrEmpty(currentLine))
+                    yield return currentLine;
+            }
         }
     }
 }

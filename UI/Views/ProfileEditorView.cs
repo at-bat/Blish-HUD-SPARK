@@ -258,7 +258,12 @@ namespace rp.spark.UI.Views
 
         private static Tooltip MakeGlanceTooltip(AtAGlanceEntry entry)
         {
-            return new Tooltip(new ProfileTooltipView(entry?.Title, entry?.Description, "At a Glance"));
+            if (entry == null
+                || (string.IsNullOrWhiteSpace(entry.Title)
+                    && string.IsNullOrWhiteSpace(entry.Description)))
+                return null;
+
+            return new Tooltip(new ProfileTooltipView(entry.Title, entry.Description, "At A Glance"));
         }
 
         private void EditGlance(int index)
