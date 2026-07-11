@@ -556,6 +556,7 @@ namespace rp.spark.Services
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.OfficialCharacterName, record.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.DisplayCharacterName, record.Profile?.DisplayName)),
                 Race = Clean(TextUtil.FirstNonEmpty(record.Presence?.Race, record.Profile?.Race)),
+                CustomRace = Clean(TextUtil.FirstNonEmpty(record.Presence?.CustomRace, record.Profile?.CustomRace)),
                 Profession = Clean(TextUtil.FirstNonEmpty(record.Presence?.Profession, record.Profile?.Profession)),
                 CustomProfession = Clean(TextUtil.FirstNonEmpty(record.Presence?.CustomProfession, record.Profile?.CustomProfession)),
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(record.Presence?.ActiveProfileId, record.Profile?.ProfileId)),
@@ -587,6 +588,7 @@ namespace rp.spark.Services
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OfficialCharacterName, snapshot.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.DisplayCharacterName, snapshot.Profile?.DisplayName)),
                 Race = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.Race, snapshot.Profile?.Race)),
+                CustomRace = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.CustomRace, snapshot.Profile?.CustomRace)),
                 Profession = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.Profession, snapshot.Profile?.Profession)),
                 CustomProfession = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.CustomProfession, snapshot.Profile?.CustomProfession)),
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.ActiveProfileId, snapshot.Profile?.ProfileId)),
@@ -619,6 +621,7 @@ namespace rp.spark.Services
                 OfficialCharacterName = summary.OfficialCharacterName,
                 DisplayCharacterName = summary.DisplayCharacterName,
                 Race = summary.Race,
+                CustomRace = summary.CustomRace,
                 Profession = summary.Profession,
                 CustomProfession = summary.CustomProfession,
                 ActiveProfileId = summary.ActiveProfileId,
@@ -677,6 +680,7 @@ namespace rp.spark.Services
             public string CharacterName { get; set; } = string.Empty;
             public string DisplayName { get; set; } = string.Empty;
             public string Race { get; set; } = string.Empty;
+            public string CustomRace { get; set; } = string.Empty;
             public string Profession { get; set; } = string.Empty;
             public string CustomProfession { get; set; } = string.Empty;
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
@@ -695,6 +699,7 @@ namespace rp.spark.Services
             public string OfficialCharacterName { get; set; } = string.Empty;
             public string DisplayCharacterName { get; set; } = string.Empty;
             public string Race { get; set; } = string.Empty;
+            public string CustomRace { get; set; } = string.Empty;
             public string Profession { get; set; } = string.Empty;
             public string CustomProfession { get; set; } = string.Empty;
             public string ActiveProfileId { get; set; } = string.Empty;
