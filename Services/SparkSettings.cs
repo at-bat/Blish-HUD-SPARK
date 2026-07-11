@@ -26,6 +26,7 @@ namespace rp.spark.Services
         private const string AutoRefreshNearbyRpersKey = "AutoRefreshNearbyRpers";
         private const string NearbyWindowLocationKey = "NearbyWindowLocation";
         private const string NearbyWindowLockKey = "NearbyWindowLock";
+        private const string ShowCornerIconKey = "ShowCornerIcon";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -45,6 +46,7 @@ namespace rp.spark.Services
         public SettingEntry<bool> AutoRefreshNearbyRpers { get; }
         public SettingEntry<string> NearbyWindowLocation { get; }
         public SettingEntry<bool> NearbyWindowLock { get; }
+        public SettingEntry<bool> ShowCornerIcon { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -139,6 +141,12 @@ namespace rp.spark.Services
                 false,
                 () => "Lock Nearby Players window",
                 () => "Prevents dragging the Nearby Players window while still allowing profile clicks, refresh, and scrolling.");
+
+            ShowCornerIcon = UiSettings.DefineSetting(
+                ShowCornerIconKey,
+                true,
+                () => "Show corner icon",
+                () => "Shows the SPARK shortcut menu in the Blish HUD corner icon area.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.
