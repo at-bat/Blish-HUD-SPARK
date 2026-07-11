@@ -14,6 +14,9 @@ namespace rp.spark.Models
 
         public string Race { get; set; } = string.Empty;
 
+        public string CustomRace { get; set; } = string.Empty;
+
+
         public string Profession { get; set; } = string.Empty;
 
         public string CustomProfession { get; set; } = string.Empty;
@@ -66,6 +69,14 @@ namespace rp.spark.Models
                 return CustomProfession.Trim();
 
             return Profession?.Trim() ?? string.Empty;
+        }
+
+        public string VisibleRace()
+        {
+            if (!string.IsNullOrWhiteSpace(CustomRace))
+                return CustomRace.Trim();
+
+            return Race?.Trim() ?? string.Empty;
         }
 
         public string Key()

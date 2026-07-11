@@ -43,6 +43,7 @@ namespace rp.spark.UI.Views
         private Label _status;
         private TextBox _displayName;
         private TextBox _customProfession;
+        private TextBox _customRace;
         private TextBox _pronouns;
         private MultilineTextBox _knownFor;
         private MultilineTextBox _description;
@@ -81,8 +82,10 @@ namespace rp.spark.UI.Views
         {
             var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, GlanceY - 10, 4);
 
+            var nameRow = SparkFormLayout.AddRow(form, TextBoxWidth, 60, 30);
+
             _displayName = SparkFormLayout.AddLabeledTextBox(
-                form,
+                nameRow,
                 "Character Name",
                 string.Empty,
                 string.Empty,
@@ -93,6 +96,20 @@ namespace rp.spark.UI.Views
             {
                 if (!_isRefreshing)
                     _session.Profile.DisplayName = _displayName.Text?.Trim() ?? string.Empty;
+            };
+
+            _pronouns = SparkFormLayout.AddLabeledTextBox(
+                nameRow,
+                "Pronouns",
+                string.Empty,
+                string.Empty,
+                220,
+                maxLength: ProfileLimits.MaxPronounsLength);
+
+            _pronouns.TextChanged += (s, e) =>
+            {
+                if (!_isRefreshing)
+                    _session.Profile.Pronouns = _pronouns.Text?.Trim() ?? string.Empty;
             };
 
             var professionRow = SparkFormLayout.AddRow(form, TextBoxWidth, 60, 30);
@@ -111,18 +128,18 @@ namespace rp.spark.UI.Views
                     _session.Profile.CustomProfession = _customProfession.Text?.Trim() ?? string.Empty;
             };
 
-            _pronouns = SparkFormLayout.AddLabeledTextBox(
+            _customRace = SparkFormLayout.AddLabeledTextBox(
                 professionRow,
-                "Pronouns",
+                "Custom Race",
                 string.Empty,
                 string.Empty,
                 220,
-                maxLength: ProfileLimits.MaxPronounsLength);
+                maxLength: ProfileLimits.MaxCustomRaceLength);
 
-            _pronouns.TextChanged += (s, e) =>
+            _customRace.TextChanged += (s, e) =>
             {
                 if (!_isRefreshing)
-                    _session.Profile.Pronouns = _pronouns.Text?.Trim() ?? string.Empty;
+                    _session.Profile.CustomRace = _customRace.Text?.Trim() ?? string.Empty;
             };
 
             _knownFor = SparkFormLayout.AddLabeledMultilineTextBox(
@@ -208,6 +225,7 @@ namespace rp.spark.UI.Views
             {
                 _displayName.Text = _session.Profile.DisplayName ?? string.Empty;
                 _customProfession.Text = _session.Profile.CustomProfession ?? string.Empty;
+                _customRace.Text = _session.Profile.CustomRace ?? string.Empty;
                 _pronouns.Text = _session.Profile.Pronouns ?? string.Empty;
                 _knownFor.Text = _session.Profile.KnownFor ?? string.Empty;
                 _description.Text = _session.Profile.Description ?? string.Empty;

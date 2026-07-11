@@ -22,6 +22,9 @@ namespace rp.spark.Models
 
         public string Race { get; set; } = string.Empty;
 
+        public string CustomRace { get; set; } = string.Empty;
+
+
         public string Profession { get; set; } = string.Empty;
 
         public string CustomProfession { get; set; } = string.Empty;

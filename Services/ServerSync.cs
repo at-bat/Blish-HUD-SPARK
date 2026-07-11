@@ -474,6 +474,7 @@ namespace rp.spark.Services
                 || !SameTrimmed(previous.OfficialCharacterName, current.OfficialCharacterName)
                 || !SameTrimmed(previous.DisplayCharacterName, current.DisplayCharacterName)
                 || !SameTrimmed(previous.Race, current.Race)
+                || !SameTrimmed(previous.CustomRace, current.CustomRace)
                 || !SameTrimmed(previous.Profession, current.Profession)
                 || !SameTrimmed(previous.CustomProfession, current.CustomProfession)
                 || !SameTrimmed(previous.ActiveProfileId, current.ActiveProfileId)

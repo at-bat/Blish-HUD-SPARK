@@ -18,6 +18,7 @@ namespace rp.spark.Services
         public const int MaxOfficialCharacterNameLength = 20;
         public const int MaxAccountNameLength = 30;
         public const int MaxRaceLength = 16;
+        public const int MaxCustomRaceLength = 16;
         public const int MaxProfessionLength = 40;
     }
 }

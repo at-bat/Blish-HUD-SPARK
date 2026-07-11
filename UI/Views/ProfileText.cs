@@ -41,9 +41,11 @@ namespace rp.spark.UI.Views
 
         public static string PresenceRace(PlayerPresence presence, string fallback = "Unknown")
         {
-            return string.IsNullOrWhiteSpace(presence?.Race)
+            var race = presence?.VisibleRace();
+
+            return string.IsNullOrWhiteSpace(race)
                 ? fallback
-                : presence.Race.Trim();
+                : race.Trim();
         }
 
         public static string PresenceCharacterDetails(PlayerPresence presence)
@@ -57,6 +59,14 @@ namespace rp.spark.UI.Views
                 return profile.CustomProfession.Trim();
 
             return Clean(profile?.Profession);
+        }
+
+        public static string ProfileRace(CharacterProfile profile)
+        {
+            if (!string.IsNullOrWhiteSpace(profile?.CustomRace))
+                return profile.CustomRace.Trim();
+
+            return Clean(profile?.Race);
         }
 
         public static string ProfileCharacterDetails(CharacterProfile profile)

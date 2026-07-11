@@ -43,6 +43,9 @@ namespace rp.spark.Services
             if (profile.Race?.Length > ProfileLimits.MaxRaceLength)
                 result.AddError("Race is too long.");
 
+            if (profile.CustomRace?.Length > ProfileLimits.MaxCustomRaceLength)
+                result.AddError("Custom race is too long.");
+
             if (profile.Profession?.Length > ProfileLimits.MaxProfessionLength)
                 result.AddError("Profession is too long.");
 
