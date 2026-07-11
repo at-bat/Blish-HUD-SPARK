@@ -17,6 +17,8 @@ namespace rp.spark.UI.Views
         private readonly ProfileEditorSession _session;
 
         private Label _status;
+        private Label _currentlyCounter;
+        private Label _outOfCharacterInfoCounter;
         private MultilineTextBox _currently;
         private MultilineTextBox _outOfCharacterInfo;
         private bool _isRefreshing;
@@ -34,34 +36,50 @@ namespace rp.spark.UI.Views
                 return;
             }
 
-            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, FormHeight, 20);
+            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, FormHeight, 8);
 
-            _currently = SparkFormLayout.AddLabeledMultilineTextBox(
-                form,
-                "Currently",
+            var currentlyGroup = SparkFormLayout.AddAutoStack(form, TextBoxWidth, 0);
+            SparkFormLayout.AddLabel(currentlyGroup, "Currently", TextBoxWidth);
+            _currently = SparkFormLayout.AddMultilineTextBox(
+                currentlyGroup,
                 string.Empty,
                 "What is your character doing right now?",
                 TextBoxWidth,
                 180,
                 ProfileLimits.MaxCurrentlyLength);
+            _currentlyCounter = ProfileEditorUI.AddCharacterCounter(
+                currentlyGroup,
+                _currently.Text,
+                ProfileLimits.MaxCurrentlyLength,
+                TextBoxWidth);
 
             _currently.TextChanged += (s, e) =>
             {
+                ProfileEditorUI.UpdateCharacterCounter(_currentlyCounter, _currently.Text, ProfileLimits.MaxCurrentlyLength);
+
                 if (!_isRefreshing)
                     _session.Profile.Currently = _currently.Text?.Trim() ?? string.Empty;
             };
 
-            _outOfCharacterInfo = SparkFormLayout.AddLabeledMultilineTextBox(
-                form,
-                "Other information (out of character)",
+            var outOfCharacterGroup = SparkFormLayout.AddAutoStack(form, TextBoxWidth, 0);
+            SparkFormLayout.AddLabel(outOfCharacterGroup, "Other information (out of character)", TextBoxWidth);
+            _outOfCharacterInfo = SparkFormLayout.AddMultilineTextBox(
+                outOfCharacterGroup,
                 string.Empty,
                 "OOC notes, contact preferences, boundaries, or scheduling info.",
                 TextBoxWidth,
                 225,
                 ProfileLimits.MaxOutOfCharacterInfoLength);
+            _outOfCharacterInfoCounter = ProfileEditorUI.AddCharacterCounter(
+                outOfCharacterGroup,
+                _outOfCharacterInfo.Text,
+                ProfileLimits.MaxOutOfCharacterInfoLength,
+                TextBoxWidth);
 
             _outOfCharacterInfo.TextChanged += (s, e) =>
             {
+                ProfileEditorUI.UpdateCharacterCounter(_outOfCharacterInfoCounter, _outOfCharacterInfo.Text, ProfileLimits.MaxOutOfCharacterInfoLength);
+
                 if (!_isRefreshing)
                     _session.Profile.OutOfCharacterInfo = _outOfCharacterInfo.Text?.Trim() ?? string.Empty;
             };
@@ -103,6 +121,8 @@ namespace rp.spark.UI.Views
             {
                 _currently.Text = _session.Profile.Currently ?? string.Empty;
                 _outOfCharacterInfo.Text = _session.Profile.OutOfCharacterInfo ?? string.Empty;
+                ProfileEditorUI.UpdateCharacterCounter(_currentlyCounter, _currently.Text, ProfileLimits.MaxCurrentlyLength);
+                ProfileEditorUI.UpdateCharacterCounter(_outOfCharacterInfoCounter, _outOfCharacterInfo.Text, ProfileLimits.MaxOutOfCharacterInfoLength);
             }
             finally
             {

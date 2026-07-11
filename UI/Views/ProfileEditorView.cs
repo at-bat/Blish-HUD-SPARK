@@ -24,7 +24,7 @@ namespace rp.spark.UI.Views
         private const int ShortTextBoxWidth = 400;
         private const int GlanceSlotSize = 50;
         private const int GlancePadding = 8;
-        private const int DescriptionHeight = 185;
+        private const int DescriptionHeight = 175;
         private const int KnownForHeight = 58;
         private const int GlanceY = 435;
         private const int IconSearchResultLimit = 50;
@@ -51,6 +51,8 @@ namespace rp.spark.UI.Views
         private Panel _glanceEditorPanel;
         private bool _isRefreshing;
         private Checkbox _matureCheckbox;
+        private Label _descriptionCounter;
+        private Label _knownForCounter;
 
         public ProfileEditorView(ProfileEditorSession session, IconIndexService iconIndex = null)
         {
@@ -80,7 +82,7 @@ namespace rp.spark.UI.Views
 
         private void BuildFields(Container buildPanel)
         {
-            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, GlanceY - 10, 4);
+            var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, GlanceY - 2, 4);
 
             var nameRow = SparkFormLayout.AddRow(form, TextBoxWidth, 60, 30);
 
@@ -153,21 +155,40 @@ namespace rp.spark.UI.Views
 
             _knownFor.TextChanged += (s, e) =>
             {
+                ProfileEditorUI.UpdateCharacterCounter(_knownForCounter, _knownFor.Text, ProfileLimits.MaxKnownForLength);
+
                 if (!_isRefreshing)
                     _session.Profile.KnownFor = _knownFor.Text?.Trim() ?? string.Empty;
             };
 
-            _description = SparkFormLayout.AddLabeledMultilineTextBox(
-                form,
-                "Description",
+            var descriptionGroup = SparkFormLayout.AddAutoStack(form, TextBoxWidth, 0);
+            var descriptionHeader = SparkFormLayout.AddRow(descriptionGroup, TextBoxWidth, 25, 0);
+
+            SparkFormLayout.AddLabel(descriptionHeader, "Description", TextBoxWidth - 140);
+            _knownForCounter = ProfileEditorUI.AddCharacterCounter(
+                descriptionHeader,
+                _knownFor.Text,
+                ProfileLimits.MaxKnownForLength,
+                140);
+
+            _description = SparkFormLayout.AddMultilineTextBox(
+                descriptionGroup,
                 string.Empty,
                 string.Empty,
                 TextBoxWidth,
                 DescriptionHeight,
                 ProfileLimits.MaxDescriptionLength);
 
+            _descriptionCounter = ProfileEditorUI.AddCharacterCounter(
+                descriptionGroup,
+                _description.Text,
+                ProfileLimits.MaxDescriptionLength,
+                TextBoxWidth);
+
             _description.TextChanged += (s, e) =>
             {
+                ProfileEditorUI.UpdateCharacterCounter(_descriptionCounter, _description.Text, ProfileLimits.MaxDescriptionLength);
+
                 if (!_isRefreshing)
                     _session.Profile.Description = _description.Text?.Trim() ?? string.Empty;
             };
@@ -229,6 +250,8 @@ namespace rp.spark.UI.Views
                 _pronouns.Text = _session.Profile.Pronouns ?? string.Empty;
                 _knownFor.Text = _session.Profile.KnownFor ?? string.Empty;
                 _description.Text = _session.Profile.Description ?? string.Empty;
+                ProfileEditorUI.UpdateCharacterCounter(_knownForCounter, _knownFor.Text, ProfileLimits.MaxKnownForLength);
+                ProfileEditorUI.UpdateCharacterCounter(_descriptionCounter, _description.Text, ProfileLimits.MaxDescriptionLength);
                 _matureCheckbox.Checked = _session.Profile.IsMature;
 
                 if (_glanceSlots != null)

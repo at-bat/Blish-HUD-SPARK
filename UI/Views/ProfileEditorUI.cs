@@ -56,6 +56,38 @@ namespace rp.spark.UI.Views
             };
         }
 
+        public static Label AddCharacterCounter(Container parent, string text, int maxLength, int width)
+        {
+            var label = new Label
+            {
+                Font = GameService.Content.DefaultFont12,
+                WrapText = false,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Width = width,
+                Height = 18,
+                Parent = parent
+            };
+
+            UpdateCharacterCounter(label, text, maxLength);
+            return label;
+        }
+
+        public static void UpdateCharacterCounter(Label label, string text, int maxLength)
+        {
+            if (label == null)
+                return;
+
+            var length = (text ?? string.Empty).Length;
+
+            if (maxLength > 0 && length > maxLength)
+                length = maxLength;
+
+            label.Text = $"{length}/{maxLength}";
+            label.TextColor = maxLength > 0 && length >= maxLength * 0.9f
+                ? SparkViewUI.WarningTextColor
+                : SparkViewUI.SecondaryTextColor;
+        }
+
         public static Label AddHeaderLabel(Container parent, ProfileEditorSession session, int y = HeaderY)
         {
             return new Label
