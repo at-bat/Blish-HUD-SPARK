@@ -205,9 +205,6 @@ namespace rp.spark.UI.Views
 
             string metadata = $"Current location: {ProfileText.PresenceLocation(_presence)} | Account: {ProfileText.AccountName(_profile, _presence, string.Empty)}";
 
-            if (_profile.IsMature || _presence.IsMature)
-                metadata += " | Mature/18+";
-
             if (!string.IsNullOrWhiteSpace(metadata))
             {
                 new Label
@@ -311,7 +308,14 @@ namespace rp.spark.UI.Views
             return _profile.Experience != ProfileExperience.Hidden
                 || _profile.Preferences != ProfilePreferenceFlags.None
                 || _profile.Themes != ProfileThemeFlags.None
-                || _profile.Styles != ProfileStyleFlags.None;
+                || _profile.Styles != ProfileStyleFlags.None
+                || IsMatureProfile();
+        }
+
+        private bool IsMatureProfile()
+        {
+            return _profile?.IsMature == true
+                || _presence?.IsMature == true;
         }
 
         private void BuildGlance(Container buildPanel)
@@ -522,6 +526,18 @@ namespace rp.spark.UI.Views
                     "Styles",
                     string.IsNullOrWhiteSpace(styles) ? "No styles set." : styles),
                 !string.IsNullOrWhiteSpace(styles));
+
+            if (IsMatureProfile())
+            {
+                AddProfileTraitSeparator(parent, ref x, y);
+                AddProfileTraitLabel(
+                    parent,
+                    ref x,
+                    y,
+                    "Mature",
+                    MakeProfileTraitTooltip("Mature", "This profile is marked Mature/18+."),
+                    true);
+            }
         }
 
         private static void AddProfileTraitLabel(
