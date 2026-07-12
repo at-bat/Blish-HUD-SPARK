@@ -3,6 +3,7 @@ using Blish_HUD.Controls;
 using Microsoft.Xna.Framework;
 using System;
 using System.Linq;
+using MonoGame.Extended.BitmapFonts;
 
 namespace rp.spark.UI.Controls
 {
@@ -61,16 +62,39 @@ namespace rp.spark.UI.Controls
 
         public Label AddCell(Container parent, string text, int x, int y, int width, Color color)
         {
+            var font = GameService.Content.DefaultFont14;
+
             return new Label
             {
-                Text = string.IsNullOrWhiteSpace(text) ? "-" : text,
-                Font = GameService.Content.DefaultFont14,
+                Text = FitCellText(text, width, font),
+                Font = font,
                 TextColor = color,
                 WrapText = false,
                 Location = new Point(x, y),
                 Size = new Point(width, Math.Max(24, _rowHeight - y)),
                 Parent = parent
             };
+        }
+
+        private static string FitCellText(string text, int width, BitmapFont font)
+        {
+            text = string.IsNullOrWhiteSpace(text) ? "-" : text.Trim();
+
+            if (font == null || width <= 0 || font.MeasureString(text).Width <= width)
+                return text;
+
+            const string suffix = "...";
+            var suffixWidth = font.MeasureString(suffix).Width;
+
+            if (suffixWidth >= width)
+                return suffix;
+
+            while (text.Length > 0 && font.MeasureString(text + suffix).Width > width)
+                text = text.Substring(0, text.Length - 1).TrimEnd();
+
+            return string.IsNullOrWhiteSpace(text)
+                ? suffix
+                : text + suffix;
         }
 
         public void ShowEmptyMessage(string text)

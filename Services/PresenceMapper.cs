@@ -20,6 +20,7 @@ namespace rp.spark.Services
                 CharacterName = Clean(presence.OfficialCharacterName),
                 DisplayName = Clean(presence.DisplayCharacterName),
                 Race = Clean(presence.Race),
+                CustomRace = Clean(presence.CustomRace),
                 Profession = Clean(presence.Profession),
                 CustomProfession = Clean(presence.CustomProfession),
                 Currently = Clean(presence.Currently),
@@ -77,6 +78,9 @@ namespace rp.spark.Services
             if (string.IsNullOrWhiteSpace(presence.Race))
                 presence.Race = Clean(profile.Race);
 
+            if (string.IsNullOrWhiteSpace(presence.CustomRace))
+                presence.CustomRace = Clean(profile.CustomRace);
+
             if (string.IsNullOrWhiteSpace(presence.Profession))
                 presence.Profession = Clean(profile.Profession);
 
@@ -111,6 +115,9 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(profile.Race))
                 profile.Race = Clean(presence.Race);
+
+            if (string.IsNullOrWhiteSpace(profile.CustomRace))
+                profile.CustomRace = Clean(presence.CustomRace);
 
             if (string.IsNullOrWhiteSpace(profile.Profession))
                 profile.Profession = Clean(presence.Profession);
@@ -165,6 +172,7 @@ namespace rp.spark.Services
                 OfficialCharacterName = Clean(presence.OfficialCharacterName),
                 DisplayCharacterName = Clean(presence.DisplayCharacterName),
                 Race = Clean(presence.Race),
+                CustomRace = Clean(presence.CustomRace),
                 Profession = Clean(presence.Profession),
                 CustomProfession = Clean(presence.CustomProfession),
                 ActiveProfileId = Clean(presence.ActiveProfileId),

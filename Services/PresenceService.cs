@@ -66,6 +66,7 @@ namespace rp.spark.Services
                 OfficialCharacterName = officialCharacterName,
                 DisplayCharacterName = activeProfile?.DisplayName?.Trim() ?? string.Empty,
                 Race = TextUtil.FirstNonEmpty(state.Race, activeProfile?.Race),
+                CustomRace = activeProfile?.CustomRace?.Trim() ?? string.Empty,
                 Profession = TextUtil.FirstNonEmpty(state.Profession, activeProfile?.Profession),
                 CustomProfession = activeProfile?.CustomProfession?.Trim() ?? string.Empty,
                 ActiveProfileId = hasActiveProfile ? activeProfile.ProfileId : string.Empty,
