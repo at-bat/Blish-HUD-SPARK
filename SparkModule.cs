@@ -363,18 +363,21 @@ namespace rp.spark
 
         private void HandleMumbleAvailableChanged(object sender, ValueEventArgs<bool> e)
         {
+            _cornerIcon?.RefreshForGameState();
             CloseGameplayWindowsIfUnavailableSoon();
             ReloadPlayerState();
         }
 
         private void HandleIsInGameChanged(object sender, ValueEventArgs<bool> e)
         {
+            _cornerIcon?.RefreshForGameState();
             CloseGameplayWindowsIfUnavailableSoon();
             ReloadPlayerState();
         }
 
         private void HandleMapOpenChanged(object sender, ValueEventArgs<bool> e)
         {
+            _cornerIcon?.RefreshForGameState();
             CloseGameplayWindowsIfUnavailableSoon();
         }
 
@@ -597,6 +600,7 @@ namespace rp.spark
 
         private void HandlePlayerStateChanged(object sender, EventArgs e)
         {
+            _cornerIcon?.RefreshForGameState();
             ReloadPlayerState();
         }
 

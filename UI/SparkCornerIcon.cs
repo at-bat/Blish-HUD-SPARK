@@ -132,6 +132,23 @@ namespace rp.spark.UI
             SetMenuItemState(_savedProfilesItem, enabled, tooltip);
         }
 
+        internal void RefreshForGameState()
+        {
+            if (_isDisposed)
+                return;
+
+            SparkUiThread.Queue(() =>
+            {
+                if (_isDisposed || _menu == null)
+                    return;
+
+                RefreshMenuState();
+
+                if (_menu.Visible)
+                    _menu.Hide();
+            });
+        }
+
         private static void SetMenuItemState(ContextMenuStripItem item, bool enabled, string tooltip)
         {
             if (item == null)
