@@ -24,6 +24,10 @@ namespace rp.spark.UI
 
         private CornerIcon _cornerIcon;
         private ContextMenuStrip _menu;
+        private ContextMenuStripItem _profileEditorItem;
+        private ContextMenuStripItem _onlineListItem;
+        private ContextMenuStripItem _nearbyPlayersItem;
+        private ContextMenuStripItem _savedProfilesItem;
         private bool _isDisposed;
 
         public SparkCornerIcon(
@@ -93,23 +97,74 @@ namespace rp.spark.UI
                 Width = MenuWidth
             };
 
-            AddMenuItem(menu, "Profile Editor", _openProfileManager);
-            AddMenuItem(menu, "Online List", _openOnlineList);
-            AddMenuItem(menu, "Nearby Players", _openNearby);
-            AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
+            _profileEditorItem = AddMenuItem(menu, "Profile Editor", _openProfileManager);
+            _onlineListItem = AddMenuItem(menu, "Online List", _openOnlineList);
+            _nearbyPlayersItem = AddMenuItem(menu, "Nearby Players", _openNearby);
+            _savedProfilesItem = AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
             AddMenuItem(menu, "Manage Blocks", _openBlocklist);
+
+            RefreshMenuState();
 
             return menu;
         }
 
-        private static void AddMenuItem(ContextMenuStrip menu, string text, Action action)
+        private static ContextMenuStripItem AddMenuItem(ContextMenuStrip menu, string text, Action action)
         {
             var item = menu.AddMenuItem(text);
-            item.Click += (s, e) => action?.Invoke();
+
+            item.Click += (s, e) =>
+            {
+                if (item.Enabled)
+                    action?.Invoke();
+            };
+
+            return item;
+        }
+
+        private void RefreshMenuState()
+        {
+            var enabled = !ShouldDisableGameplayMenuItems();
+            var tooltip = enabled ? string.Empty : DisabledMenuTooltip();
+
+            SetMenuItemState(_profileEditorItem, enabled, tooltip);
+            SetMenuItemState(_onlineListItem, enabled, tooltip);
+            SetMenuItemState(_nearbyPlayersItem, enabled, tooltip);
+            SetMenuItemState(_savedProfilesItem, enabled, tooltip);
+        }
+
+        private static void SetMenuItemState(ContextMenuStripItem item, bool enabled, string tooltip)
+        {
+            if (item == null)
+                return;
+
+            item.Enabled = enabled;
+            item.BasicTooltipText = enabled ? string.Empty : tooltip;
+        }
+
+        private bool ShouldDisableGameplayMenuItems()
+        {
+            return !GameService.GameIntegration.Gw2Instance.IsInGame
+                || SparkWindows.IsLoadingScreen()
+                || ShouldHideForGameUi();
+        }
+
+        private bool ShouldHideForGameUi()
+        {
+            return (_settings?.AutoHideGameUi.Value ?? true)
+                && GameService.Gw2Mumble.UI.IsMapOpen;
+        }
+
+        private string DisabledMenuTooltip()
+        {
+            if (ShouldHideForGameUi())
+                return "SPARK profile tools are unavailable while the map or game UI is open.";
+
+            return "SPARK profile tools are unavailable during loading screens or character select.";
         }
 
         private void OnCornerIconClick(object sender, MouseEventArgs e)
         {
+            RefreshMenuState();
             _menu?.Show(_cornerIcon);
         }
 
@@ -129,6 +184,10 @@ namespace rp.spark.UI
 
             _menu?.Dispose();
             _menu = null;
+            _profileEditorItem = null;
+            _onlineListItem = null;
+            _nearbyPlayersItem = null;
+            _savedProfilesItem = null;
         }
 
         public void Dispose()
