@@ -444,7 +444,7 @@ namespace rp.spark.UI.Views
 
             var cornerIconCheckbox = SparkFormLayout.AddCheckbox(
                 optionsRow,
-                "Show Icon Hotbar",
+                "Show SPARK icon",
                 _settings.ShowCornerIcon.Value,
                 125,
                 ControlHeight);
