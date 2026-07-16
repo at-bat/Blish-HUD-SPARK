@@ -143,7 +143,8 @@ namespace rp.spark.UI
                 _profileActions.IsPresenceBookmarked,
                 _profileActions.WatchSavedProfiles,
                 _profileActions.UnwatchSavedProfiles,
-                () => _settings.AutoRefreshOnlineProfiles.Value));
+                () => _settings.AutoRefreshOnlineProfiles.Value,
+                value => _settings.AutoRefreshOnlineProfiles.Value = value));
         }
 
         public void OpenNearby()
