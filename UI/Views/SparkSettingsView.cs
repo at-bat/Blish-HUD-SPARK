@@ -23,15 +23,16 @@ namespace rp.spark.UI.Views
         private readonly Action<Action<ServerSyncStatus>> _watchServerSyncStatus;
         private readonly Action<Action<ServerSyncStatus>> _unwatchServerSyncStatus;
         private readonly Action _requestServerSync;
-        private readonly Action _enforceGameplayWindowVisibility;
         private readonly Func<string> _getImportantNotice;
         private readonly SparkSettingsButtons _buttons;
+        private readonly Action _openSettings;
         private readonly Action _openBlocklist;
         private readonly Action<Action> _watchBlockedAccountsChanged;
         private readonly Action<Action> _unwatchBlockedAccountsChanged;
         private readonly Action<bool> _maturePreferenceChanged;
 
         private Label _blockedAccountsLabel;
+        private Dropdown _statusDropdown;
 
         // Mature content window
         private Container _buildPanel;
@@ -54,6 +55,7 @@ namespace rp.spark.UI.Views
             Action openNearby,
             Action openSavedProfiles,
             Action openAbout,
+            Action openSettings,
             Action openBlocklist,
             Func<System.Threading.Tasks.Task<string>> waitForInitialState,
             Func<string> getCurrentStateMessage,
@@ -65,7 +67,6 @@ namespace rp.spark.UI.Views
             Action requestServerSync,
             Func<string> getImportantNotice,
             Func<bool> shouldHideGameplayWindows,
-            Action enforceGameplayWindowVisibility,
             Action<Action> watchBlockedAccountsChanged,
             Action<Action> unwatchBlockedAccountsChanged,
             Action<bool> maturePreferenceChanged)
@@ -76,7 +77,6 @@ namespace rp.spark.UI.Views
             _unwatchServerSyncStatus = unwatchServerSyncStatus;
             _requestServerSync = requestServerSync;
             _getImportantNotice = getImportantNotice;
-            _enforceGameplayWindowVisibility = enforceGameplayWindowVisibility;
             _buttons = new SparkSettingsButtons(
                 openProfileManager,
                 openProfileViewer,
@@ -90,6 +90,7 @@ namespace rp.spark.UI.Views
                 getCurrentStateMessage,
                 requestStateRefresh,
                 shouldHideGameplayWindows);
+            _openSettings = openSettings;
             _openBlocklist = openBlocklist;
             _watchBlockedAccountsChanged = watchBlockedAccountsChanged;
             _unwatchBlockedAccountsChanged = unwatchBlockedAccountsChanged;
@@ -103,6 +104,7 @@ namespace rp.spark.UI.Views
             BuildSettings(buildPanel);
             WatchServer();
             WatchGameState();
+            WatchSettings();
             StartNoticeRefresh();
             RefreshServerStatus();
         }
@@ -119,9 +121,12 @@ namespace rp.spark.UI.Views
             BuildReadinessNotice(settingsStack);
             _buttons.Build(settingsStack);
 
+            var settingsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, RowGap);
+            var settingsButton = SparkFormLayout.AddButton(settingsRow, "Settings", 110, ControlHeight);
+            settingsButton.Click += (s, e) => _openSettings?.Invoke();
+
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildPresence(settingsStack);
-            BuildGlobalSettings(settingsStack);
 
             SparkFormLayout.AddSpacer(settingsStack, ContentWidth, 4);
             BuildBlockSummary(settingsStack);
@@ -184,38 +189,51 @@ namespace rp.spark.UI.Views
                 ControlHeight,
                 GameService.Content.DefaultFont14);
 
-            var statusDropdown = SparkFormLayout.AddDropdown(
+            _statusDropdown = SparkFormLayout.AddDropdown(
                 statusRow,
                 ProfileLabels.RpStatusOptions,
-                ProfileLabels.StatusLabel(currentStatus),
+                ProfileLabels.StatusLabel(_settings.CurrentStatus.Value),
                 155,
                 ControlHeight);
 
-            statusDropdown.ValueChanged += (s, e) =>
+            _statusDropdown.ValueChanged += (s, e) =>
             {
-                _settings.CurrentStatus.Value = ProfileLabels.ParseStatus(statusDropdown.SelectedItem?.ToString());
+                var selectedStatus = ProfileLabels.ParseStatus(_statusDropdown.SelectedItem?.ToString());
+
+                if (_settings.CurrentStatus.Value == selectedStatus)
+                    return;
+
+                _settings.CurrentStatus.Value = selectedStatus;
                 _requestServerSync?.Invoke();
             };
 
-            var broadcastCheckbox = SparkFormLayout.AddCheckbox(
+            SyncStatusDropdownFromSettings();
+
+            SparkFormLayout.AddLabel(
                 statusRow,
-                "Share my profile",
-                _settings.BroadcastProfile.Value,
-                230,
+                "Region:",
+                58,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
+
+            var regionDropdown = SparkFormLayout.AddDropdown(
+                statusRow,
+                new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
+                _settings.RegionFilter.Value.ToString(),
+                90,
                 ControlHeight);
 
-            broadcastCheckbox.CheckedChanged += (s, e) => _settings.BroadcastProfile.Value = broadcastCheckbox.Checked;
-            broadcastCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
+            regionDropdown.ValueChanged += (s, e) =>
+            {
+                if (Enum.TryParse(regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
+                {
+                    if (_settings.RegionFilter.Value == selectedRegion)
+                        return;
 
-            var hideLocationCheckbox = SparkFormLayout.AddCheckbox(
-                statusRow,
-                "Hide my location",
-                _settings.HideLocation.Value,
-                180,
-                ControlHeight);
-
-            hideLocationCheckbox.CheckedChanged += (s, e) => _settings.HideLocation.Value = hideLocationCheckbox.Checked;
-            hideLocationCheckbox.CheckedChanged += (s, e) => _requestServerSync?.Invoke();
+                    _settings.RegionFilter.Value = selectedRegion;
+                    _requestServerSync?.Invoke();
+                }
+            };
         }
 
         private void BuildBlockSummary(FlowPanel settingsStack)
@@ -276,6 +294,40 @@ namespace rp.spark.UI.Views
         private void UnwatchServer()
         {
             _unwatchServerSyncStatus?.Invoke(OnServerStatus);
+        }
+
+        private void WatchSettings()
+        {
+            _settings.CurrentStatus.SettingChanged += OnCurrentStatusChanged;
+        }
+
+        private void UnwatchSettings()
+        {
+            _settings.CurrentStatus.SettingChanged -= OnCurrentStatusChanged;
+        }
+
+        private void OnCurrentStatusChanged(object sender, ValueChangedEventArgs<RPStatus> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    SyncStatusDropdownFromSettings();
+            });
+        }
+
+        private void SyncStatusDropdownFromSettings()
+        {
+            if (_statusDropdown == null)
+                return;
+
+            var currentStatus = _settings.CurrentStatus.Value == RPStatus.Offline
+                ? RPStatus.Online
+                : _settings.CurrentStatus.Value;
+
+            var label = ProfileLabels.StatusLabel(currentStatus);
+
+            if (!string.Equals(_statusDropdown.SelectedItem?.ToString(), label, StringComparison.Ordinal))
+                _statusDropdown.SelectedItem = label;
         }
 
         private void StartNoticeRefresh()
@@ -385,61 +437,6 @@ namespace rp.spark.UI.Views
 
             _readinessLabel.Height = StatusLineHeight;
             _readinessLabel.Visible = true;
-        }
-
-        private void BuildGlobalSettings(FlowPanel settingsStack)
-        {
-            var optionsRow = SparkFormLayout.AddRow(settingsStack, ContentWidth, ControlHeight, 12);
-
-            SparkFormLayout.AddLabel(
-                optionsRow,
-                "Region:",
-                55,
-                ControlHeight,
-                GameService.Content.DefaultFont14);
-
-            var regionDropdown = SparkFormLayout.AddDropdown(
-                optionsRow,
-                new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
-                _settings.RegionFilter.Value.ToString(),
-                90,
-                ControlHeight);
-
-            regionDropdown.ValueChanged += (s, e) =>
-            {
-                if (Enum.TryParse(regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
-                {
-                    _settings.RegionFilter.Value = selectedRegion;
-                    _requestServerSync?.Invoke();
-                }
-            };
-
-            var autoHideCheckbox = SparkFormLayout.AddCheckbox(
-                optionsRow,
-                "Auto-hide UI",
-                _settings.AutoHideGameUi.Value,
-                230,
-                ControlHeight);
-
-            autoHideCheckbox.CheckedChanged += (s, e) =>
-            {
-                _settings.AutoHideGameUi.Value = autoHideCheckbox.Checked;
-                RefreshReadinessNotice();
-                _buttons.Refresh();
-                _enforceGameplayWindowVisibility?.Invoke();
-            };
-
-            var cornerIconCheckbox = SparkFormLayout.AddCheckbox(
-                optionsRow,
-                "Show SPARK icon",
-                _settings.ShowCornerIcon.Value,
-                125,
-                ControlHeight);
-
-            cornerIconCheckbox.CheckedChanged += (s, e) =>
-            {
-                _settings.ShowCornerIcon.Value = cornerIconCheckbox.Checked;
-            };
         }
 
         private void SetMatureProfilesEnabled(bool enabled)
@@ -599,6 +596,8 @@ namespace rp.spark.UI.Views
             _unwatchBlockedAccountsChanged?.Invoke(OnBlockedAccountsChanged);
             UnwatchServer();
             UnwatchGameState();
+            UnwatchSettings();
+            _statusDropdown = null;
         }
     }
 }

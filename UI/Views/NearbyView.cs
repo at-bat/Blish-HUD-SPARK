@@ -36,6 +36,7 @@ namespace rp.spark.UI.Views
         private bool _isUnloaded;
         private CancellationTokenSource _refreshCancellation;
         private Task _autoRefreshTask;
+        private Checkbox _showNearbyCheckbox;
         private ProfileScrollList _nearbyList;
         private Label _status;
 
@@ -62,7 +63,7 @@ namespace rp.spark.UI.Views
                 SetStatusText,
                 "Couldn't refresh nearby players.");
 
-            var showNearbyCheckbox = SparkViewUI.AddCheckbox(
+            _showNearbyCheckbox = SparkViewUI.AddCheckbox(
                 buildPanel,
                 "Show me nearby",
                 _settings.ShowNearbyPresence.Value,
@@ -71,9 +72,15 @@ namespace rp.spark.UI.Views
                 170,
                 28);
 
-            showNearbyCheckbox.CheckedChanged += async (s, e) =>
+            _showNearbyCheckbox.CheckedChanged += async (s, e) =>
             {
-                await SetNearbySharingAsync(showNearbyCheckbox.Checked);
+                if (_showNearbyCheckbox == null)
+                    return;
+
+                if (_settings.ShowNearbyPresence.Value == _showNearbyCheckbox.Checked)
+                    return;
+
+                await SetNearbySharingAsync(_showNearbyCheckbox.Checked);
             };
 
             var autoRefreshCheckbox = SparkViewUI.AddCheckbox(
@@ -130,8 +137,41 @@ namespace rp.spark.UI.Views
                 Parent = buildPanel
             };
 
+            WatchSettings();
+            SyncShowNearbyCheckboxFromSettings();
+
             StartRefresh();
             _ = RefreshAsync(true);
+        }
+
+        private void WatchSettings()
+        {
+            _settings.ShowNearbyPresence.SettingChanged += OnShowNearbyPresenceChanged;
+        }
+
+        private void UnwatchSettings()
+        {
+            _settings.ShowNearbyPresence.SettingChanged -= OnShowNearbyPresenceChanged;
+        }
+
+        private void OnShowNearbyPresenceChanged(object sender, ValueChangedEventArgs<bool> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    SyncShowNearbyCheckboxFromSettings();
+            });
+        }
+
+        private void SyncShowNearbyCheckboxFromSettings()
+        {
+            SetChecked(_showNearbyCheckbox, _settings.ShowNearbyPresence.Value);
+        }
+
+        private static void SetChecked(Checkbox checkbox, bool value)
+        {
+            if (checkbox != null && checkbox.Checked != value)
+                checkbox.Checked = value;
         }
 
         private static void AddHeader(Container parent, string text, int x, int width)
@@ -411,7 +451,10 @@ namespace rp.spark.UI.Views
         protected override void Unload()
         {
             _isUnloaded = true;
+            UnwatchSettings();
             StopRefresh();
+
+            _showNearbyCheckbox = null;
         }
     }
 }

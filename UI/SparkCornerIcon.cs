@@ -4,7 +4,11 @@ using Blish_HUD.Controls;
 using Blish_HUD.Input;
 using Blish_HUD.Modules.Managers;
 using rp.spark.Services;
+using rp.spark.Models;
+using rp.spark.UI.Controls;
+using rp.spark.UI.Views;
 using System;
+using System.Collections.Generic;
 
 namespace rp.spark.UI
 {
@@ -21,6 +25,9 @@ namespace rp.spark.UI
         private readonly Action _openNearby;
         private readonly Action _openSavedProfiles;
         private readonly Action _openBlocklist;
+        private readonly Action _openSettings;
+        private readonly Action _requestServerSync;
+        private readonly Action<bool> _setNearbySharing;
 
         private CornerIcon _cornerIcon;
         private ContextMenuStrip _menu;
@@ -28,6 +35,9 @@ namespace rp.spark.UI
         private ContextMenuStripItem _onlineListItem;
         private ContextMenuStripItem _nearbyPlayersItem;
         private ContextMenuStripItem _savedProfilesItem;
+        private ContextMenuStripItem _statusMenuItem;
+        private readonly Dictionary<RPStatus, ContextMenuStripItem> _statusMenuItems = new Dictionary<RPStatus, ContextMenuStripItem>();
+        private bool _isSyncingStatusMenu;
         private bool _isDisposed;
 
         public SparkCornerIcon(
@@ -37,7 +47,10 @@ namespace rp.spark.UI
             Action openOnlineList,
             Action openNearby,
             Action openSavedProfiles,
-            Action openBlocklist)
+            Action openBlocklist,
+            Action openSettings,
+            Action requestServerSync,
+            Action<bool> setNearbySharing)
         {
             _settings = settings;
             _openProfileManager = openProfileManager;
@@ -45,6 +58,9 @@ namespace rp.spark.UI
             _openNearby = openNearby;
             _openSavedProfiles = openSavedProfiles;
             _openBlocklist = openBlocklist;
+            _openSettings = openSettings;
+            _requestServerSync = requestServerSync;
+            _setNearbySharing = setNearbySharing;
 
             var iconTexture = contentsManager.GetTexture(SparkServiceConfig.CornerIconFilename);
             var hoverTexture = contentsManager.GetTexture(SparkServiceConfig.CornerIconHoverFilename, iconTexture);
@@ -62,6 +78,7 @@ namespace rp.spark.UI
             }
 
             _settings.ShowCornerIcon.SettingChanged += OnShowCornerIconChanged;
+            _settings.CurrentStatus.SettingChanged += OnCurrentStatusChanged;
         }
 
         public void Refresh()
@@ -102,6 +119,9 @@ namespace rp.spark.UI
             _nearbyPlayersItem = AddMenuItem(menu, "Nearby Players", _openNearby);
             _savedProfilesItem = AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
             AddMenuItem(menu, "Manage Blocks", _openBlocklist);
+            AddMenuItem(menu, "Settings", _openSettings);
+            AddStatusSubmenu(menu);
+            AddPrivacySubmenu(menu);
 
             RefreshMenuState();
 
@@ -119,6 +139,193 @@ namespace rp.spark.UI
             };
 
             return item;
+        }
+
+        private void AddPrivacySubmenu(ContextMenuStrip menu)
+        {
+            var privacyItem = menu.AddMenuItem("Privacy");
+            privacyItem.Submenu = new ContextMenuStrip(GetPrivacyMenuItems);
+        }
+
+        private IEnumerable<ContextMenuStripItem> GetPrivacyMenuItems()
+        {
+            yield return CreateCheckMenuItem(
+                "Share My Profile",
+                _settings.BroadcastProfile.Value,
+                SetShareProfile);
+
+            yield return CreateCheckMenuItem(
+                "Hide My Location",
+                _settings.HideLocation.Value,
+                SetHideLocation);
+
+            yield return CreateCheckMenuItem(
+                "Show Me Nearby",
+                _settings.ShowNearbyPresence.Value,
+                SetNearbyPresence);
+        }
+
+        private static ContextMenuStripItem CreateCheckMenuItem(
+            string text,
+            bool isChecked,
+            Action<bool> onChanged)
+        {
+            var item = new ContextMenuStripItem
+            {
+                Text = text,
+                CanCheck = true,
+                Checked = isChecked
+            };
+
+            item.CheckedChanged += (s, e) => onChanged?.Invoke(e.Checked);
+            return item;
+        }
+
+        private void SetShareProfile(bool enabled)
+        {
+            if (_settings.BroadcastProfile.Value == enabled)
+                return;
+
+            _settings.BroadcastProfile.Value = enabled;
+            _requestServerSync?.Invoke();
+        }
+
+        private void SetHideLocation(bool enabled)
+        {
+            if (_settings.HideLocation.Value == enabled)
+                return;
+
+            _settings.HideLocation.Value = enabled;
+            _requestServerSync?.Invoke();
+        }
+
+        private void SetNearbyPresence(bool enabled)
+        {
+            if (_settings.ShowNearbyPresence.Value == enabled)
+                return;
+
+            if (_setNearbySharing != null)
+                _setNearbySharing(enabled);
+            else
+                _settings.ShowNearbyPresence.Value = enabled;
+        }
+
+        private void AddStatusSubmenu(ContextMenuStrip menu)
+        {
+            var currentStatus = CurrentStatus();
+
+            _statusMenuItem = menu.AddMenuItem(new ContextMenuColours(
+                $"Status: {ProfileLabels.StatusLabel(currentStatus)}",
+                ProfileStatusColors.Get(currentStatus)));
+
+            _statusMenuItem.Submenu = new ContextMenuStrip(GetStatusMenuItems);
+        }
+
+        private static ContextMenuColours CreateColoredCheckMenuItem(
+            string text,
+            RPStatus status,
+            bool isChecked,
+            Action<bool> onChanged)
+        {
+            var item = new ContextMenuColours(text, ProfileStatusColors.Get(status))
+            {
+                CanCheck = true,
+                Checked = isChecked
+            };
+
+            item.CheckedChanged += (s, e) => onChanged?.Invoke(e.Checked);
+            return item;
+        }
+
+        private IEnumerable<ContextMenuStripItem> GetStatusMenuItems()
+        {
+            _statusMenuItems.Clear();
+
+            var currentStatus = CurrentStatus();
+
+            foreach (var label in ProfileLabels.RpStatusOptions)
+            {
+                var optionStatus = ProfileLabels.ParseStatus(label);
+
+                var item = CreateColoredCheckMenuItem(
+                    label,
+                    optionStatus,
+                    optionStatus == currentStatus,
+                    enabled =>
+                    {
+                        if (_isSyncingStatusMenu || !enabled)
+                            return;
+
+                        SetStatus(optionStatus);
+                        SyncStatusMenuFromSettings();
+                    });
+
+                _statusMenuItems[optionStatus] = item;
+
+                yield return item;
+            }
+        }
+
+        private RPStatus CurrentStatus()
+        {
+            var status = _settings.CurrentStatus.Value;
+            return status == RPStatus.Offline ? RPStatus.Online : status;
+        }
+
+        private string CurrentStatusLabel()
+        {
+            return ProfileLabels.StatusLabel(CurrentStatus());
+        }
+
+        private void SetStatus(RPStatus status)
+        {
+            if (status == RPStatus.Offline)
+                status = RPStatus.Online;
+
+            if (_settings.CurrentStatus.Value == status)
+                return;
+
+            _settings.CurrentStatus.Value = status;
+            _requestServerSync?.Invoke();
+        }
+
+        private void OnCurrentStatusChanged(object sender, ValueChangedEventArgs<RPStatus> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isDisposed)
+                    SyncStatusMenuFromSettings();
+            });
+        }
+
+        private void SyncStatusMenuFromSettings()
+        {
+            var currentStatus = CurrentStatus();
+
+            if (_statusMenuItem != null)
+            {
+                _statusMenuItem.Text = $"Status: {ProfileLabels.StatusLabel(currentStatus)}";
+
+                if (_statusMenuItem is ContextMenuColours coloredStatusMenuItem)
+                    coloredStatusMenuItem.TextColor = ProfileStatusColors.Get(currentStatus);
+            }
+
+            _isSyncingStatusMenu = true;
+
+            try
+            {
+                foreach (var pair in _statusMenuItems)
+                {
+                    var shouldBeChecked = pair.Key == currentStatus;
+
+                    if (pair.Value.Checked != shouldBeChecked)
+                        pair.Value.Checked = shouldBeChecked;
+                }
+            }
+            finally
+            {
+                _isSyncingStatusMenu = false;
+            }
         }
 
         private void RefreshMenuState()
@@ -205,6 +412,8 @@ namespace rp.spark.UI
             _onlineListItem = null;
             _nearbyPlayersItem = null;
             _savedProfilesItem = null;
+            _statusMenuItem = null;
+            _statusMenuItems.Clear();
         }
 
         public void Dispose()
@@ -214,6 +423,7 @@ namespace rp.spark.UI
 
             _isDisposed = true;
             _settings.ShowCornerIcon.SettingChanged -= OnShowCornerIconChanged;
+            _settings.CurrentStatus.SettingChanged -= OnCurrentStatusChanged;
 
             Clear();
 
