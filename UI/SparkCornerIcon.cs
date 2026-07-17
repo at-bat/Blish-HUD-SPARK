@@ -14,12 +14,14 @@ namespace rp.spark.UI
 {
     internal sealed class SparkCornerIcon : IDisposable
     {
-        private const int MenuWidth = 170;
+        private const int MinimumMenuWidth = 190;
+        private const int MenuItemTextPadding = 72;
 
         private readonly SparkSettings _settings;
         private readonly AsyncTexture2D _icon;
         private readonly AsyncTexture2D _hoverIcon;
         private readonly bool _disposeHoverIcon;
+        private readonly Action _openMyProfile;
         private readonly Action _openProfileManager;
         private readonly Action _openOnlineList;
         private readonly Action _openNearby;
@@ -31,6 +33,7 @@ namespace rp.spark.UI
 
         private CornerIcon _cornerIcon;
         private ContextMenuStrip _menu;
+        private ContextMenuStripItem _myProfileItem;
         private ContextMenuStripItem _profileEditorItem;
         private ContextMenuStripItem _onlineListItem;
         private ContextMenuStripItem _nearbyPlayersItem;
@@ -43,6 +46,7 @@ namespace rp.spark.UI
         public SparkCornerIcon(
             SparkSettings settings,
             ContentsManager contentsManager,
+            Action openMyProfile,
             Action openProfileManager,
             Action openOnlineList,
             Action openNearby,
@@ -53,6 +57,7 @@ namespace rp.spark.UI
             Action<bool> setNearbySharing)
         {
             _settings = settings;
+            _openMyProfile = openMyProfile;
             _openProfileManager = openProfileManager;
             _openOnlineList = openOnlineList;
             _openNearby = openNearby;
@@ -111,21 +116,51 @@ namespace rp.spark.UI
         {
             var menu = new ContextMenuStrip
             {
-                Width = MenuWidth
+                Width = CalculateMenuWidth()
             };
 
+            AddStatusSubmenu(menu);
+            _myProfileItem = AddMenuItem(menu, "My Profile", _openMyProfile);
             _profileEditorItem = AddMenuItem(menu, "Profile Editor", _openProfileManager);
+
+            AddSectionHeader(menu, "Players");
+
             _onlineListItem = AddMenuItem(menu, "Online List", _openOnlineList);
             _nearbyPlayersItem = AddMenuItem(menu, "Nearby Players", _openNearby);
             _savedProfilesItem = AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
-            AddMenuItem(menu, "Manage Blocks", _openBlocklist);
+
+            AddSectionHeader(menu, "Config");
+
             AddMenuItem(menu, "Settings", _openSettings);
-            AddStatusSubmenu(menu);
+            AddMenuItem(menu, "Manage Blocks", _openBlocklist);
             AddPrivacySubmenu(menu);
 
             RefreshMenuState();
 
             return menu;
+        }
+
+        private int CalculateMenuWidth()
+        {
+            var width = MinimumMenuWidth;
+
+            width = Math.Max(width, MenuItemWidth("My Profile"));
+            width = Math.Max(width, MenuItemWidth("Profile Editor"));
+            width = Math.Max(width, MenuItemWidth("Nearby Players"));
+            width = Math.Max(width, MenuItemWidth("Saved Profiles"));
+            width = Math.Max(width, MenuItemWidth("Manage Blocks"));
+
+            foreach (var label in ProfileLabels.RpStatusOptions)
+                width = Math.Max(width, MenuItemWidth($"Status: {label}"));
+
+            width = Math.Max(width, MenuItemWidth($"Status: {CurrentStatusLabel()}"));
+
+            return width;
+        }
+
+        private static int MenuItemWidth(string text)
+        {
+            return (int)Math.Ceiling(GameService.Content.DefaultFont14.MeasureString(text).Width) + MenuItemTextPadding;
         }
 
         private static ContextMenuStripItem AddMenuItem(ContextMenuStrip menu, string text, Action action)
@@ -139,6 +174,11 @@ namespace rp.spark.UI
             };
 
             return item;
+        }
+
+        private static void AddSectionHeader(ContextMenuStrip menu, string text)
+        {
+            menu.AddMenuItem(new ContextMenuHeader(text));
         }
 
         private void AddPrivacySubmenu(ContextMenuStrip menu)
@@ -333,6 +373,7 @@ namespace rp.spark.UI
             var enabled = !ShouldDisableGameplayMenuItems();
             var tooltip = enabled ? string.Empty : DisabledMenuTooltip();
 
+            SetMenuItemState(_myProfileItem, enabled, tooltip);
             SetMenuItemState(_profileEditorItem, enabled, tooltip);
             SetMenuItemState(_onlineListItem, enabled, tooltip);
             SetMenuItemState(_nearbyPlayersItem, enabled, tooltip);
@@ -408,6 +449,7 @@ namespace rp.spark.UI
 
             _menu?.Dispose();
             _menu = null;
+            _myProfileItem = null;
             _profileEditorItem = null;
             _onlineListItem = null;
             _nearbyPlayersItem = null;

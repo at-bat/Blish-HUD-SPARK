@@ -144,6 +144,7 @@ namespace rp.spark
             _cornerIcon = new SparkCornerIcon(
                 _sparkSettings,
                 this.ContentsManager,
+                _windows.OpenMyProfile,
                 _windows.OpenProfileManager,
                 _windows.OpenOnlineList,
                 _windows.OpenNearby,
