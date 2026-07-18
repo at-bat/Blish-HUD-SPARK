@@ -526,7 +526,8 @@ namespace rp.spark.UI
                 () => new SparkOptionsView(
                     _settings,
                     _requestServerSync,
-                    _setNearbySharing),
+                    _setNearbySharing,
+                    HandleMaturePreferenceChanged),
                 "General",
                 100));
         }

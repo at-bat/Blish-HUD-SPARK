@@ -29,14 +29,14 @@ namespace rp.spark.UI.Views
         private readonly Action _openBlocklist;
         private readonly Action<Action> _watchBlockedAccountsChanged;
         private readonly Action<Action> _unwatchBlockedAccountsChanged;
-        private readonly Action<bool> _maturePreferenceChanged;
+        private readonly MatureProfilesConfirmation _matureProfilesConfirm;
 
         private Label _blockedAccountsLabel;
         private Dropdown _statusDropdown;
+        private Dropdown _regionDropdown;
 
         // Mature content window
         private Container _buildPanel;
-        private Panel _matureConfirmationPanel;
 
         private bool _isUnloaded;
         private Label _serverStatusLabel;
@@ -94,7 +94,7 @@ namespace rp.spark.UI.Views
             _openBlocklist = openBlocklist;
             _watchBlockedAccountsChanged = watchBlockedAccountsChanged;
             _unwatchBlockedAccountsChanged = unwatchBlockedAccountsChanged;
-            _maturePreferenceChanged = maturePreferenceChanged;
+            _matureProfilesConfirm = new MatureProfilesConfirmation(settings, maturePreferenceChanged);
         }
 
         protected override void Build(Container buildPanel)
@@ -216,16 +216,16 @@ namespace rp.spark.UI.Views
                 ControlHeight,
                 GameService.Content.DefaultFont14);
 
-            var regionDropdown = SparkFormLayout.AddDropdown(
+            _regionDropdown = SparkFormLayout.AddDropdown(
                 statusRow,
                 new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
                 _settings.RegionFilter.Value.ToString(),
                 90,
                 ControlHeight);
 
-            regionDropdown.ValueChanged += (s, e) =>
+            _regionDropdown.ValueChanged += (s, e) =>
             {
-                if (Enum.TryParse(regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
+                if (Enum.TryParse(_regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
                 {
                     if (_settings.RegionFilter.Value == selectedRegion)
                         return;
@@ -234,6 +234,7 @@ namespace rp.spark.UI.Views
                     _requestServerSync?.Invoke();
                 }
             };
+            SyncRegionDropdownFromSettings();
         }
 
         private void BuildBlockSummary(FlowPanel settingsStack)
@@ -299,11 +300,15 @@ namespace rp.spark.UI.Views
         private void WatchSettings()
         {
             _settings.CurrentStatus.SettingChanged += OnCurrentStatusChanged;
+            _settings.RegionFilter.SettingChanged += OnRegionFilterChanged;
+            _settings.ShowMatureProfiles.SettingChanged += OnMatureProfilesChanged;
         }
 
         private void UnwatchSettings()
         {
             _settings.CurrentStatus.SettingChanged -= OnCurrentStatusChanged;
+            _settings.RegionFilter.SettingChanged -= OnRegionFilterChanged;
+            _settings.ShowMatureProfiles.SettingChanged -= OnMatureProfilesChanged;
         }
 
         private void OnCurrentStatusChanged(object sender, ValueChangedEventArgs<RPStatus> e)
@@ -313,6 +318,35 @@ namespace rp.spark.UI.Views
                 if (!_isUnloaded)
                     SyncStatusDropdownFromSettings();
             });
+        }
+
+        private void OnRegionFilterChanged(object sender, ValueChangedEventArgs<ProfileRegion> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    SyncRegionDropdownFromSettings();
+            });
+        }
+
+        private void OnMatureProfilesChanged(object sender, ValueChangedEventArgs<bool> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    _buttons.RefreshMatureButtonText();
+            });
+        }
+
+        private void SyncRegionDropdownFromSettings()
+        {
+            if (_regionDropdown == null)
+                return;
+
+            var label = _settings.RegionFilter.Value.ToString();
+
+            if (!string.Equals(_regionDropdown.SelectedItem?.ToString(), label, StringComparison.Ordinal))
+                _regionDropdown.SelectedItem = label;
         }
 
         private void SyncStatusDropdownFromSettings()
@@ -439,126 +473,15 @@ namespace rp.spark.UI.Views
             _readinessLabel.Visible = true;
         }
 
-        private void SetMatureProfilesEnabled(bool enabled)
-        {
-            _settings.ShowMatureProfiles.Value = enabled;
-            _buttons.RefreshMatureButtonText();
-            _maturePreferenceChanged?.Invoke(enabled);
-        }
-
-        private void OpenMatureConfirmation()
-        {
-            CloseMatureConfirmation();
-
-            var popupParent = _buildPanel ?? GameService.Graphics.SpriteScreen;
-            const int popupWidth = 500;
-            const int popupHeight = 190;
-
-            _matureConfirmationPanel = new Panel
-            {
-                ShowBorder = true,
-                Title = "Enable Mature Profiles?",
-                Size = new Point(popupWidth, popupHeight),
-                Location = GetCenteredPopupLocation(
-                    popupParent,
-                    popupWidth,
-                    popupHeight),
-                Parent = popupParent,
-                BackgroundColor = new Color(38, 35, 32),
-                ClipsBounds = false,
-                ZIndex = 100
-            };
-
-            var closeButton = new StandardButton
-            {
-                Text = "X",
-                Location = new Point(popupWidth - 32, -28),
-                Size = new Point(24, 24),
-                Parent = _matureConfirmationPanel,
-                ClipsBounds = false,
-                ZIndex = 10011
-            };
-
-            closeButton.Click += (s, e) => CloseMatureConfirmation();
-
-            new Label
-            {
-                Text =
-                    "Enabling this will allow you to view profiles marked as mature/18+. "
-                    + "These profiles may contain explicit details not suitable for minors."
-                    + Environment.NewLine
-                    + Environment.NewLine
-                    + "Are you sure you want to continue?",
-                Font = GameService.Content.DefaultFont14,
-                TextColor = Color.White,
-                WrapText = true,
-                Location = new Point(16, 6),
-                Size = new Point(468, 92),
-                Parent = _matureConfirmationPanel
-            };
-
-            var yesButton = new StandardButton
-            {
-                Text = "Show Mature Profiles",
-                Location = new Point(200, 108),
-                Size = new Point(165, 32),
-                Parent = _matureConfirmationPanel
-            };
-
-            yesButton.Click += (s, e) =>
-            {
-                SetMatureProfilesEnabled(true);
-                CloseMatureConfirmation();
-            };
-
-            var noButton = new StandardButton
-            {
-                Text = "No",
-                Location = new Point(379, 108),
-                Size = new Point(105, 32),
-                Parent = _matureConfirmationPanel
-            };
-
-            noButton.Click += (s, e) => CloseMatureConfirmation();
-        }
-
-        private void CloseMatureConfirmation()
-        {
-            _matureConfirmationPanel?.Dispose();
-            _matureConfirmationPanel = null;
-        }
-
         private string GetMatureProfilesButtonText()
         {
-            return _settings.ShowMatureProfiles.Value
-                ? "Mature Profiles Visible"
-                : "Mature Profiles Hidden";
+            return _matureProfilesConfirm.ButtonText;
         }
 
         private void ToggleMatureProfiles()
         {
-            if (_settings.ShowMatureProfiles.Value)
-            {
-                SetMatureProfilesEnabled(false);
-                return;
-            }
-
-            OpenMatureConfirmation();
-        }
-
-        private static Point GetCenteredPopupLocation(
-            Container parent,
-            int width,
-            int height)
-        {
-            var parentSize = parent?.ContentRegion.Size ?? GameService.Graphics.SpriteScreen.Size;
-
-            const int padding = 8;
-
-            var x = (parentSize.X - width) / 2;
-            var y = (parentSize.Y - height) / 2;
-
-            return new Point(Math.Max(padding, x), Math.Max(padding, y));
+            _matureProfilesConfirm.Toggle(_buildPanel);
+            _buttons.RefreshMatureButtonText();
         }
 
         private string GetImportantNotice()
@@ -589,7 +512,7 @@ namespace rp.spark.UI.Views
         protected override void Unload()
         {
             _isUnloaded = true;
-            CloseMatureConfirmation();
+            _matureProfilesConfirm.Dispose();
             _buildPanel = null;
             StopNoticeRefresh();
             _buttons.Dispose();
@@ -598,6 +521,7 @@ namespace rp.spark.UI.Views
             UnwatchGameState();
             UnwatchSettings();
             _statusDropdown = null;
+            _regionDropdown = null;
         }
     }
 }

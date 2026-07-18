@@ -3,6 +3,7 @@ using Blish_HUD.Controls;
 using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
 using rp.spark.Services;
+using rp.spark.Models;
 using System;
 
 namespace rp.spark.UI.Views
@@ -15,6 +16,9 @@ namespace rp.spark.UI.Views
         private readonly SparkSettings _settings;
         private readonly Action _requestServerSync;
         private readonly Action<bool> _setNearbySharing;
+        private Dropdown _regionDropdown;
+        private StandardButton _matureProfilesButton;
+        private readonly MatureProfilesConfirmation _matureProfilesConfirm;
 
         private Checkbox _shareCheckbox;
         private Checkbox _hideLocationCheckbox;
@@ -26,11 +30,13 @@ namespace rp.spark.UI.Views
         public SparkOptionsView(
             SparkSettings settings,
             Action requestServerSync,
-            Action<bool> setNearbySharing)
+            Action<bool> setNearbySharing,
+            Action<bool> maturePreferenceChanged)
         {
             _settings = settings;
             _requestServerSync = requestServerSync;
             _setNearbySharing = setNearbySharing;
+            _matureProfilesConfirm = new MatureProfilesConfirmation(settings, maturePreferenceChanged);
         }
 
         protected override void Build(Container buildPanel)
@@ -79,6 +85,47 @@ namespace rp.spark.UI.Views
             };
 
             SparkFormLayout.AddSpacer(stack, ContentWidth, 8);
+            SparkFormLayout.AddLabel(stack, "Profile Discovery", ContentWidth, 28, GameService.Content.DefaultFont18, new Color(255, 233, 180), true);
+
+            var discoveryRow = SparkFormLayout.AddRow(stack, ContentWidth, ControlHeight, 8);
+
+            SparkFormLayout.AddLabel(
+                discoveryRow,
+                "Region:",
+                58,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
+
+            _regionDropdown = SparkFormLayout.AddDropdown(
+                discoveryRow,
+                new[] { ProfileRegion.NA.ToString(), ProfileRegion.EU.ToString() },
+                _settings.RegionFilter.Value.ToString(),
+                90,
+                ControlHeight);
+
+            _regionDropdown.ValueChanged += (s, e) =>
+            {
+                if (Enum.TryParse(_regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
+                {
+                    if (_settings.RegionFilter.Value == selectedRegion)
+                        return;
+
+                    _settings.RegionFilter.Value = selectedRegion;
+                    _requestServerSync?.Invoke();
+                }
+            };
+
+            _matureProfilesButton = SparkFormLayout.AddButton(
+                discoveryRow,
+                _matureProfilesConfirm.ButtonText,
+                190,
+                ControlHeight);
+
+            _matureProfilesButton.Click += (s, e) =>
+            {
+                _matureProfilesConfirm.Toggle(buildPanel);
+                SyncMatureButtonFromSettings();
+            };
 
             SparkFormLayout.AddSpacer(stack, ContentWidth, 8);
             SparkFormLayout.AddLabel(stack, "Interface", ContentWidth, 28, GameService.Content.DefaultFont18, new Color(255, 233, 180), true);
@@ -113,6 +160,8 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged += OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged += OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged += OnSettingChanged;
+            _settings.RegionFilter.SettingChanged += OnRegionFilterChanged;
+            _settings.ShowMatureProfiles.SettingChanged += OnSettingChanged;
         }
 
         private void UnwatchSettings()
@@ -122,6 +171,8 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged -= OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged -= OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged -= OnSettingChanged;
+            _settings.RegionFilter.SettingChanged -= OnRegionFilterChanged;
+            _settings.ShowMatureProfiles.SettingChanged -= OnSettingChanged;
         }
 
         private void OnSettingChanged(object sender, ValueChangedEventArgs<bool> e)
@@ -140,12 +191,41 @@ namespace rp.spark.UI.Views
             SetChecked(_showNearbyCheckbox, _settings.ShowNearbyPresence.Value);
             SetChecked(_autoHideCheckbox, _settings.AutoHideGameUi.Value);
             SetChecked(_cornerIconCheckbox, _settings.ShowCornerIcon.Value);
+
+            SyncRegionDropdownFromSettings();
+            SyncMatureButtonFromSettings();
         }
 
         private static void SetChecked(Checkbox checkbox, bool value)
         {
             if (checkbox != null && checkbox.Checked != value)
                 checkbox.Checked = value;
+        }
+
+        private void OnRegionFilterChanged(object sender, ValueChangedEventArgs<ProfileRegion> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    SyncRegionDropdownFromSettings();
+            });
+        }
+
+        private void SyncRegionDropdownFromSettings()
+        {
+            if (_regionDropdown == null)
+                return;
+
+            var label = _settings.RegionFilter.Value.ToString();
+
+            if (!string.Equals(_regionDropdown.SelectedItem?.ToString(), label, StringComparison.Ordinal))
+                _regionDropdown.SelectedItem = label;
+        }
+
+        private void SyncMatureButtonFromSettings()
+        {
+            if (_matureProfilesButton != null)
+                _matureProfilesButton.Text = _matureProfilesConfirm.ButtonText;
         }
 
         protected override void Unload()
@@ -158,6 +238,9 @@ namespace rp.spark.UI.Views
             _showNearbyCheckbox = null;
             _autoHideCheckbox = null;
             _cornerIconCheckbox = null;
+            _matureProfilesConfirm.Dispose();
+            _regionDropdown = null;
+            _matureProfilesButton = null;
         }
     }
 }
