@@ -14,6 +14,8 @@ namespace rp.spark.Models
 
         public bool IsMature { get; set; }
 
+        public ProfileExperience Experience { get; set; } = ProfileExperience.Hidden;
+
         public string AccountName { get; set; } = string.Empty;
 
         public string OfficialCharacterName { get; set; } = string.Empty;
@@ -42,6 +44,8 @@ namespace rp.spark.Models
         public string LocationName { get; set; } = string.Empty;
 
         public ProfileRegion Region { get; set; } = ProfileRegion.NA;
+
+        public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
 
         public DateTime LastSeen { get; set; }
 

@@ -83,6 +83,8 @@ namespace rp.spark.Models.Api
 
         public ProfileStyleFlags Styles { get; set; } = ProfileStyleFlags.None;
 
+        public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
+
         public string KnownFor { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
@@ -110,6 +112,7 @@ namespace rp.spark.Models.Api
                 Preferences = profile?.Preferences ?? ProfilePreferenceFlags.None,
                 Themes = profile?.Themes ?? ProfileThemeFlags.None,
                 Styles = profile?.Styles ?? ProfileStyleFlags.None,
+                DiscoveryTags = ProfileDiscoveryMapper.FromProfile(profile),
                 KnownFor = profile?.KnownFor?.Trim() ?? string.Empty,
                 Description = profile?.Description?.Trim() ?? string.Empty,
                 CreatedAt = profile?.CreatedAt ?? DateTime.UtcNow,
@@ -142,6 +145,7 @@ namespace rp.spark.Models.Api
                 Preferences = Preferences,
                 Themes = Themes,
                 Styles = Styles,
+                DiscoveryTags = ProfileDiscoveryMapper.Normalize(DiscoveryTags),
                 KnownFor = KnownFor,
                 Description = Description,
                 CreatedAt = CreatedAt,

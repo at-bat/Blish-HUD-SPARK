@@ -44,6 +44,7 @@ namespace rp.spark.UI.Views
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
         private Dropdown _sortDropdown;
+        private ProfileFilterMenu _discoveryFilters;
         private ProfileScrollList _profileList;
         private Label _status;
 
@@ -158,6 +159,10 @@ namespace rp.spark.UI.Views
             _searchBox = controls.SearchBox;
             _searchFieldDropdown = controls.SearchFieldDropdown;
             _sortDropdown = controls.SortDropdown;
+
+            _discoveryFilters = new ProfileFilterMenu(
+                parent,
+                () => RefreshVisibleRows(true));
         }
 
         private void HandleBookmarksChanged()
@@ -381,7 +386,10 @@ namespace rp.spark.UI.Views
                 .Where(row =>
                     row != null
                     && row.Status != RPStatus.Invisible)
-                .Where(MatchesSearch);
+                .Where(MatchesSearch)
+                .Where(row =>
+                    _discoveryFilters == null
+                    || _discoveryFilters.Matches(row.Experience, row.DiscoveryTags));
 
             var rows = SortRows(filteredRows).ToList();
 
@@ -535,6 +543,9 @@ namespace rp.spark.UI.Views
 
         private string GetEmptyMessage()
         {
+            if (_discoveryFilters?.ActiveCount > 0)
+                return "No online profiles match these filters.";
+
             return string.IsNullOrWhiteSpace(_searchBox?.Text)
                 ? "No visible profiles yet."
                 : "No online profiles match this search.";
@@ -570,6 +581,9 @@ namespace rp.spark.UI.Views
             _isUnloaded = true;
             _unwatchBookmarks?.Invoke(HandleBookmarksChanged);
             StopRefresh();
+
+            _discoveryFilters?.Dispose();
+            _discoveryFilters = null;
         }
 
         private void SetStatusText(string text)

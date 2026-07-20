@@ -38,6 +38,7 @@ namespace rp.spark.UI.Views
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
         private Dropdown _sortDropdown;
+        private ProfileFilterMenu _discoveryFilters;
         private ProfileScrollList _profileList;
         private Label _status;
         private string _statusOverride = string.Empty;
@@ -122,6 +123,10 @@ namespace rp.spark.UI.Views
             _searchBox = controls.SearchBox;
             _searchFieldDropdown = controls.SearchFieldDropdown;
             _sortDropdown = controls.SortDropdown;
+
+            _discoveryFilters = new ProfileFilterMenu(
+                parent,
+                () => RefreshRows(true));
         }
 
         private void BuildHeader(Container parent)
@@ -161,7 +166,10 @@ namespace rp.spark.UI.Views
             var filteredRows = (_loadSavedProfiles?.Invoke() ?? new List<SavedProfileSummary>())
                 .Where(savedProfile => savedProfile != null)
                 .Where(savedProfile => !IsHidden(savedProfile))
-                .Where(MatchesSearch);
+                .Where(MatchesSearch)
+                .Where(savedProfile =>
+                    _discoveryFilters == null
+                    || _discoveryFilters.Matches(savedProfile.Experience, savedProfile.DiscoveryTags));
 
             var rows = SortRows(filteredRows).ToList();
             var statusOverride = _statusOverride;
@@ -360,6 +368,9 @@ namespace rp.spark.UI.Views
 
         private string GetEmptyBookmarksMessage()
         {
+            if (_discoveryFilters?.ActiveCount > 0)
+                return "No bookmarks match these filters.";
+
             return string.IsNullOrWhiteSpace(_searchBox?.Text)
                 ? "No bookmarked profiles yet."
                 : "No bookmarks match this search.";
@@ -367,6 +378,9 @@ namespace rp.spark.UI.Views
 
         private string GetEmptyRecentMessage()
         {
+            if (_discoveryFilters?.ActiveCount > 0)
+                return "No recent profiles match these filters.";
+
             return string.IsNullOrWhiteSpace(_searchBox?.Text)
                 ? "No recently viewed profiles yet."
                 : "No recent profiles match this search.";
@@ -435,6 +449,9 @@ namespace rp.spark.UI.Views
         {
             _isUnloaded = true;
             _unwatchSavedProfiles?.Invoke(HandleSavedProfilesChanged);
+
+            _discoveryFilters?.Dispose();
+            _discoveryFilters = null;
         }
     }
 }

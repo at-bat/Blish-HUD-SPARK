@@ -450,6 +450,7 @@ namespace rp.spark.Services
                 return null;
 
             summary.CacheKey = NormalizeCacheKey(summary.CacheKey);
+            summary.DiscoveryTags = ProfileDiscoveryMapper.Normalize(summary.DiscoveryTags);
 
             if (summary.CachedAt == default)
                 summary.CachedAt = GetFallbackCachedAt(summary.BookmarkedAt, summary.LastSeen, path);
@@ -552,6 +553,7 @@ namespace rp.spark.Services
                 ProfileId = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileId, record.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(record.Profile?.ProfileName, record.Presence?.ActiveProfileName)),
                 IsMature = record.Profile?.IsMature == true || record.Presence?.IsMature == true,
+                Experience = record.Profile?.Experience ?? record.Presence?.Experience ?? ProfileExperience.Hidden,
                 AccountName = Clean(TextUtil.FirstNonEmpty(record.Presence?.AccountName, record.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.OfficialCharacterName, record.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(record.Presence?.DisplayCharacterName, record.Profile?.DisplayName)),
@@ -566,6 +568,7 @@ namespace rp.spark.Services
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(record.Presence?.OutOfCharacterInfo, record.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(record.Presence?.LocationName),
                 Region = record.Presence?.Region ?? record.Profile?.Region ?? ProfileRegion.NA,
+                DiscoveryTags = ProfileDiscoveryMapper.Merge(record.Presence?.DiscoveryTags, ProfileDiscoveryMapper.FromProfile(record.Profile)),
                 LastSeen = record.Presence?.LastSeen ?? default,
                 CachedAt = record.CachedAt,
                 IsBookmarked = record.IsBookmarked,
@@ -584,6 +587,7 @@ namespace rp.spark.Services
                 ProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileId, snapshot.Presence?.ActiveProfileId)),
                 ProfileName = Clean(TextUtil.FirstNonEmpty(snapshot.Profile?.ProfileName, snapshot.Presence?.ActiveProfileName)),
                 IsMature = snapshot.Profile?.IsMature == true || snapshot.Presence?.IsMature == true,
+                Experience = snapshot.Profile?.Experience ?? snapshot.Presence?.Experience ?? ProfileExperience.Hidden,
                 AccountName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.AccountName, snapshot.Profile?.AccountName)),
                 OfficialCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OfficialCharacterName, snapshot.Profile?.CharacterName)),
                 DisplayCharacterName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.DisplayCharacterName, snapshot.Profile?.DisplayName)),
@@ -598,11 +602,23 @@ namespace rp.spark.Services
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OutOfCharacterInfo, snapshot.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(snapshot.Presence?.LocationName),
                 Region = snapshot.Presence?.Region ?? snapshot.Profile?.Region ?? ProfileRegion.NA,
+                DiscoveryTags = GetDiscoveryTags(snapshot.Profile, snapshot.Presence),
                 LastSeen = snapshot.Presence?.LastSeen ?? default,
                 CachedAt = snapshot.CachedAt,
                 IsBookmarked = snapshot.IsBookmarked,
                 BookmarkedAt = snapshot.BookmarkedAt
             };
+        }
+
+        private static ProfileDiscoveryTags GetDiscoveryTags(ProfileIndexFields profile, PresenceIndexFields presence)
+        {
+            return ProfileDiscoveryMapper.Merge(
+                presence?.DiscoveryTags,
+                ProfileDiscoveryMapper.FromSelections(
+                    profile?.Preferences ?? ProfilePreferenceFlags.None,
+                    profile?.Themes ?? ProfileThemeFlags.None,
+                    profile?.Styles ?? ProfileStyleFlags.None,
+                    profile?.DiscoveryTags));
         }
 
         // Just in case so we don't accidentally mutate any data through the UI or something
@@ -617,6 +633,7 @@ namespace rp.spark.Services
                 ProfileId = summary.ProfileId,
                 ProfileName = summary.ProfileName,
                 IsMature = summary.IsMature,
+                Experience = summary.Experience,
                 AccountName = summary.AccountName,
                 OfficialCharacterName = summary.OfficialCharacterName,
                 DisplayCharacterName = summary.DisplayCharacterName,
@@ -631,6 +648,7 @@ namespace rp.spark.Services
                 OutOfCharacterInfo = summary.OutOfCharacterInfo,
                 LocationName = summary.LocationName,
                 Region = summary.Region,
+                DiscoveryTags = ProfileDiscoveryMapper.Normalize(summary.DiscoveryTags),
                 LastSeen = summary.LastSeen,
                 CachedAt = summary.CachedAt,
                 IsBookmarked = summary.IsBookmarked,
@@ -676,6 +694,7 @@ namespace rp.spark.Services
             public string ProfileId { get; set; } = string.Empty;
             public string ProfileName { get; set; } = string.Empty;
             public bool IsMature { get; set; }
+            public ProfileExperience Experience { get; set; } = ProfileExperience.Hidden;
             public string AccountName { get; set; } = string.Empty;
             public string CharacterName { get; set; } = string.Empty;
             public string DisplayName { get; set; } = string.Empty;
@@ -686,6 +705,10 @@ namespace rp.spark.Services
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
             public string Currently { get; set; } = string.Empty;
             public string OutOfCharacterInfo { get; set; } = string.Empty;
+            public ProfilePreferenceFlags Preferences { get; set; } = ProfilePreferenceFlags.None;
+            public ProfileThemeFlags Themes { get; set; } = ProfileThemeFlags.None;
+            public ProfileStyleFlags Styles { get; set; } = ProfileStyleFlags.None;
+            public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
         }
 
         // Needed for tooltips from the presence on rows, so we save these.
@@ -705,11 +728,13 @@ namespace rp.spark.Services
             public string ActiveProfileId { get; set; } = string.Empty;
             public string ActiveProfileName { get; set; } = string.Empty;
             public bool IsMature { get; set; }
+            public ProfileExperience Experience { get; set; } = ProfileExperience.Hidden;
             public RPStatus Status { get; set; } = RPStatus.Online;
             public string Currently { get; set; } = string.Empty;
             public string OutOfCharacterInfo { get; set; } = string.Empty;
             public string LocationName { get; set; } = string.Empty;
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
+            public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
             public DateTime LastSeen { get; set; }
         }
 

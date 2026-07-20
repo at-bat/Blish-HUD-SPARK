@@ -292,6 +292,8 @@ namespace rp.spark.Services
 
             profile.ProfileName = ProfileName(profile);
 
+            profile.DiscoveryTags = ProfileDiscoveryMapper.Normalize(profile.DiscoveryTags);
+
             if (profile.CreatedAt == default)
                 profile.CreatedAt = DateTime.UtcNow;
 
@@ -419,6 +421,8 @@ namespace rp.spark.Services
                 : profile.ProfileId.Trim();
 
             profile.ProfileName = ProfileName(profile);
+
+            profile.DiscoveryTags = ProfileDiscoveryMapper.Normalize(profile.DiscoveryTags);
 
             if (profile.CreatedAt == default)
             {
