@@ -72,6 +72,7 @@ namespace rp.spark.Services
                 ActiveProfileId = hasActiveProfile ? activeProfile.ProfileId : string.Empty,
                 ActiveProfileName = hasActiveProfile ? activeProfile.ProfileName?.Trim() ?? string.Empty : string.Empty,
                 IsMature = hasActiveProfile && activeProfile.IsMature,
+                Experience = hasActiveProfile ? activeProfile.Experience : ProfileExperience.Hidden,
                 ProfileUpdatedAtTime = hasActiveProfile ? activeProfile.UpdatedAt : default,
                 Status = status,
                 Currently = hasActiveProfile ? activeProfile.Currently?.Trim() ?? string.Empty : string.Empty,
@@ -83,7 +84,8 @@ namespace rp.spark.Services
                 IsInGame = isInGame,
                 HasActiveProfile = hasActiveProfile,
                 ShareEnabled = broadcastEnabled && isInGame,
-                LastSeen = DateTime.UtcNow
+                LastSeen = DateTime.UtcNow,
+                DiscoveryTags = hasActiveProfile ? ProfileDiscoveryMapper.FromProfile(activeProfile) : new ProfileDiscoveryTags()
             };
 
             snapshot.CanShare = CanShare(snapshot);

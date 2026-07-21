@@ -16,7 +16,6 @@ namespace rp.spark.Models
 
         public string CustomRace { get; set; } = string.Empty;
 
-
         public string Profession { get; set; } = string.Empty;
 
         public string CustomProfession { get; set; } = string.Empty;
@@ -26,6 +25,8 @@ namespace rp.spark.Models
         public string ActiveProfileName { get; set; } = string.Empty;
 
         public bool IsMature { get; set; }
+
+        public ProfileExperience Experience { get; set; } = ProfileExperience.Hidden;
 
         public DateTime ProfileUpdatedAtTime { get; set; }
 
@@ -54,6 +55,8 @@ namespace rp.spark.Models
         public string ShareBlockReason { get; set; } = string.Empty;
 
         public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+
+        public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
 
         public string VisibleName()
         {

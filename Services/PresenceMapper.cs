@@ -16,6 +16,7 @@ namespace rp.spark.Services
                     : presence.ActiveProfileName.Trim(),
                 ProfileId = presence.ActiveProfileId,
                 IsMature = presence.IsMature,
+                Experience = presence.Experience,
                 AccountName = Clean(presence.AccountName),
                 CharacterName = Clean(presence.OfficialCharacterName),
                 DisplayName = Clean(presence.DisplayCharacterName),
@@ -25,6 +26,7 @@ namespace rp.spark.Services
                 CustomProfession = Clean(presence.CustomProfession),
                 Currently = Clean(presence.Currently),
                 OutOfCharacterInfo = Clean(presence.OutOfCharacterInfo),
+                DiscoveryTags = ProfileDiscoveryMapper.Normalize(presence.DiscoveryTags),
                 KnownFor = "Not loading fully.",
                 Description = "If you see this, something didn't load right or the SPARK webserver is down possibly."
             };
@@ -51,6 +53,11 @@ namespace rp.spark.Services
                 target.ProfileUpdatedAtTime = source.ProfileUpdatedAtTime;
 
             target.IsMature = target.IsMature || source.IsMature;
+
+            if (target.Experience == ProfileExperience.Hidden)
+                target.Experience = source.Experience;
+
+            target.DiscoveryTags = ProfileDiscoveryMapper.Merge(target.DiscoveryTags, source.DiscoveryTags);
         }
 
         public static void FillMissingPresence(PlayerPresence presence, CharacterProfile profile)
@@ -65,6 +72,8 @@ namespace rp.spark.Services
                 presence.ActiveProfileName = Clean(profile.ProfileName);
 
             presence.IsMature = presence.IsMature || profile.IsMature;
+
+            presence.Experience = profile.Experience;
 
             if (string.IsNullOrWhiteSpace(presence.AccountName))
                 presence.AccountName = Clean(profile.AccountName);
@@ -92,6 +101,8 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(presence.OutOfCharacterInfo))
                 presence.OutOfCharacterInfo = Clean(profile.OutOfCharacterInfo);
+
+            presence.DiscoveryTags = ProfileDiscoveryMapper.Merge(presence.DiscoveryTags, ProfileDiscoveryMapper.FromProfile(profile));
         }
 
         public static void FillProfileFromPresence(CharacterProfile profile, PlayerPresence presence)
@@ -124,6 +135,8 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(profile.CustomProfession))
                 profile.CustomProfession = Clean(presence.CustomProfession);
+
+            profile.DiscoveryTags = ProfileDiscoveryMapper.Merge(profile.DiscoveryTags, presence.DiscoveryTags);
         }
 
         public static PlayerPresence CreateOfflinePresence(PlayerPresence presence)
@@ -178,11 +191,13 @@ namespace rp.spark.Services
                 ActiveProfileId = Clean(presence.ActiveProfileId),
                 ActiveProfileName = Clean(presence.ActiveProfileName),
                 IsMature = presence.IsMature,
+                Experience = presence.Experience,
                 ProfileUpdatedAtTime = presence.ProfileUpdatedAtTime,
                 Region = presence.Region,
                 IsVerified = presence.IsVerified,
                 HasActiveProfile = presence.HasActiveProfile,
-                ShareBlockReason = Clean(presence.ShareBlockReason)
+                ShareBlockReason = Clean(presence.ShareBlockReason),
+                DiscoveryTags = ProfileDiscoveryMapper.Normalize(presence.DiscoveryTags)
             };
         }
 

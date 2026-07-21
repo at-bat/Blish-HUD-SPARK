@@ -214,6 +214,8 @@ namespace rp.spark.Models
 
         public ProfileStyleFlags Styles { get; set; } = ProfileStyleFlags.None;
 
+        public ProfileDiscoveryTags DiscoveryTags { get; set; } = new ProfileDiscoveryTags();
+
         public string KnownFor { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;

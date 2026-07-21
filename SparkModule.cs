@@ -137,16 +137,22 @@ namespace rp.spark
                 _sparkSettings,
                 _profileLoader,
                 _profileActions,
-                _nearbyPresenceService);
+                _nearbyPresenceService,
+                RefreshPresenceSoon,
+                SetNearbySharing);
 
             _cornerIcon = new SparkCornerIcon(
                 _sparkSettings,
                 this.ContentsManager,
+                _windows.OpenMyProfile,
                 _windows.OpenProfileManager,
                 _windows.OpenOnlineList,
                 _windows.OpenNearby,
                 _windows.OpenSavedProfiles,
-                _windows.OpenBlocklist);
+                _windows.OpenBlocklist,
+                _windows.OpenSettings,
+                RefreshPresenceSoon,
+                SetNearbySharing);
         }
 
         protected override Task LoadAsync()
@@ -214,6 +220,7 @@ namespace rp.spark
                 _windows.OpenNearby,
                 _windows.OpenSavedProfiles,
                 _windows.OpenAbout,
+                _windows.OpenSettings,
                 _windows.OpenBlocklist,
                 WaitForPlayerStateAsync,
                 GetPlayerStateMessage,
@@ -225,7 +232,6 @@ namespace rp.spark
                 RefreshPresenceSoon,
                 GetImportantSettingsNotice,
                 _windows.ShouldHideGameplayWindows,
-                CloseGameplayWindowsIfUnavailableSoon,
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts,
                 _windows.HandleMaturePreferenceChanged);
@@ -296,6 +302,29 @@ namespace rp.spark
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Failed to refresh SPARK data after a profile change.");
+            }
+        }
+
+        private async void SetNearbySharing(bool enabled)
+        {
+            _sparkSettings.ShowNearbyPresence.Value = enabled;
+
+            try
+            {
+                if (_nearbyPresenceService == null)
+                    return;
+
+                if (enabled)
+                    await _nearbyPresenceService.PublishNowAsync();
+                else
+                    await _nearbyPresenceService.RemoveAsync();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to update nearby sharing from the SPARK menu.");
             }
         }
 

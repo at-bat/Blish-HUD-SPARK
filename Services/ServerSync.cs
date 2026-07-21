@@ -479,6 +479,7 @@ namespace rp.spark.Services
                 || !SameTrimmed(previous.CustomProfession, current.CustomProfession)
                 || !SameTrimmed(previous.ActiveProfileId, current.ActiveProfileId)
                 || previous.IsMature != current.IsMature
+                || previous.Experience != current.Experience
                 || !SameTrimmed(previous.ActiveProfileName, current.ActiveProfileName)
                 || previous.ProfileUpdatedAtTime != current.ProfileUpdatedAtTime
                 || previous.Status != current.Status
@@ -492,7 +493,8 @@ namespace rp.spark.Services
                 || previous.HasActiveProfile != current.HasActiveProfile
                 || previous.ShareEnabled != current.ShareEnabled
                 || previous.CanShare != current.CanShare
-                || !SameTrimmed(previous.ShareBlockReason, current.ShareBlockReason);
+                || !SameTrimmed(previous.ShareBlockReason, current.ShareBlockReason)
+                || !ProfileDiscoveryMapper.AreEqual(previous.DiscoveryTags, current.DiscoveryTags);
         }
 
         private static bool SameTrimmed(string left, string right)

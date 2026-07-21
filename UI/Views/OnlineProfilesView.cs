@@ -25,6 +25,7 @@ namespace rp.spark.UI.Views
         private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(15);
         private readonly Func<bool> _isAutoRefreshEnabled;
+        private readonly Action<bool> _setAutoRefreshEnabled;
 
         private readonly PageList _page = new PageList();
         private PageListControls _pageControls;
@@ -43,6 +44,7 @@ namespace rp.spark.UI.Views
         private TextBox _searchBox;
         private Dropdown _searchFieldDropdown;
         private Dropdown _sortDropdown;
+        private ProfileFilterMenu _discoveryFilters;
         private ProfileScrollList _profileList;
         private Label _status;
 
@@ -53,7 +55,8 @@ namespace rp.spark.UI.Views
             Func<PlayerPresence, bool> isBookmarked = null,
             Action<Action> watchBookmarksChanged = null,
             Action<Action> unwatchBookmarksChanged = null,
-            Func<bool> isAutoRefreshEnabled = null)
+            Func<bool> isAutoRefreshEnabled = null,
+            Action<bool> setAutoRefreshEnabled = null)
         {
             _loadRows = getPresenceRows;
             _loadCachedRows = getCachedPresenceRows;
@@ -62,6 +65,7 @@ namespace rp.spark.UI.Views
             _watchBookmarks = watchBookmarksChanged;
             _unwatchBookmarks = unwatchBookmarksChanged;
             _isAutoRefreshEnabled = isAutoRefreshEnabled;
+            _setAutoRefreshEnabled = setAutoRefreshEnabled;
         }
 
         protected override void Build(Container buildPanel)
@@ -83,6 +87,21 @@ namespace rp.spark.UI.Views
             {
                 Location = new Point(0, ProfileListViewUI.ListY),
                 Parent = buildPanel
+            };
+
+            var autoRefreshCheckbox = new Checkbox
+            {
+                Text = "Auto-refresh",
+                Checked = IsAutoRefreshEnabled(),
+                Location = new Point(510, 1),
+                Size = new Point(130, 28),
+                Parent = buildPanel
+            };
+
+            autoRefreshCheckbox.CheckedChanged += (s, e) =>
+            {
+                _setAutoRefreshEnabled?.Invoke(autoRefreshCheckbox.Checked);
+                RefreshVisibleRows(false);
             };
 
             _pageControls = new PageListControls(
@@ -140,6 +159,10 @@ namespace rp.spark.UI.Views
             _searchBox = controls.SearchBox;
             _searchFieldDropdown = controls.SearchFieldDropdown;
             _sortDropdown = controls.SortDropdown;
+
+            _discoveryFilters = new ProfileFilterMenu(
+                parent,
+                () => RefreshVisibleRows(true));
         }
 
         private void HandleBookmarksChanged()
@@ -363,7 +386,10 @@ namespace rp.spark.UI.Views
                 .Where(row =>
                     row != null
                     && row.Status != RPStatus.Invisible)
-                .Where(MatchesSearch);
+                .Where(MatchesSearch)
+                .Where(row =>
+                    _discoveryFilters == null
+                    || _discoveryFilters.Matches(row.Experience, row.DiscoveryTags));
 
             var rows = SortRows(filteredRows).ToList();
 
@@ -517,6 +543,9 @@ namespace rp.spark.UI.Views
 
         private string GetEmptyMessage()
         {
+            if (_discoveryFilters?.ActiveCount > 0)
+                return "No online profiles match these filters.";
+
             return string.IsNullOrWhiteSpace(_searchBox?.Text)
                 ? "No visible profiles yet."
                 : "No online profiles match this search.";
@@ -552,6 +581,9 @@ namespace rp.spark.UI.Views
             _isUnloaded = true;
             _unwatchBookmarks?.Invoke(HandleBookmarksChanged);
             StopRefresh();
+
+            _discoveryFilters?.Dispose();
+            _discoveryFilters = null;
         }
 
         private void SetStatusText(string text)

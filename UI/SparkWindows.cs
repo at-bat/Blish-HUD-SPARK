@@ -30,6 +30,9 @@ namespace rp.spark.UI
         private readonly ProfileLoader _profileLoader;
         private readonly ProfileActions _profileActions;
         private readonly NearbyPresenceService _nearbyPresenceService;
+        private readonly Action _requestServerSync;
+        private readonly Action<bool> _setNearbySharing;
+        private TabbedWindow2 _settingsWindow;
 
         private ProfileEditorSession _profileEditorSession;
         private TabbedWindow2 _profileWindow;
@@ -54,7 +57,9 @@ namespace rp.spark.UI
             SparkSettings settings,
             ProfileLoader profileLoader,
             ProfileActions profileActions,
-            NearbyPresenceService nearbyPresenceService)
+            NearbyPresenceService nearbyPresenceService,
+            Action requestServerSync,
+            Action<bool> setNearbySharing)
         {
             _windowBuilder = windowBuilder;
             _profileRepository = profileRepository;
@@ -66,6 +71,8 @@ namespace rp.spark.UI
             _profileLoader = profileLoader;
             _profileActions = profileActions;
             _nearbyPresenceService = nearbyPresenceService;
+            _requestServerSync = requestServerSync;
+            _setNearbySharing = setNearbySharing;
         }
 
         public string ViewedProfileId { get; private set; }
@@ -143,7 +150,8 @@ namespace rp.spark.UI
                 _profileActions.IsPresenceBookmarked,
                 _profileActions.WatchSavedProfiles,
                 _profileActions.UnwatchSavedProfiles,
-                () => _settings.AutoRefreshOnlineProfiles.Value));
+                () => _settings.AutoRefreshOnlineProfiles.Value,
+                value => _settings.AutoRefreshOnlineProfiles.Value = value));
         }
 
         public void OpenNearby()
@@ -209,6 +217,20 @@ namespace rp.spark.UI
                 _profileActions.UnblockAccount,
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts));
+        }
+
+        public void OpenSettings()
+        {
+            if (_settingsWindow != null && _settingsWindow.Visible)
+            {
+                _settingsWindow.BringWindowToFront();
+                return;
+            }
+
+            if (_settingsWindow == null)
+                CreateSettingsWindow();
+
+            _settingsWindow.Show();
         }
 
         public void ShowProfileViewer(ProfileViewData viewData)
@@ -495,6 +517,21 @@ namespace rp.spark.UI
                 new Rectangle(70, 60, 760, 610));
         }
 
+        private void CreateSettingsWindow()
+        {
+            _settingsWindow = _windowBuilder.MakeTabbedWindow("Settings", "rp.spark.settings-window");
+
+            _settingsWindow.Tabs.Add(new Tab(
+                _windowBuilder.IconFromAsset(ProfilePrefsIcon),
+                () => new SparkOptionsView(
+                    _settings,
+                    _requestServerSync,
+                    _setNearbySharing,
+                    HandleMaturePreferenceChanged),
+                "General",
+                100));
+        }
+
         public void HandleMaturePreferenceChanged(bool enabled)
         {
             if (enabled)
@@ -578,6 +615,9 @@ namespace rp.spark.UI
             // Keeping this out of the gameplay windows (for auto hide) as it's more of a setting view and more important
             _windowBuilder.DisposeWindow(_blocklistWindow);
             _blocklistWindow = null;
+
+            _windowBuilder.DisposeWindow(_settingsWindow);
+            _settingsWindow = null;
 
             _windowBuilder.Clear();
         }
