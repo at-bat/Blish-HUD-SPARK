@@ -62,6 +62,12 @@ namespace rp.spark.UI.Controls
             TextChanged += (s, e) => RecalculateLayout();
         }
 
+        protected override void DisposeControl()
+        {
+            AttachWheelSource(null);
+            base.DisposeControl();
+        }
+
         protected override CaptureType CapturesInput()
         {
             return CaptureType.Mouse | CaptureType.MouseWheel;
@@ -111,14 +117,10 @@ namespace rp.spark.UI.Controls
 
         public override void RecalculateLayout()
         {
-            _textRegion = CalculateTextRegion(false);
+            // Making it always consider the scrollbar so the text doesn't rewrap between two different widths while Blish is drawing
+            // PaintDisplayText still keeps its own line array in case recalculation happens while Blish is drawing.
+            _textRegion = CalculateTextRegion(true);
             RebuildDisplayLayout();
-
-            if (_maxVerticalScrollOffset > 0)
-            {
-                _textRegion = CalculateTextRegion(true);
-                RebuildDisplayLayout();
-            }
 
             SetVerticalScrollOffset(_verticalScrollOffset, false);
             UpdateScrolling();
@@ -447,32 +449,49 @@ namespace rp.spark.UI.Controls
 
         private void PaintDisplayText(SpriteBatch spriteBatch)
         {
-            if (!_focused && _text.Length == 0)
+            if (!_focused && string.IsNullOrEmpty(_text))
             {
                 spriteBatch.DrawStringOnCtrl(this, _placeholderText, _font, _textRegion, Color.LightGray, false, false, 0, HorizontalAlignment.Left, VerticalAlignment.Top);
                 return;
             }
 
-            if (string.IsNullOrEmpty(_displayText))
+            // RecalculateLayout can replace _displayLines while Blish is still drawing
+            // which caused the old line count to be used on a newer/shorter array and crash.
+            // We're gonna just keep the same line array for this whole paint.
+            var displayLines = _displayLines ?? Array.Empty<string>();
+
+            if (displayLines.Length == 0)
                 return;
 
-            var firstVisibleLine = Math.Max(0, _verticalScrollOffset / Math.Max(1, _font.LineHeight));
+            var lineHeight = Math.Max(1, _font.LineHeight);
+            var firstVisibleLine = Math.Max(
+                0,
+                _verticalScrollOffset / lineHeight);
+
             var lastVisibleLine = Math.Min(
-                _displayLines.Length - 1,
-                (_verticalScrollOffset + _textRegion.Height) / Math.Max(1, _font.LineHeight) + 1);
+                displayLines.Length - 1,
+                (_verticalScrollOffset + _textRegion.Height) / lineHeight + 1);
+
+            if (firstVisibleLine > lastVisibleLine)
+                return;
 
             for (var i = firstVisibleLine; i <= lastVisibleLine; i++)
             {
                 var lineTop = GetLineTop(i);
 
-                if (lineTop + _font.LineHeight < _textRegion.Top || lineTop > _textRegion.Bottom)
+                if (lineTop + lineHeight < _textRegion.Top || lineTop > _textRegion.Bottom)
+                {
                     continue;
+                }
+
+                // Use the saved line array instead of reading _displayLines again in case it changed while drawing.
+                var lineText = displayLines[i] ?? string.Empty;
 
                 spriteBatch.DrawStringOnCtrl(
                     this,
-                    _displayLines[i],
+                    lineText,
                     _font,
-                    new Rectangle(_textRegion.X, lineTop, _textRegion.Width, _font.LineHeight),
+                    new Rectangle(_textRegion.X, lineTop, _textRegion.Width, lineHeight),
                     _foreColor,
                     false,
                     false,
