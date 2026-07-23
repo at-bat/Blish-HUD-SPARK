@@ -25,6 +25,7 @@ namespace rp.spark.UI
         private readonly ProfileCache _profileCache;
         private readonly ProfileNotes _notes;
         private readonly PlayerStateService _playerState;
+        private readonly GlobalOocInfoStore _globalOocInfo;
         private readonly IconIndexService _iconIndexService;
         private readonly SparkSettings _settings;
         private readonly ProfileLoader _profileLoader;
@@ -53,6 +54,7 @@ namespace rp.spark.UI
             ProfileCache profileCache,
             ProfileNotes notes,
             PlayerStateService playerState,
+            GlobalOocInfoStore globalOocInfo,
             IconIndexService iconIndexService,
             SparkSettings settings,
             ProfileLoader profileLoader,
@@ -66,6 +68,7 @@ namespace rp.spark.UI
             _profileCache = profileCache;
             _notes = notes;
             _playerState = playerState;
+            _globalOocInfo = globalOocInfo;
             _iconIndexService = iconIndexService;
             _settings = settings;
             _profileLoader = profileLoader;
@@ -122,7 +125,7 @@ namespace rp.spark.UI
                 return;
             }
 
-            _profileEditorSession = new ProfileEditorSession(_profileRepository, _playerState, state);
+            _profileEditorSession = new ProfileEditorSession(_profileRepository, _playerState, _globalOocInfo, state);
             CreateProfileWindow();
             _profileWindow.Show();
         }

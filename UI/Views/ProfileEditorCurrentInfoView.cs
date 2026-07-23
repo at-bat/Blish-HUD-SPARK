@@ -21,6 +21,7 @@ namespace rp.spark.UI.Views
         private Label _outOfCharacterInfoCounter;
         private MultilineTextBox _currently;
         private MultilineTextBox _outOfCharacterInfo;
+        private Checkbox _useGlobalOutOfCharacterInfo;
         private bool _isRefreshing;
 
         public ProfileEditorCurrentInfoView(ProfileEditorSession session)
@@ -39,11 +40,11 @@ namespace rp.spark.UI.Views
             var form = SparkFormLayout.AddVerticalStack(buildPanel, 0, 0, TextBoxWidth, FormHeight, 8);
 
             var currentlyGroup = SparkFormLayout.AddAutoStack(form, TextBoxWidth, 0);
-            SparkFormLayout.AddLabel(currentlyGroup, "Currently", TextBoxWidth);
+            SparkFormLayout.AddLabel(currentlyGroup, "Currently (in character)", TextBoxWidth);
             _currently = SparkFormLayout.AddMultilineTextBox(
                 currentlyGroup,
                 string.Empty,
-                "What is your character doing right now?",
+                "What is your character doing right now? Add your activity, mood, or an RP hook others can approach them about.",
                 TextBoxWidth,
                 180,
                 ProfileLimits.MaxCurrentlyLength);
@@ -62,14 +63,49 @@ namespace rp.spark.UI.Views
             };
 
             var outOfCharacterGroup = SparkFormLayout.AddAutoStack(form, TextBoxWidth, 0);
-            SparkFormLayout.AddLabel(outOfCharacterGroup, "Other information (out of character)", TextBoxWidth);
+            var outOfCharacterHeader = SparkFormLayout.AddRow(
+                outOfCharacterGroup,
+                TextBoxWidth,
+                25,
+                10);
+
+            SparkFormLayout.AddLabel(
+                outOfCharacterHeader,
+                "Player Information (out of character)",
+                400,
+                25);
+
+            SparkFormLayout.AddSpacer(
+                outOfCharacterHeader,
+                195,
+                25);
+
+            _useGlobalOutOfCharacterInfo = SparkFormLayout.AddCheckbox(
+                outOfCharacterHeader,
+                "Use Global OOC Info",
+                _session.Profile.UseGlobalOutOfCharacterInfo,
+                145,
+                25);
+
+            _useGlobalOutOfCharacterInfo.BasicTooltipText =
+                "Global and profile OOC info are saved separately, no info is lost by checking or unchecking this box.";
+
             _outOfCharacterInfo = SparkFormLayout.AddMultilineTextBox(
                 outOfCharacterGroup,
                 string.Empty,
-                "OOC notes, contact preferences, boundaries, or scheduling info.",
+                "OOC notes and info.",
                 TextBoxWidth,
                 225,
                 ProfileLimits.MaxOutOfCharacterInfoLength);
+
+            _useGlobalOutOfCharacterInfo.CheckedChanged += (s, e) =>
+            {
+                if (_isRefreshing)
+                    return;
+
+                _session.SetUseGlobalOutOfCharacterInfo(e.Checked);
+            };
+
             _outOfCharacterInfoCounter = ProfileEditorUI.AddCharacterCounter(
                 outOfCharacterGroup,
                 _outOfCharacterInfo.Text,
@@ -81,7 +117,7 @@ namespace rp.spark.UI.Views
                 ProfileEditorUI.UpdateCharacterCounter(_outOfCharacterInfoCounter, _outOfCharacterInfo.Text, ProfileLimits.MaxOutOfCharacterInfoLength);
 
                 if (!_isRefreshing)
-                    _session.Profile.OutOfCharacterInfo = _outOfCharacterInfo.Text?.Trim() ?? string.Empty;
+                    _session.SetOutOfCharacterInfo(_outOfCharacterInfo.Text);
             };
 
             BuildFooter(buildPanel);
@@ -120,9 +156,21 @@ namespace rp.spark.UI.Views
             try
             {
                 _currently.Text = _session.Profile.Currently ?? string.Empty;
-                _outOfCharacterInfo.Text = _session.Profile.OutOfCharacterInfo ?? string.Empty;
-                ProfileEditorUI.UpdateCharacterCounter(_currentlyCounter, _currently.Text, ProfileLimits.MaxCurrentlyLength);
-                ProfileEditorUI.UpdateCharacterCounter(_outOfCharacterInfoCounter, _outOfCharacterInfo.Text, ProfileLimits.MaxOutOfCharacterInfoLength);
+                _useGlobalOutOfCharacterInfo.Checked = _session.Profile.UseGlobalOutOfCharacterInfo;
+                _outOfCharacterInfo.Text = _session.OutOfCharacterInfo;
+                _outOfCharacterInfo.PlaceholderText = _session.Profile.UseGlobalOutOfCharacterInfo
+                    ? "Account-wide OOC notes and info. \n\nShare your availability, preferences, boundaries, or anything partners should know."
+                    : "Character-specific OOC notes and info. \n\nShare your availability, preferences, boundaries, or anything partners should know.";
+
+                ProfileEditorUI.UpdateCharacterCounter(
+                    _currentlyCounter,
+                    _currently.Text,
+                    ProfileLimits.MaxCurrentlyLength);
+
+                ProfileEditorUI.UpdateCharacterCounter(
+                    _outOfCharacterInfoCounter,
+                    _outOfCharacterInfo.Text,
+                    ProfileLimits.MaxOutOfCharacterInfoLength);
             }
             finally
             {

@@ -46,6 +46,7 @@ namespace rp.spark
 
         private ProfileValidator _profileValidator;
         private ProfileRepository _profileRepository;
+        private GlobalOocInfoStore _globalOocInfo;
         private ProfileCache _profileCache;
         private ProfileNotes _notes;
         private PlayerStateService _playerState;
@@ -82,10 +83,17 @@ namespace rp.spark
             _profileRepository.ProfileSaved += ProfileSaved;
             _profileRepository.ActiveProfileChanged += ActiveProfileChanged;
 
+            _globalOocInfo = new GlobalOocInfoStore(this.DirectoriesManager);
+            _globalOocInfo.GlobalOocInfoChanged += GlobalOocInfoChanged;
+
             _profileCache = new ProfileCache(this.DirectoriesManager, _profileValidator);
             _notes = new ProfileNotes(this.DirectoriesManager);
             _playerState = new PlayerStateService(this.Gw2ApiManager, _sparkSettings);
-            _presenceService = new PresenceService(_profileRepository, _playerState, _sparkSettings);
+            _presenceService = new PresenceService(
+                _profileRepository,
+                _playerState,
+                _sparkSettings,
+                _globalOocInfo);
             _sparkClient = new SparkClient(_sparkSettings.GetServerBaseUrl());
             _iconIndex = new IconIndexService(this.ContentsManager);
             _presenceLoop = new PresenceLoop(_presenceService);
@@ -133,6 +141,7 @@ namespace rp.spark
                 _profileCache,
                 _notes,
                 _playerState,
+                _globalOocInfo,
                 _iconIndex,
                 _sparkSettings,
                 _profileLoader,
@@ -235,6 +244,40 @@ namespace rp.spark
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts,
                 _windows.HandleMaturePreferenceChanged);
+        }
+
+        private void GlobalOocInfoChanged(string accountName)
+        {
+            _sync?.InvalidateProfileUpload();
+
+            try
+            {
+                var state = _playerState?.GetCached();
+
+                if (state != null
+                    && !string.IsNullOrWhiteSpace(state.AccountName)
+                    && string.Equals(
+                        state.AccountName.Trim(),
+                        accountName?.Trim(),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    var activeProfile = _profileRepository?.LoadActiveForCharacter(
+                        state.AccountName,
+                        state.OfficialCharacterName);
+
+                    if (activeProfile?.UseGlobalOutOfCharacterInfo == true)
+                    {
+                        _profileRepository.Save(activeProfile);
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Failed to update the active profile after global OOC info changed.");
+            }
+
+            RefreshPresenceSoon();
         }
 
         private void ProfileSaved(CharacterProfile savedProfile)
@@ -682,6 +725,9 @@ namespace rp.spark
                 _profileRepository.ActiveProfileChanged -= ActiveProfileChanged;
             }
 
+            if (_globalOocInfo != null)
+                _globalOocInfo.GlobalOocInfoChanged -= GlobalOocInfoChanged;
+
             _profileLoader = null;
             _profileActions = null;
             _sync = null;
@@ -695,6 +741,7 @@ namespace rp.spark
             _notes = null;
             _profileCache = null;
             _profileRepository = null;
+            _globalOocInfo = null;
             _profileValidator = null;
         }
     }

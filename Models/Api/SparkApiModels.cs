@@ -218,12 +218,17 @@ namespace rp.spark.Models.Api
 
         public static ProfileUploadRequest FromProfile(CharacterProfile profile, PlayerPresence presence)
         {
+            var profileData = ProfileData.FromProfile(profile);
+
+            if (presence != null)
+                profileData.OutOfCharacterInfo = presence.OutOfCharacterInfo?.Trim() ?? string.Empty;
+
             return new ProfileUploadRequest
             {
                 Identity = presence != null
                     ? ProfileOwner.FromPresence(presence)
                     : ProfileOwner.FromProfile(profile),
-                Profile = ProfileData.FromProfile(profile),
+                Profile = profileData,
                 Presence = presence ?? new PlayerPresence()
             };
         }

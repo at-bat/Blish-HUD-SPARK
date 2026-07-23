@@ -926,9 +926,13 @@ namespace rp.spark.UI.Views
 
         private string GetOtherInfoText()
         {
-            return string.IsNullOrWhiteSpace(_profile.OutOfCharacterInfo)
+            var outOfCharacterInfo = _profile.UseGlobalOutOfCharacterInfo
+                ? _presence?.OutOfCharacterInfo
+                : _profile.OutOfCharacterInfo;
+
+            return string.IsNullOrWhiteSpace(outOfCharacterInfo)
                 ? string.Empty
-                : _profile.OutOfCharacterInfo.Trim();
+                : outOfCharacterInfo.Trim();
         }
 
         private static IEnumerable<string> WrapTextLines(

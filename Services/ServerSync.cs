@@ -126,6 +126,12 @@ namespace rp.spark.Services
             QueueSync();
         }
 
+        public void InvalidateProfileUpload()
+        {
+            _lastUploadedProfileId = string.Empty;
+            _lastProfileUpdatedAt = DateTime.MinValue;
+        }
+
         public void SyncSoon()
         {
             _nextSyncAttempt = DateTime.MinValue;
