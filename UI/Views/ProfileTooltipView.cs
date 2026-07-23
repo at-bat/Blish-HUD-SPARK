@@ -3,7 +3,6 @@ using Blish_HUD.Common.UI.Views;
 using Blish_HUD.Controls;
 using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
-using MonoGame.Extended.BitmapFonts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,7 +43,7 @@ namespace rp.spark.UI.Views
             var tooltipWidth = GetTooltipWidth(_title);
             var contentWidth = tooltipWidth - (Padding * 2);
             var descriptionLines = hasDescription
-                ? WrapTextLines(
+                ? TooltipTextLayout.WrapLines(
                     _description,
                     contentWidth - WrapMeasurePadding,
                     GameService.Content.DefaultFont16)
@@ -129,41 +128,6 @@ namespace rp.spark.UI.Views
                            + (Padding * 2);
 
             return Math.Max(MinWidth, Math.Min(maxWidth, titleWidth));
-        }
-
-        private static IEnumerable<string> WrapTextLines(string text, float maxWidth, BitmapFont font)
-        {
-            var normalized = (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
-
-            foreach (var paragraph in normalized.Split('\n'))
-            {
-                if (string.IsNullOrWhiteSpace(paragraph))
-                {
-                    yield return string.Empty;
-                    continue;
-                }
-
-                var currentLine = string.Empty;
-
-                foreach (var word in paragraph.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var candidate = string.IsNullOrEmpty(currentLine) ? word : $"{currentLine} {word}";
-
-                    if (font.MeasureString(candidate).Width <= maxWidth)
-                    {
-                        currentLine = candidate;
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(currentLine))
-                        yield return currentLine;
-
-                    currentLine = word;
-                }
-
-                if (!string.IsNullOrEmpty(currentLine))
-                    yield return currentLine;
-            }
         }
     }
 }

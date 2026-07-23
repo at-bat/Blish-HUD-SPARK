@@ -154,7 +154,8 @@ namespace rp.spark.UI
                 _profileActions.WatchSavedProfiles,
                 _profileActions.UnwatchSavedProfiles,
                 () => _settings.AutoRefreshOnlineProfiles.Value,
-                value => _settings.AutoRefreshOnlineProfiles.Value = value));
+                value => _settings.AutoRefreshOnlineProfiles.Value = value,
+                _settings));
         }
 
         public void OpenNearby()

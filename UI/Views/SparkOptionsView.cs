@@ -13,6 +13,15 @@ namespace rp.spark.UI.Views
         private const int ContentWidth = 660;
         private const int ControlHeight = 30;
 
+        private static readonly string[] ProfileTooltipLineOptions =
+        {
+            "8",
+            "12",
+            "16",
+            "20",
+            "24"
+        };
+
         private readonly SparkSettings _settings;
         private readonly Action _requestServerSync;
         private readonly Action<bool> _setNearbySharing;
@@ -25,6 +34,8 @@ namespace rp.spark.UI.Views
         private Checkbox _showNearbyCheckbox;
         private Checkbox _autoHideCheckbox;
         private Checkbox _cornerIconCheckbox;
+        private Checkbox _trimLongTooltipsCheckbox;
+        private Dropdown _profileTooltipLinesDropdown;
         private bool _isUnloaded;
 
         public SparkOptionsView(
@@ -139,13 +150,77 @@ namespace rp.spark.UI.Views
                 _settings.AutoHideGameUi.Value = _autoHideCheckbox.Checked;
             }; ;
 
-            _cornerIconCheckbox = SparkFormLayout.AddCheckbox(stack, "Show SPARK icon", _settings.ShowCornerIcon.Value, 220, ControlHeight);
+            _cornerIconCheckbox = SparkFormLayout.AddCheckbox(
+                stack,
+                "Show SPARK icon",
+                _settings.ShowCornerIcon.Value,
+                220,
+                ControlHeight);
+
             _cornerIconCheckbox.CheckedChanged += (s, e) =>
             {
                 if (_settings.ShowCornerIcon.Value == _cornerIconCheckbox.Checked)
                     return;
 
                 _settings.ShowCornerIcon.Value = _cornerIconCheckbox.Checked;
+            };
+
+            _trimLongTooltipsCheckbox = SparkFormLayout.AddCheckbox(
+                stack,
+                "Trim long profile tooltips",
+                _settings.TrimLongProfileTooltips.Value,
+                260,
+                ControlHeight);
+
+            _trimLongTooltipsCheckbox.BasicTooltipText =
+                "Limits the Currently and Out of Character sections in online-profile tooltips.";
+
+            _trimLongTooltipsCheckbox.CheckedChanged += (s, e) =>
+            {
+                if (_settings.TrimLongProfileTooltips.Value != _trimLongTooltipsCheckbox.Checked)
+                {
+                    _settings.TrimLongProfileTooltips.Value = _trimLongTooltipsCheckbox.Checked;
+                }
+
+                SyncTooltipSettings();
+            };
+
+            var tooltipLinesRow = SparkFormLayout.AddRow(
+                stack,
+                ContentWidth,
+                ControlHeight,
+                8);
+
+            SparkFormLayout.AddLabel(
+                tooltipLinesRow,
+                "Max tooltip lines per section:",
+                185,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
+
+            _profileTooltipLinesDropdown = SparkFormLayout.AddDropdown(
+                tooltipLinesRow,
+                ProfileTooltipLineOptions,
+                SparkSettings.ProfileTooltipLimit(_settings.ProfileTooltipLinesPerSection.Value).ToString(),
+                80,
+                ControlHeight);
+
+            _profileTooltipLinesDropdown.BasicTooltipText =
+                "Applied separately to the Currently and Out of Character sections.";
+
+            _profileTooltipLinesDropdown.ValueChanged += (s, e) =>
+            {
+                if (!int.TryParse(
+                    _profileTooltipLinesDropdown.SelectedItem?.ToString(),
+                    out var selectedLimit))
+                {
+                    return;
+                }
+
+                selectedLimit = SparkSettings.ProfileTooltipLimit(selectedLimit);
+
+                if (_settings.ProfileTooltipLinesPerSection.Value != selectedLimit)
+                    _settings.ProfileTooltipLinesPerSection.Value = selectedLimit;
             };
 
             WatchSettings();
@@ -160,6 +235,8 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged += OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged += OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged += OnSettingChanged;
+            _settings.TrimLongProfileTooltips.SettingChanged += OnSettingChanged;
+            _settings.ProfileTooltipLinesPerSection.SettingChanged += OnTooltipLineLimitChanged;
             _settings.RegionFilter.SettingChanged += OnRegionFilterChanged;
             _settings.ShowMatureProfiles.SettingChanged += OnSettingChanged;
         }
@@ -171,6 +248,8 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged -= OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged -= OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged -= OnSettingChanged;
+            _settings.TrimLongProfileTooltips.SettingChanged -= OnSettingChanged;
+            _settings.ProfileTooltipLinesPerSection.SettingChanged -= OnTooltipLineLimitChanged;
             _settings.RegionFilter.SettingChanged -= OnRegionFilterChanged;
             _settings.ShowMatureProfiles.SettingChanged -= OnSettingChanged;
         }
@@ -191,7 +270,9 @@ namespace rp.spark.UI.Views
             SetChecked(_showNearbyCheckbox, _settings.ShowNearbyPresence.Value);
             SetChecked(_autoHideCheckbox, _settings.AutoHideGameUi.Value);
             SetChecked(_cornerIconCheckbox, _settings.ShowCornerIcon.Value);
+            SetChecked(_trimLongTooltipsCheckbox, _settings.TrimLongProfileTooltips.Value);
 
+            SyncTooltipSettings();
             SyncRegionDropdownFromSettings();
             SyncMatureButtonFromSettings();
         }
@@ -228,6 +309,39 @@ namespace rp.spark.UI.Views
                 _matureProfilesButton.Text = _matureProfilesConfirm.ButtonText;
         }
 
+        private void OnTooltipLineLimitChanged(object sender, ValueChangedEventArgs<int> e)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded)
+                    SyncTooltipSettings();
+            });
+        }
+
+        private void SyncTooltipSettings()
+        {
+            if (_profileTooltipLinesDropdown == null)
+                return;
+
+            var normalizedLimit = SparkSettings.ProfileTooltipLimit(_settings.ProfileTooltipLinesPerSection.Value);
+
+            if (_settings.ProfileTooltipLinesPerSection.Value != normalizedLimit)
+                _settings.ProfileTooltipLinesPerSection.Value = normalizedLimit;
+
+            var limitText = normalizedLimit.ToString();
+
+            if (!string.Equals(
+                _profileTooltipLinesDropdown.SelectedItem?.ToString(),
+                limitText,
+                StringComparison.Ordinal))
+            {
+                _profileTooltipLinesDropdown.SelectedItem = limitText;
+            }
+
+            _profileTooltipLinesDropdown.Enabled =
+                _settings.TrimLongProfileTooltips.Value;
+        }
+
         protected override void Unload()
         {
             _isUnloaded = true;
@@ -238,6 +352,8 @@ namespace rp.spark.UI.Views
             _showNearbyCheckbox = null;
             _autoHideCheckbox = null;
             _cornerIconCheckbox = null;
+            _trimLongTooltipsCheckbox = null;
+            _profileTooltipLinesDropdown = null;
             _matureProfilesConfirm.Dispose();
             _regionDropdown = null;
             _matureProfilesButton = null;

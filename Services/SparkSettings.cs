@@ -27,6 +27,8 @@ namespace rp.spark.Services
         private const string NearbyWindowLocationKey = "NearbyWindowLocation";
         private const string NearbyWindowLockKey = "NearbyWindowLock";
         private const string ShowCornerIconKey = "ShowCornerIcon";
+        private const string TrimLongProfileTooltipsKey = "TrimLongProfileTooltips";
+        private const string ProfileTooltipLinesPerSectionKey = "ProfileTooltipLinesPerSection";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -47,6 +49,8 @@ namespace rp.spark.Services
         public SettingEntry<string> NearbyWindowLocation { get; }
         public SettingEntry<bool> NearbyWindowLock { get; }
         public SettingEntry<bool> ShowCornerIcon { get; }
+        public SettingEntry<bool> TrimLongProfileTooltips { get; }
+        public SettingEntry<int> ProfileTooltipLinesPerSection { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -147,6 +151,18 @@ namespace rp.spark.Services
                 true,
                 () => "Show corner icon",
                 () => "Shows the SPARK shortcut menu in the Blish HUD corner icon area.");
+
+            TrimLongProfileTooltips = UiSettings.DefineSetting(
+                TrimLongProfileTooltipsKey,
+                true,
+                () => "Trim long profile tooltips",
+                () => "Limits the Currently and Out of Character sections in profile-list tooltips.");
+
+            ProfileTooltipLinesPerSection = UiSettings.DefineSetting(
+                ProfileTooltipLinesPerSectionKey,
+                12,
+                () => "Profile tooltip lines per section",
+                () => "The maximum number of wrapped lines shown for each profile-tooltip section when trimming is enabled.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.
@@ -243,6 +259,21 @@ namespace rp.spark.Services
         {
             return !string.IsNullOrWhiteSpace(accountName)
                 && AccountNameRegex.IsMatch(accountName.Trim());
+        }
+
+        public static int ProfileTooltipLimit(int value)
+        {
+            switch (value)
+            {
+                case 8:
+                case 12:
+                case 16:
+                case 20:
+                case 24:
+                    return value;
+                default:
+                    return 12;
+            }
         }
     }
 }
