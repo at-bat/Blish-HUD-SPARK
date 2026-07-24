@@ -15,11 +15,16 @@ namespace rp.spark.UI.Views
 
         private static readonly string[] ProfileTooltipLineOptions =
         {
+            "2",
+            "4",
+            "6",
             "8",
+            "10",
             "12",
+            "14",
             "16",
-            "20",
-            "24"
+            "18",
+            "20"
         };
 
         private readonly SparkSettings _settings;
@@ -34,6 +39,9 @@ namespace rp.spark.UI.Views
         private Checkbox _showNearbyCheckbox;
         private Checkbox _autoHideCheckbox;
         private Checkbox _cornerIconCheckbox;
+        private Checkbox _showKnownForTooltipsCheckbox;
+        private Checkbox _showCurrentlyTooltipsCheckbox;
+        private Checkbox _showOocTooltipsCheckbox;
         private Checkbox _trimLongTooltipsCheckbox;
         private Dropdown _profileTooltipLinesDropdown;
         private bool _isUnloaded;
@@ -165,6 +173,77 @@ namespace rp.spark.UI.Views
                 _settings.ShowCornerIcon.Value = _cornerIconCheckbox.Checked;
             };
 
+            SparkFormLayout.AddSpacer(stack, ContentWidth, 8);
+
+            SparkFormLayout.AddLabel(
+                stack,
+                "Profile Tooltips",
+                ContentWidth,
+                28,
+                GameService.Content.DefaultFont18,
+                new Color(255, 233, 180),
+                true);
+
+            _showKnownForTooltipsCheckbox = SparkFormLayout.AddCheckbox(
+                stack,
+                "Include Known For",
+                _settings.ShowKnownForInProfileTooltips.Value,
+                260,
+                ControlHeight);
+
+            _showKnownForTooltipsCheckbox.BasicTooltipText =
+                "Shows Known For in profile-list tooltips when the profile provides it.";
+
+            _showKnownForTooltipsCheckbox.CheckedChanged += (s, e) =>
+            {
+                if (_settings.ShowKnownForInProfileTooltips.Value !=
+                    _showKnownForTooltipsCheckbox.Checked)
+                {
+                    _settings.ShowKnownForInProfileTooltips.Value =
+                        _showKnownForTooltipsCheckbox.Checked;
+                }
+            };
+
+            _showCurrentlyTooltipsCheckbox = SparkFormLayout.AddCheckbox(
+                stack,
+                "Include Currently",
+                _settings.ShowCurrentlyInProfileTooltips.Value,
+                260,
+                ControlHeight);
+
+            _showCurrentlyTooltipsCheckbox.BasicTooltipText =
+                "Shows Currently in profile-list tooltips when the profile provides it.";
+
+            _showCurrentlyTooltipsCheckbox.CheckedChanged += (s, e) =>
+            {
+                if (_settings.ShowCurrentlyInProfileTooltips.Value !=
+                    _showCurrentlyTooltipsCheckbox.Checked)
+                {
+                    _settings.ShowCurrentlyInProfileTooltips.Value =
+                        _showCurrentlyTooltipsCheckbox.Checked;
+                }
+            };
+
+            _showOocTooltipsCheckbox = SparkFormLayout.AddCheckbox(
+                stack,
+                "Include OOC info",
+                _settings.ShowOocInfoInProfileTooltips.Value,
+                260,
+                ControlHeight);
+
+            _showOocTooltipsCheckbox.BasicTooltipText =
+                "Shows Out of Character information in profile-list tooltips when the profile provides it.";
+
+            _showOocTooltipsCheckbox.CheckedChanged += (s, e) =>
+            {
+                if (_settings.ShowOocInfoInProfileTooltips.Value !=
+                    _showOocTooltipsCheckbox.Checked)
+                {
+                    _settings.ShowOocInfoInProfileTooltips.Value =
+                        _showOocTooltipsCheckbox.Checked;
+                }
+            };
+
             _trimLongTooltipsCheckbox = SparkFormLayout.AddCheckbox(
                 stack,
                 "Trim long profile tooltips",
@@ -173,13 +252,15 @@ namespace rp.spark.UI.Views
                 ControlHeight);
 
             _trimLongTooltipsCheckbox.BasicTooltipText =
-                "Limits the Currently and Out of Character sections in online-profile tooltips.";
+                "Limits each enabled tooltip section to the configured number of wrapped lines.";
 
             _trimLongTooltipsCheckbox.CheckedChanged += (s, e) =>
             {
-                if (_settings.TrimLongProfileTooltips.Value != _trimLongTooltipsCheckbox.Checked)
+                if (_settings.TrimLongProfileTooltips.Value !=
+                    _trimLongTooltipsCheckbox.Checked)
                 {
-                    _settings.TrimLongProfileTooltips.Value = _trimLongTooltipsCheckbox.Checked;
+                    _settings.TrimLongProfileTooltips.Value =
+                        _trimLongTooltipsCheckbox.Checked;
                 }
 
                 SyncTooltipSettings();
@@ -201,12 +282,13 @@ namespace rp.spark.UI.Views
             _profileTooltipLinesDropdown = SparkFormLayout.AddDropdown(
                 tooltipLinesRow,
                 ProfileTooltipLineOptions,
-                SparkSettings.ProfileTooltipLimit(_settings.ProfileTooltipLinesPerSection.Value).ToString(),
+                SparkSettings.ProfileTooltipLimit(
+                    _settings.ProfileTooltipLinesPerSection.Value).ToString(),
                 80,
                 ControlHeight);
 
             _profileTooltipLinesDropdown.BasicTooltipText =
-                "Applied separately to the Currently and Out of Character sections.";
+                "Applied separately to Known For, Currently, and Out of Character.";
 
             _profileTooltipLinesDropdown.ValueChanged += (s, e) =>
             {
@@ -217,10 +299,14 @@ namespace rp.spark.UI.Views
                     return;
                 }
 
-                selectedLimit = SparkSettings.ProfileTooltipLimit(selectedLimit);
+                selectedLimit =
+                    SparkSettings.ProfileTooltipLimit(selectedLimit);
 
                 if (_settings.ProfileTooltipLinesPerSection.Value != selectedLimit)
-                    _settings.ProfileTooltipLinesPerSection.Value = selectedLimit;
+                {
+                    _settings.ProfileTooltipLinesPerSection.Value =
+                        selectedLimit;
+                }
             };
 
             WatchSettings();
@@ -235,6 +321,9 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged += OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged += OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged += OnSettingChanged;
+            _settings.ShowKnownForInProfileTooltips.SettingChanged += OnSettingChanged;
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged += OnSettingChanged;
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged += OnSettingChanged;
             _settings.TrimLongProfileTooltips.SettingChanged += OnSettingChanged;
             _settings.ProfileTooltipLinesPerSection.SettingChanged += OnTooltipLineLimitChanged;
             _settings.RegionFilter.SettingChanged += OnRegionFilterChanged;
@@ -248,6 +337,9 @@ namespace rp.spark.UI.Views
             _settings.ShowNearbyPresence.SettingChanged -= OnSettingChanged;
             _settings.AutoHideGameUi.SettingChanged -= OnSettingChanged;
             _settings.ShowCornerIcon.SettingChanged -= OnSettingChanged;
+            _settings.ShowKnownForInProfileTooltips.SettingChanged -= OnSettingChanged;
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged -= OnSettingChanged;
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged -= OnSettingChanged;
             _settings.TrimLongProfileTooltips.SettingChanged -= OnSettingChanged;
             _settings.ProfileTooltipLinesPerSection.SettingChanged -= OnTooltipLineLimitChanged;
             _settings.RegionFilter.SettingChanged -= OnRegionFilterChanged;
@@ -270,6 +362,9 @@ namespace rp.spark.UI.Views
             SetChecked(_showNearbyCheckbox, _settings.ShowNearbyPresence.Value);
             SetChecked(_autoHideCheckbox, _settings.AutoHideGameUi.Value);
             SetChecked(_cornerIconCheckbox, _settings.ShowCornerIcon.Value);
+            SetChecked(_showKnownForTooltipsCheckbox, _settings.ShowKnownForInProfileTooltips.Value);
+            SetChecked(_showCurrentlyTooltipsCheckbox, _settings.ShowCurrentlyInProfileTooltips.Value);
+            SetChecked(_showOocTooltipsCheckbox, _settings.ShowOocInfoInProfileTooltips.Value);
             SetChecked(_trimLongTooltipsCheckbox, _settings.TrimLongProfileTooltips.Value);
 
             SyncTooltipSettings();
@@ -352,6 +447,9 @@ namespace rp.spark.UI.Views
             _showNearbyCheckbox = null;
             _autoHideCheckbox = null;
             _cornerIconCheckbox = null;
+            _showKnownForTooltipsCheckbox = null;
+            _showCurrentlyTooltipsCheckbox = null;
+            _showOocTooltipsCheckbox = null;
             _trimLongTooltipsCheckbox = null;
             _profileTooltipLinesDropdown = null;
             _matureProfilesConfirm.Dispose();

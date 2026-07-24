@@ -445,78 +445,66 @@ namespace rp.spark.UI.Views
 
         private void AddRow(PlayerPresence presence, int index)
         {
-            var row = _profileList.AddRow(index, MakeTooltip(presence));
-
-            MakeClickable(row, presence);
+            var row = _profileList.AddRow(
+                index,
+                string.Empty);
 
             AddBookmarkMarker(row, presence);
 
-            MakeClickable(
-                _profileList.AddCell(
-                    row,
-                    presence.VisibleName(),
-                    30,
-                    7,
-                    163,
-                    Color.White),
-                presence);
+            _profileList.AddCell(
+                row,
+                presence.VisibleName(),
+                30,
+                7,
+                163,
+                Color.White);
 
-            MakeClickable(
-                _profileList.AddCell(
-                    row,
-                    ProfileText.PresenceRace(presence),
-                    200,
-                    7,
-                    95,
-                    new Color(220, 220, 220)),
-                presence);
+            _profileList.AddCell(
+                row,
+                ProfileText.PresenceRace(presence),
+                200,
+                7,
+                95,
+                new Color(220, 220, 220));
 
-            MakeClickable(
-                _profileList.AddCell(
-                    row,
-                    presence.AccountName,
-                    305,
-                    7,
-                    140,
-                    new Color(220, 220, 220)),
-                presence);
+            _profileList.AddCell(
+                row,
+                presence.AccountName,
+                305,
+                7,
+                140,
+                new Color(220, 220, 220));
 
-            MakeClickable(
-                _profileList.AddCell(
-                    row,
-                    ProfileLabels.StatusLabel(presence.Status),
-                    455,
-                    7,
-                    105,
-                    ProfileStatusColors.Get(presence.Status)),
-                presence);
+            _profileList.AddCell(
+                row,
+                ProfileLabels.StatusLabel(presence.Status),
+                455,
+                7,
+                105,
+                ProfileStatusColors.Get(presence.Status));
 
-            MakeClickable(
-                _profileList.AddCell(
-                    row,
-                    ProfileText.PresenceLocation(presence),
-                    570,
-                    7,
-                    180,
-                    new Color(220, 220, 220)),
-                presence);
+            _profileList.AddCell(
+                row,
+                ProfileText.PresenceLocation(presence),
+                570,
+                7,
+                180,
+                new Color(220, 220, 220));
+
+            ProfileScrollList.AddInteractionLayer(
+                row,
+                MakeTooltip(presence),
+                () => _openProfile?.Invoke(presence));
         }
 
-        private void AddBookmarkMarker(Container row, PlayerPresence presence)
+        private void AddBookmarkMarker(
+            Container row,
+            PlayerPresence presence)
         {
             if (_isBookmarked?.Invoke(presence) != true)
                 return;
 
-            var marker = ProfileListViewUI.AddBookmarkMarker(row);
-            MakeClickable(marker, presence);
-        }
-
-        private void MakeClickable(Control control, PlayerPresence presence)
-        {
-            ProfileScrollList.WireInteraction(
-                control,
-                MakeTooltip(presence),
-                () => _openProfile?.Invoke(presence));
+            ProfileListViewUI.AddBookmarkMarker(row);
         }
 
         private bool MatchesSearch(PlayerPresence presence)
@@ -605,19 +593,27 @@ namespace rp.spark.UI.Views
 
         private Tooltip MakeTooltip(PlayerPresence presence)
         {
-            var trimLongTooltips =
-                _settings?.TrimLongProfileTooltips.Value ?? true;
+            var showKnownFor =  _settings?.ShowKnownForInProfileTooltips.Value ?? true;
 
-            var maximumLinesPerSection =
-                _settings?.ProfileTooltipLinesPerSection.Value ?? 12;
+            var showCurrently = _settings?.ShowCurrentlyInProfileTooltips.Value ?? true;
+
+            var showOutOfCharacter = _settings?.ShowOocInfoInProfileTooltips.Value ?? true;
+
+            var trimLongTooltips = _settings?.TrimLongProfileTooltips.Value ?? true;
+
+            var maximumLinesPerSection = _settings?.ProfileTooltipLinesPerSection.Value ?? 12;
 
             return new Tooltip(new ProfilePresenceTooltipView(
                 presence.VisibleName(),
                 ProfileText.PresenceCharacterDetails(presence),
                 ProfileLabels.StatusLabel(presence.Status),
                 ProfileText.PresenceLocation(presence),
+                presence.KnownFor,
                 presence.Currently,
                 presence.OutOfCharacterInfo,
+                showKnownFor,
+                showCurrently,
+                showOutOfCharacter,
                 trimLongTooltips,
                 maximumLinesPerSection));
         }
@@ -627,8 +623,17 @@ namespace rp.spark.UI.Views
             if (_settings == null)
                 return;
 
+            _settings.ShowKnownForInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
             _settings.TrimLongProfileTooltips.SettingChanged +=
-                OnTrimLongTooltipsChanged;
+                OnTooltipVisibilityChanged;
 
             _settings.ProfileTooltipLinesPerSection.SettingChanged +=
                 OnTooltipLineLimitChanged;
@@ -639,23 +644,28 @@ namespace rp.spark.UI.Views
             if (_settings == null)
                 return;
 
+            _settings.ShowKnownForInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
             _settings.TrimLongProfileTooltips.SettingChanged -=
-                OnTrimLongTooltipsChanged;
+                OnTooltipVisibilityChanged;
 
             _settings.ProfileTooltipLinesPerSection.SettingChanged -=
                 OnTooltipLineLimitChanged;
         }
 
-        private void OnTrimLongTooltipsChanged(
-            object sender,
-            ValueChangedEventArgs<bool> e)
+        private void OnTooltipVisibilityChanged(object sender, ValueChangedEventArgs<bool> e)
         {
             QueueTooltipRefresh();
         }
 
-        private void OnTooltipLineLimitChanged(
-            object sender,
-            ValueChangedEventArgs<int> e)
+        private void OnTooltipLineLimitChanged(object sender, ValueChangedEventArgs<int> e)
         {
             QueueTooltipRefresh();
         }

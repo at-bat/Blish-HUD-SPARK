@@ -564,6 +564,7 @@ namespace rp.spark.Services
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(record.Presence?.ActiveProfileId, record.Profile?.ProfileId)),
                 ActiveProfileName = Clean(TextUtil.FirstNonEmpty(record.Presence?.ActiveProfileName, record.Profile?.ProfileName)),
                 Status = record.Presence?.Status ?? RPStatus.Online,
+                KnownFor = Clean(TextUtil.FirstNonEmpty(record.Presence?.KnownFor, record.Profile?.KnownFor)),
                 Currently = Clean(TextUtil.FirstNonEmpty(record.Presence?.Currently, record.Profile?.Currently)),
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(record.Presence?.OutOfCharacterInfo, record.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(record.Presence?.LocationName),
@@ -598,6 +599,7 @@ namespace rp.spark.Services
                 ActiveProfileId = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.ActiveProfileId, snapshot.Profile?.ProfileId)),
                 ActiveProfileName = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.ActiveProfileName, snapshot.Profile?.ProfileName)),
                 Status = snapshot.Presence?.Status ?? RPStatus.Online,
+                KnownFor = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.KnownFor, snapshot.Profile?.KnownFor)),
                 Currently = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.Currently, snapshot.Profile?.Currently)),
                 OutOfCharacterInfo = Clean(TextUtil.FirstNonEmpty(snapshot.Presence?.OutOfCharacterInfo, snapshot.Profile?.OutOfCharacterInfo)),
                 LocationName = Clean(snapshot.Presence?.LocationName),
@@ -644,6 +646,7 @@ namespace rp.spark.Services
                 ActiveProfileId = summary.ActiveProfileId,
                 ActiveProfileName = summary.ActiveProfileName,
                 Status = summary.Status,
+                KnownFor = summary.KnownFor,
                 Currently = summary.Currently,
                 OutOfCharacterInfo = summary.OutOfCharacterInfo,
                 LocationName = summary.LocationName,
@@ -703,6 +706,7 @@ namespace rp.spark.Services
             public string Profession { get; set; } = string.Empty;
             public string CustomProfession { get; set; } = string.Empty;
             public ProfileRegion Region { get; set; } = ProfileRegion.NA;
+            public string KnownFor { get; set; } = string.Empty;
             public string Currently { get; set; } = string.Empty;
             public string OutOfCharacterInfo { get; set; } = string.Empty;
             public ProfilePreferenceFlags Preferences { get; set; } = ProfilePreferenceFlags.None;
@@ -730,6 +734,7 @@ namespace rp.spark.Services
             public bool IsMature { get; set; }
             public ProfileExperience Experience { get; set; } = ProfileExperience.Hidden;
             public RPStatus Status { get; set; } = RPStatus.Online;
+            public string KnownFor { get; set; } = string.Empty;
             public string Currently { get; set; } = string.Empty;
             public string OutOfCharacterInfo { get; set; } = string.Empty;
             public string LocationName { get; set; } = string.Empty;

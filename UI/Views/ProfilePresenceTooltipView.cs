@@ -8,6 +8,7 @@ using rp.spark.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MonoGame.Extended.BitmapFonts;
 
 namespace rp.spark.UI.Views
 {
@@ -38,8 +39,12 @@ namespace rp.spark.UI.Views
         private readonly string _characterDetails;
         private readonly string _status;
         private readonly string _location;
+        private readonly string _knownFor;
         private readonly string _currently;
         private readonly string _outOfCharacter;
+        private readonly bool _showKnownFor;
+        private readonly bool _showCurrently;
+        private readonly bool _showOutOfCharacter;
         private readonly bool _trimLongSections;
         private readonly int _maximumLinesPerSection;
 
@@ -48,8 +53,12 @@ namespace rp.spark.UI.Views
             string characterDetails,
             string status,
             string location,
+            string knownFor,
             string currently,
             string outOfCharacter,
+            bool showKnownFor,
+            bool showCurrently,
+            bool showOutOfCharacter,
             bool trimLongSections,
             int maximumLinesPerSection)
         {
@@ -57,10 +66,16 @@ namespace rp.spark.UI.Views
             _characterDetails = Clean(characterDetails);
             _status = Clean(status);
             _location = Clean(location);
+            _knownFor = Clean(knownFor);
             _currently = Clean(currently);
             _outOfCharacter = Clean(outOfCharacter);
+            _showKnownFor = showKnownFor;
+            _showCurrently = showCurrently;
+            _showOutOfCharacter = showOutOfCharacter;
             _trimLongSections = trimLongSections;
-            _maximumLinesPerSection = SparkSettings.ProfileTooltipLimit(maximumLinesPerSection);
+            _maximumLinesPerSection =
+                SparkSettings.ProfileTooltipLimit(
+                    maximumLinesPerSection);
         }
 
         protected override void Build(Container buildPanel)
@@ -70,22 +85,17 @@ namespace rp.spark.UI.Views
             var wrapWidth = contentWidth - WrapSafetyPadding;
             var bodyFont = GameService.Content.DefaultFont14;
 
-            var detailLines = BuildDetailLines().SelectMany(line => TooltipTextLayout.WrapLines(line, wrapWidth, bodyFont)).ToList();
-            var allCurrentlyLines = TooltipTextLayout.WrapLines(_currently, wrapWidth, bodyFont).ToList();
-            var allOutOfCharacterLines = TooltipTextLayout.WrapLines(_outOfCharacter, wrapWidth, bodyFont).ToList();
+            var detailLines = BuildDetailLines().SelectMany(line =>TooltipTextLayout.WrapLines(line, wrapWidth, bodyFont)).ToList();
 
-            var currentlySection = new TooltipSection(
-                "Currently",
-                TrimSection(allCurrentlyLines, out var currentlyWasTrimmed),
-                currentlyWasTrimmed);
+            var knownForSection = BuildSection("Known For", _showKnownFor ? _knownFor : string.Empty, wrapWidth, bodyFont);
 
-            var outOfCharacterSection = new TooltipSection(
-                "Out of Character",
-                TrimSection(allOutOfCharacterLines, out var outOfCharacterWasTrimmed),
-                outOfCharacterWasTrimmed);
+            var currentlySection = BuildSection("Currently", _showCurrently ? _currently : string.Empty, wrapWidth, bodyFont);
+
+            var outOfCharacterSection = BuildSection("Out of Character", _showOutOfCharacter ? _outOfCharacter : string.Empty, wrapWidth, bodyFont);
 
             var sections = new[]
             {
+                knownForSection,
                 currentlySection,
                 outOfCharacterSection
             };
@@ -161,8 +171,11 @@ namespace rp.spark.UI.Views
                 measuredWidth = Math.Max(measuredWidth, bodyFont.MeasureString(detailLine).Width);
             }
 
-            var hasBodyContent = !string.IsNullOrWhiteSpace(_currently) 
-                || !string.IsNullOrWhiteSpace(_outOfCharacter);
+            var hasBodyContent =
+                (_showKnownFor &&
+                    !string.IsNullOrWhiteSpace(_knownFor)) 
+                    || (_showCurrently && !string.IsNullOrWhiteSpace(_currently)) 
+                    || (_showOutOfCharacter && !string.IsNullOrWhiteSpace(_outOfCharacter));
 
             var desiredWidth =
                 (int)Math.Ceiling(measuredWidth) +
@@ -187,6 +200,15 @@ namespace rp.spark.UI.Views
 
             if (!string.IsNullOrWhiteSpace(_location))
                 yield return $"Location: {_location}";
+        }
+
+        private TooltipSection BuildSection(string title, string text, float wrapWidth, BitmapFont font)
+        {
+            var allLines = TooltipTextLayout.WrapLines(text, wrapWidth, font).ToList();
+
+            var visibleLines = TrimSection(allLines, out var wasTrimmed);
+
+            return new TooltipSection(title, visibleLines, wasTrimmed);
         }
 
         private List<string> TrimSection(List<string> lines, out bool wasTrimmed)

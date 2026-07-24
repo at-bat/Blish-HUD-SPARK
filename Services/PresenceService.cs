@@ -78,6 +78,7 @@ namespace rp.spark.Services
                 Experience = hasActiveProfile ? activeProfile.Experience : ProfileExperience.Hidden,
                 ProfileUpdatedAtTime = hasActiveProfile ? activeProfile.UpdatedAt : default,
                 Status = status,
+                KnownFor = hasActiveProfile ? activeProfile.KnownFor?.Trim() ?? string.Empty : string.Empty,
                 Currently = hasActiveProfile ? activeProfile.Currently?.Trim() ?? string.Empty : string.Empty,
                 OutOfCharacterInfo = hasActiveProfile ? _globalOocInfo.GetEffective(activeProfile) : string.Empty,
                 LocationName = GetLocationName(state, locationHidden, locationResolved),
