@@ -47,6 +47,7 @@ namespace rp.spark.UI.Views
         private readonly bool _showOutOfCharacter;
         private readonly bool _trimLongSections;
         private readonly int _maximumLinesPerSection;
+        private readonly IReadOnlyList<string> _additionalDetailLines;
 
         public ProfilePresenceTooltipView(
             string characterName,
@@ -60,7 +61,8 @@ namespace rp.spark.UI.Views
             bool showCurrently,
             bool showOutOfCharacter,
             bool trimLongSections,
-            int maximumLinesPerSection)
+            int maximumLinesPerSection,
+            IEnumerable<string> additionalDetailLines = null)
         {
             _characterName = Clean(characterName);
             _characterDetails = Clean(characterDetails);
@@ -76,6 +78,11 @@ namespace rp.spark.UI.Views
             _maximumLinesPerSection =
                 SparkSettings.ProfileTooltipLimit(
                     maximumLinesPerSection);
+
+            _additionalDetailLines = (additionalDetailLines ?? Enumerable.Empty<string>())
+                .Select(Clean)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .ToList();
         }
 
         protected override void Build(Container buildPanel)
@@ -200,6 +207,9 @@ namespace rp.spark.UI.Views
 
             if (!string.IsNullOrWhiteSpace(_location))
                 yield return $"Location: {_location}";
+
+            foreach (var line in _additionalDetailLines)
+                yield return line;
         }
 
         private TooltipSection BuildSection(string title, string text, float wrapWidth, BitmapFont font)

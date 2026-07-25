@@ -146,12 +146,44 @@ namespace rp.spark.UI.Views
 
         private void WatchSettings()
         {
-            _settings.ShowNearbyPresence.SettingChanged += OnShowNearbyPresenceChanged;
+            _settings.ShowNearbyPresence.SettingChanged +=
+                OnShowNearbyPresenceChanged;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged +=
+                OnTooltipLineLimitChanged;
         }
 
         private void UnwatchSettings()
         {
-            _settings.ShowNearbyPresence.SettingChanged -= OnShowNearbyPresenceChanged;
+            _settings.ShowNearbyPresence.SettingChanged -=
+                OnShowNearbyPresenceChanged;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged -=
+                OnTooltipLineLimitChanged;
         }
 
         private void OnShowNearbyPresenceChanged(object sender, ValueChangedEventArgs<bool> e)
@@ -160,6 +192,25 @@ namespace rp.spark.UI.Views
             {
                 if (!_isUnloaded)
                     SyncShowNearbyCheckboxFromSettings();
+            });
+        }
+
+        private void OnTooltipVisibilityChanged(object sender, ValueChangedEventArgs<bool> e)
+        {
+            RefreshNearbyTooltips();
+        }
+
+        private void OnTooltipLineLimitChanged(object sender, ValueChangedEventArgs<int> e)
+        {
+            RefreshNearbyTooltips();
+        }
+
+        private void RefreshNearbyTooltips()
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded && _nearbyList != null)
+                    _ = RefreshAsync(false);
             });
         }
 
@@ -360,23 +411,61 @@ namespace rp.spark.UI.Views
 
         private void AddRow(NearbyPresence nearby, int index)
         {
-            var presence = nearby.Presence;
-            var tooltipText = TooltipText(nearby);
-            var row = _nearbyList.AddRow(index, tooltipText);
+            var presence = nearby?.Presence ?? new PlayerPresence();
+            var row = _nearbyList.AddRow(index, string.Empty);
             var sameMapIp = _nearby.IsCurrentMapIp(nearby);
-            var mapIpColor = sameMapIp ? new Color(140, 220, 140) : SparkViewUI.SecondaryTextColor;
-            var distanceText = sameMapIp ? DistanceText(nearby.DistanceMeters) : "-";
+            var secondary = SparkViewUI.SecondaryTextColor;
+            var mapIpColor = sameMapIp ? new Color(140, 220, 140) : secondary;
+            var distanceText = sameMapIp ? DistanceText(nearby?.DistanceMeters ?? -1) : "-";
 
-            MakeClickable(_nearbyList.AddCell(row, presence.VisibleName(), 8, 5, 170, Color.White), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, ProfileText.PresenceRace(presence), 186, 5, 70, SparkViewUI.SecondaryTextColor), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 264, 5, 110, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, MapIpText(nearby.ServerAddress), 382, 5, 70, mapIpColor), presence, tooltipText);
-            MakeClickable(_nearbyList.AddCell(row, distanceText, 460, 5, 80, SparkViewUI.SecondaryTextColor), presence, tooltipText);
+            _nearbyList.AddCell(row, presence.VisibleName(), 8, 5, 170, Color.White);
+            _nearbyList.AddCell(row, ProfileText.PresenceRace(presence), 186, 5, 70, secondary);
+            _nearbyList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 264, 5, 110, ProfileStatusColors.Get(presence.Status));
+            _nearbyList.AddCell(row, MapIpText(nearby?.ServerAddress), 382, 5, 70, mapIpColor);
+            _nearbyList.AddCell(row, distanceText, 460, 5, 80, secondary);
+
+            ProfileScrollList.AddInteractionLayer(
+                row,
+                MakeTooltip(nearby),
+                () => _openProfile?.Invoke(presence));
         }
 
-        private void MakeClickable(Control control, PlayerPresence presence, string tooltipText)
+        private Tooltip MakeTooltip(NearbyPresence nearby)
         {
-            ProfileScrollList.WireInteraction(control, tooltipText, () => _openProfile?.Invoke(presence));
+            var presence = nearby?.Presence ?? new PlayerPresence();
+
+            var showKnownFor =
+                _settings?.ShowKnownForInProfileTooltips.Value ?? true;
+
+            var showCurrently =
+                _settings?.ShowCurrentlyInProfileTooltips.Value ?? true;
+
+            var showOutOfCharacter =
+                _settings?.ShowOocInfoInProfileTooltips.Value ?? true;
+
+            var trimLongTooltips =
+                _settings?.TrimLongProfileTooltips.Value ?? true;
+
+            var maximumLinesPerSection =
+                _settings?.ProfileTooltipLinesPerSection.Value ?? 12;
+
+            return new Tooltip(new ProfilePresenceTooltipView(
+                presence.VisibleName(),
+                ProfileText.PresenceCharacterDetails(presence),
+                ProfileLabels.StatusLabel(presence.Status),
+                ProfileText.PresenceLocation(presence),
+                presence.KnownFor,
+                presence.Currently,
+                presence.OutOfCharacterInfo,
+                showKnownFor,
+                showCurrently,
+                showOutOfCharacter,
+                trimLongTooltips,
+                maximumLinesPerSection,
+                new[]
+                {
+            $"Distance: {DistanceText(nearby?.DistanceMeters ?? -1)}"
+                }));
         }
 
         private static string DistanceText(double meters)
@@ -388,24 +477,6 @@ namespace rp.spark.UI.Views
                 return $"{meters / 1000d:0.0}km";
 
             return $"{Math.Round(meters):0}m";
-        }
-
-        private static string TooltipText(NearbyPresence nearby)
-        {
-            var presence = nearby?.Presence ?? new PlayerPresence();
-
-            var lines = new List<string>
-            {
-                presence.VisibleName(),
-                ProfileText.PresenceCharacterDetails(presence),
-                $"Status: {ProfileLabels.StatusLabel(presence.Status)}",
-                $"Distance: {DistanceText(nearby?.DistanceMeters ?? -1)}"
-            };
-
-            if (!string.IsNullOrWhiteSpace(presence.Currently))
-                lines.Add($"Currently: {presence.Currently.Trim()}");
-
-            return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
         }
 
         private static string MapIpText(string serverAddress)

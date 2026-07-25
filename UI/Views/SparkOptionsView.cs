@@ -72,6 +72,8 @@ namespace rp.spark.UI.Views
             SparkFormLayout.AddLabel(stack, "Privacy", ContentWidth, 28, GameService.Content.DefaultFont18, new Color(255, 233, 180), true);
 
             _shareCheckbox = SparkFormLayout.AddCheckbox(stack, "Share my profile", _settings.BroadcastProfile.Value, 220, ControlHeight);
+            _shareCheckbox.BasicTooltipText =
+                "When unchecked, your profile will not be uploaded to SPARK. This means anyone viewing a local copy of your profile will not receive updates, even if you're set to Invisible.";
             _shareCheckbox.CheckedChanged += (s, e) =>
             {
                 if (_settings.BroadcastProfile.Value == _shareCheckbox.Checked)
@@ -82,6 +84,8 @@ namespace rp.spark.UI.Views
             };
 
             _hideLocationCheckbox = SparkFormLayout.AddCheckbox(stack, "Hide my location", _settings.HideLocation.Value, 220, ControlHeight);
+            _hideLocationCheckbox.BasicTooltipText =
+                "When checked, your location will be set to 'Hidden' for all location fields in SPARK.";
             _hideLocationCheckbox.CheckedChanged += (s, e) =>
             {
                 if (_settings.HideLocation.Value == _hideLocationCheckbox.Checked)
@@ -92,6 +96,8 @@ namespace rp.spark.UI.Views
             };
 
             _showNearbyCheckbox = SparkFormLayout.AddCheckbox(stack, "Show me nearby", _settings.ShowNearbyPresence.Value, 220, ControlHeight);
+            _showNearbyCheckbox.BasicTooltipText =
+                "When checked, others using the Nearby Players window will be able to see you if you're on the same map and how far away you are.";
             _showNearbyCheckbox.CheckedChanged += (s, e) =>
             {
                 if (_settings.ShowNearbyPresence.Value == _showNearbyCheckbox.Checked)
@@ -122,6 +128,9 @@ namespace rp.spark.UI.Views
                 90,
                 ControlHeight);
 
+            _regionDropdown.BasicTooltipText =
+                "Set which region to broadcast your profile to in order for players in the same region to be able to find and contact you.";
+
             _regionDropdown.ValueChanged += (s, e) =>
             {
                 if (Enum.TryParse(_regionDropdown.SelectedItem?.ToString(), out ProfileRegion selectedRegion))
@@ -150,6 +159,8 @@ namespace rp.spark.UI.Views
             SparkFormLayout.AddLabel(stack, "Interface", ContentWidth, 28, GameService.Content.DefaultFont18, new Color(255, 233, 180), true);
 
             _autoHideCheckbox = SparkFormLayout.AddCheckbox(stack, "Auto-hide UI", _settings.AutoHideGameUi.Value, 220, ControlHeight);
+            _autoHideCheckbox.BasicTooltipText =
+                "Closes all SPARK windows when loading new maps or on character select.";
             _autoHideCheckbox.CheckedChanged += (s, e) =>
             {
                 if (_settings.AutoHideGameUi.Value == _autoHideCheckbox.Checked)
@@ -164,6 +175,9 @@ namespace rp.spark.UI.Views
                 _settings.ShowCornerIcon.Value,
                 220,
                 ControlHeight);
+
+            _cornerIconCheckbox.BasicTooltipText =
+                "Displays an icon with quick access to SPARK windows and settings at the top of the screen.";
 
             _cornerIconCheckbox.CheckedChanged += (s, e) =>
             {
@@ -192,7 +206,7 @@ namespace rp.spark.UI.Views
                 ControlHeight);
 
             _showKnownForTooltipsCheckbox.BasicTooltipText =
-                "Shows Known For in profile-list tooltips when the profile provides it.";
+                "Shows Known For information in tooltips when a profile provides it.";
 
             _showKnownForTooltipsCheckbox.CheckedChanged += (s, e) =>
             {
@@ -212,7 +226,7 @@ namespace rp.spark.UI.Views
                 ControlHeight);
 
             _showCurrentlyTooltipsCheckbox.BasicTooltipText =
-                "Shows Currently in profile-list tooltips when the profile provides it.";
+                "Shows Currently (in character) information in tooltips when a profile provides it.";
 
             _showCurrentlyTooltipsCheckbox.CheckedChanged += (s, e) =>
             {
@@ -232,7 +246,7 @@ namespace rp.spark.UI.Views
                 ControlHeight);
 
             _showOocTooltipsCheckbox.BasicTooltipText =
-                "Shows Out of Character information in profile-list tooltips when the profile provides it.";
+                "Show Out of Character information in tooltips when a profile provides it.";
 
             _showOocTooltipsCheckbox.CheckedChanged += (s, e) =>
             {
@@ -244,11 +258,13 @@ namespace rp.spark.UI.Views
                 }
             };
 
+            var tooltipLinesRow = SparkFormLayout.AddRow(stack, ContentWidth, ControlHeight, 8);
+
             _trimLongTooltipsCheckbox = SparkFormLayout.AddCheckbox(
-                stack,
+                tooltipLinesRow,
                 "Trim long profile tooltips",
                 _settings.TrimLongProfileTooltips.Value,
-                260,
+                245,
                 ControlHeight);
 
             _trimLongTooltipsCheckbox.BasicTooltipText =
@@ -266,26 +282,20 @@ namespace rp.spark.UI.Views
                 SyncTooltipSettings();
             };
 
-            var tooltipLinesRow = SparkFormLayout.AddRow(
-                stack,
-                ContentWidth,
-                ControlHeight,
-                8);
-
-            SparkFormLayout.AddLabel(
-                tooltipLinesRow,
-                "Max tooltip lines per section:",
-                185,
-                ControlHeight,
-                GameService.Content.DefaultFont14);
-
             _profileTooltipLinesDropdown = SparkFormLayout.AddDropdown(
                 tooltipLinesRow,
                 ProfileTooltipLineOptions,
                 SparkSettings.ProfileTooltipLimit(
                     _settings.ProfileTooltipLinesPerSection.Value).ToString(),
-                80,
+                70,
                 ControlHeight);
+
+            SparkFormLayout.AddLabel(
+                tooltipLinesRow,
+                "max lines per section",
+                145,
+                ControlHeight,
+                GameService.Content.DefaultFont14);
 
             _profileTooltipLinesDropdown.BasicTooltipText =
                 "Applied separately to Known For, Currently, and Out of Character.";
