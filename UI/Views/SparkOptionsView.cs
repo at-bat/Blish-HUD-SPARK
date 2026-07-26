@@ -200,7 +200,7 @@ namespace rp.spark.UI.Views
 
             _showKnownForTooltipsCheckbox = SparkFormLayout.AddCheckbox(
                 stack,
-                "Include Known For",
+                "Include Known For in tooltips",
                 _settings.ShowKnownForInProfileTooltips.Value,
                 260,
                 ControlHeight);
@@ -220,7 +220,7 @@ namespace rp.spark.UI.Views
 
             _showCurrentlyTooltipsCheckbox = SparkFormLayout.AddCheckbox(
                 stack,
-                "Include Currently",
+                "Include Currently (in character) in tooltips",
                 _settings.ShowCurrentlyInProfileTooltips.Value,
                 260,
                 ControlHeight);
@@ -240,13 +240,13 @@ namespace rp.spark.UI.Views
 
             _showOocTooltipsCheckbox = SparkFormLayout.AddCheckbox(
                 stack,
-                "Include OOC info",
+                "Include Player Information (out of character) in tooltips",
                 _settings.ShowOocInfoInProfileTooltips.Value,
                 260,
                 ControlHeight);
 
             _showOocTooltipsCheckbox.BasicTooltipText =
-                "Show Out of Character information in tooltips when a profile provides it.";
+                "Show Player Information (out of character) information in tooltips when a profile provides it.";
 
             _showOocTooltipsCheckbox.CheckedChanged += (s, e) =>
             {

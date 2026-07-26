@@ -161,7 +161,11 @@ namespace rp.spark
                 _windows.OpenBlocklist,
                 _windows.OpenSettings,
                 RefreshPresenceSoon,
-                SetNearbySharing);
+                SetNearbySharing,
+                GetServerSyncStatus,
+                GetImportantSettingsNotice,
+                WatchServerSyncStatus,
+                UnwatchServerSyncStatus);
         }
 
         protected override Task LoadAsync()
