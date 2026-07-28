@@ -52,6 +52,7 @@ namespace rp.spark
         private PlayerStateService _playerState;
         private PresenceService _presenceService;
         private NearbyPresenceService _nearbyPresenceService;
+        private RollGroupService _rollGroups;
         private PresenceLoop _presenceLoop;
         private ServerSync _sync;
         private GW2TokenVerification _tokens;
@@ -103,6 +104,11 @@ namespace rp.spark
                 _sparkSettings,
                 _presenceLoop,
                 _tokens);
+            _rollGroups = new RollGroupService(
+                _sparkClient,
+                _playerState,
+                _profileRepository,
+                _tokens);
             _sync = new ServerSync(
                 _sparkClient,
                 _sparkSettings,
@@ -134,6 +140,7 @@ namespace rp.spark
             _serviceHost.Add(_profileActions, service => service.Start());
             _serviceHost.Add(_sync, service => service.Start());
             _serviceHost.Add(_nearbyPresenceService, service => service.Start());
+            _serviceHost.Add(_rollGroups, service => service.Start());
 
             _windows = new SparkWindows(
                 new WindowBuilder(),
@@ -147,6 +154,7 @@ namespace rp.spark
                 _profileLoader,
                 _profileActions,
                 _nearbyPresenceService,
+                _rollGroups,
                 RefreshPresenceSoon,
                 SetNearbySharing);
 
@@ -157,6 +165,7 @@ namespace rp.spark
                 _windows.OpenProfileManager,
                 _windows.OpenOnlineList,
                 _windows.OpenNearby,
+                _windows.OpenRollGroup,
                 _windows.OpenSavedProfiles,
                 _windows.OpenBlocklist,
                 _windows.OpenSettings,
@@ -302,6 +311,7 @@ namespace rp.spark
 
         private void ActiveProfileChanged(string accountName, string officialCharacterName, string profileId)
         {
+            RefreshRollGroupSoon();
             RefreshPresenceSoon();
 
             SparkUiThread.Queue(() =>
@@ -349,6 +359,27 @@ namespace rp.spark
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Failed to refresh SPARK data after a profile change.");
+            }
+        }
+
+        private async void RefreshRollGroupSoon()
+        {
+            if (_rollGroups == null)
+                return;
+
+            try
+            {
+                await _rollGroups.RefreshAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // Module state changed while refreshing.
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(
+                    ex,
+                    "Failed to refresh the roll group after a profile change.");
             }
         }
 
@@ -426,6 +457,9 @@ namespace rp.spark
 
                 if (stateTask != null)
                     await stateTask;
+
+                if (_rollGroups != null)
+                    await _rollGroups.RefreshAsync();
             }
             catch (OperationCanceledException)
             {

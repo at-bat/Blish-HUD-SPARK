@@ -48,6 +48,8 @@ namespace rp.spark.UI.Views
         private readonly bool _trimLongSections;
         private readonly int _maximumLinesPerSection;
         private readonly IReadOnlyList<string> _additionalDetailLines;
+        private readonly string _additionalSectionTitle;
+        private readonly string _additionalSectionText;
 
         public ProfilePresenceTooltipView(
             string characterName,
@@ -62,7 +64,9 @@ namespace rp.spark.UI.Views
             bool showOutOfCharacter,
             bool trimLongSections,
             int maximumLinesPerSection,
-            IEnumerable<string> additionalDetailLines = null)
+            IEnumerable<string> additionalDetailLines = null,
+            string additionalSectionTitle = null,
+            string additionalSectionText = null)
         {
             _characterName = Clean(characterName);
             _characterDetails = Clean(characterDetails);
@@ -83,6 +87,9 @@ namespace rp.spark.UI.Views
                 .Select(Clean)
                 .Where(line => !string.IsNullOrWhiteSpace(line))
                 .ToList();
+
+            _additionalSectionTitle = Clean(additionalSectionTitle);
+            _additionalSectionText = Clean(additionalSectionText);
         }
 
         protected override void Build(Container buildPanel)
@@ -100,11 +107,18 @@ namespace rp.spark.UI.Views
 
             var outOfCharacterSection = BuildSection("Out of Character", _showOutOfCharacter ? _outOfCharacter : string.Empty, wrapWidth, bodyFont);
 
+            var additionalSection = BuildSection(
+                _additionalSectionTitle,
+                _additionalSectionText,
+                wrapWidth,
+                bodyFont);
+
             var sections = new[]
             {
                 knownForSection,
                 currentlySection,
-                outOfCharacterSection
+                outOfCharacterSection,
+                additionalSection
             };
 
             var height = Padding;
@@ -179,10 +193,9 @@ namespace rp.spark.UI.Views
             }
 
             var hasBodyContent =
-                (_showKnownFor &&
-                    !string.IsNullOrWhiteSpace(_knownFor)) 
-                    || (_showCurrently && !string.IsNullOrWhiteSpace(_currently)) 
-                    || (_showOutOfCharacter && !string.IsNullOrWhiteSpace(_outOfCharacter));
+                (_showKnownFor && !string.IsNullOrWhiteSpace(_knownFor))
+                || (_showCurrently && !string.IsNullOrWhiteSpace(_currently))
+                || (_showOutOfCharacter && !string.IsNullOrWhiteSpace(_outOfCharacter));
 
             var desiredWidth =
                 (int)Math.Ceiling(measuredWidth) +

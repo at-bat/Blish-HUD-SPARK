@@ -31,6 +31,7 @@ namespace rp.spark.UI
         private readonly ProfileLoader _profileLoader;
         private readonly ProfileActions _profileActions;
         private readonly NearbyPresenceService _nearbyPresenceService;
+        private readonly RollGroupService _rollGroups;
         private readonly Action _requestServerSync;
         private readonly Action<bool> _setNearbySharing;
         private TabbedWindow2 _settingsWindow;
@@ -45,6 +46,7 @@ namespace rp.spark.UI
         private SparkCompactWindow _nearbyWindow;
         private StandardWindow _aboutWindow;
         private StandardWindow _blocklistWindow;
+        private StandardWindow _rollGroupWindow;
         private CharacterProfile _viewedProfile;
         private PlayerPresence _viewedPresence;
 
@@ -60,6 +62,7 @@ namespace rp.spark.UI
             ProfileLoader profileLoader,
             ProfileActions profileActions,
             NearbyPresenceService nearbyPresenceService,
+            RollGroupService rollGroups,
             Action requestServerSync,
             Action<bool> setNearbySharing)
         {
@@ -74,6 +77,7 @@ namespace rp.spark.UI
             _profileLoader = profileLoader;
             _profileActions = profileActions;
             _nearbyPresenceService = nearbyPresenceService;
+            _rollGroups = rollGroups;
             _requestServerSync = requestServerSync;
             _setNearbySharing = setNearbySharing;
         }
@@ -221,6 +225,23 @@ namespace rp.spark.UI
                 _profileActions.UnblockAccount,
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts));
+        }
+
+        public void OpenRollGroup()
+        {
+            if (!CanShowGameplayWindow())
+                return;
+
+            if (_rollGroupWindow != null && _rollGroupWindow.Visible)
+            {
+                _rollGroupWindow.BringWindowToFront();
+                return;
+            }
+
+            if (_rollGroupWindow == null)
+                CreateRollGroupWindow();
+
+            _rollGroupWindow.Show(new RollGroupView(_rollGroups));
         }
 
         public void OpenSettings()
@@ -523,6 +544,14 @@ namespace rp.spark.UI
                 new Rectangle(70, 60, 760, 610));
         }
 
+        private void CreateRollGroupWindow()
+        {
+            _rollGroupWindow = _windowBuilder.MakeWindow(
+                "Roll Group",
+                "rp.spark.roll-group-window",
+                new Rectangle(70, 60, 760, 610));
+        }
+
         private void CreateSettingsWindow()
         {
             _settingsWindow = _windowBuilder.MakeTabbedWindow("Settings", "rp.spark.settings-window");
@@ -599,6 +628,9 @@ namespace rp.spark.UI
 
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
+
+            _windowBuilder.DisposeWindow(_rollGroupWindow);
+            _rollGroupWindow = null;
 
             _nearbyWindow?.Dispose();
             _nearbyWindow = null;

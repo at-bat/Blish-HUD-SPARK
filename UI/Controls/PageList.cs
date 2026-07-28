@@ -168,7 +168,9 @@ namespace rp.spark.UI.Controls
                 _pageChanged?.Invoke();
             };
 
-            Update(0);
+            _previousButton.Enabled = false;
+            _nextButton.Enabled = false;
+            _pageLabel.Text = "Page 1 of 1.";
         }
 
         public Panel Root { get; }

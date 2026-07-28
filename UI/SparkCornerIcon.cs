@@ -26,6 +26,7 @@ namespace rp.spark.UI
         private readonly Action _openProfileManager;
         private readonly Action _openOnlineList;
         private readonly Action _openNearby;
+        private readonly Action _openRollGroup;
         private readonly Action _openSavedProfiles;
         private readonly Action _openBlocklist;
         private readonly Action _openSettings;
@@ -42,6 +43,7 @@ namespace rp.spark.UI
         private ContextMenuStripItem _profileEditorItem;
         private ContextMenuStripItem _onlineListItem;
         private ContextMenuStripItem _nearbyPlayersItem;
+        private ContextMenuStripItem _rollGroupItem;
         private ContextMenuStripItem _savedProfilesItem;
         private ContextMenuStripItem _statusMenuItem;
         private ContextMenuColours _readinessMenuItem;
@@ -57,6 +59,7 @@ namespace rp.spark.UI
             Action openProfileManager,
             Action openOnlineList,
             Action openNearby,
+            Action openRollGroup,
             Action openSavedProfiles,
             Action openBlocklist,
             Action openSettings,
@@ -72,6 +75,7 @@ namespace rp.spark.UI
             _openProfileManager = openProfileManager;
             _openOnlineList = openOnlineList;
             _openNearby = openNearby;
+            _openRollGroup = openRollGroup;
             _openSavedProfiles = openSavedProfiles;
             _openBlocklist = openBlocklist;
             _openSettings = openSettings;
@@ -144,6 +148,7 @@ namespace rp.spark.UI
 
             _onlineListItem = AddMenuItem(menu, "Online List", _openOnlineList);
             _nearbyPlayersItem = AddMenuItem(menu, "Nearby Players", _openNearby);
+            _rollGroupItem = AddMenuItem(menu, "Dice Roll Groups", _openRollGroup);
             _savedProfilesItem = AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
 
             AddSectionHeader(menu, "SPARK Status");
@@ -167,6 +172,7 @@ namespace rp.spark.UI
             width = Math.Max(width, MenuItemWidth("My Profile"));
             width = Math.Max(width, MenuItemWidth("Profile Editor"));
             width = Math.Max(width, MenuItemWidth("Nearby Players"));
+            width = Math.Max(width, MenuItemWidth("Dice Roll Groups"));
             width = Math.Max(width, MenuItemWidth("Saved Profiles"));
             width = Math.Max(width, MenuItemWidth("Manage Blocks"));
 
@@ -448,6 +454,7 @@ namespace rp.spark.UI
             SetMenuItemState(_myProfileItem, enabled, tooltip);
             SetMenuItemState(_profileEditorItem, enabled, tooltip);
             SetMenuItemState(_onlineListItem, enabled, tooltip);
+            SetMenuItemState(_rollGroupItem, enabled, tooltip);
             SetMenuItemState(_nearbyPlayersItem, enabled, tooltip);
             SetMenuItemState(_savedProfilesItem, enabled, tooltip);
         }
