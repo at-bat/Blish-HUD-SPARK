@@ -10,7 +10,8 @@ There is now a [Discord server](https://discord.gg/nJ3UstHcAg) for SPARK if you 
 
 - Multiple profiles for each character
 - RP Statuses (Online, Looking for RP, Busy, Invisible (appear offline))
-- 'At a Glance' icons with custom tooltips including a fast, built-in icon search with over 57,000 icons from the game to use
+- 'At a Glance' icons with custom tooltips including a fast, built-in icon search with over 100,000 icons (26,000 unique) from the game to use
+- Group dice rolling with private rooms up to 50 users to roll dice for RP events
 - Nearby players tracking: an opt-in feature to display your location to others on the same map, which map IP you are on, and how far away you are!
 - Bookmarks for your favourite RP profiles
 - Private notes that you can save to any profile you view
