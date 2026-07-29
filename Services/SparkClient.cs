@@ -293,13 +293,15 @@ namespace rp.spark.Services
         }
 
         public Task<ApiResult<RollEventListResponse>> ListenRollEventsResultAsync(
+            string groupId,
             long after,
             long revision,
             string gw2Subtoken,
             CancellationToken cancellationToken = default)
         {
             var path = "roll-groups/events/"
-                     + $"?after={Math.Max(0, after)}"
+                     + $"?groupId={Uri.EscapeDataString(groupId ?? string.Empty)}"
+                     + $"&after={Math.Max(0, after)}"
                      + $"&revision={Math.Max(0, revision)}";
 
             return GetAsync<RollEventListResponse>(

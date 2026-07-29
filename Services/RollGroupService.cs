@@ -12,14 +12,17 @@ namespace rp.spark.Services
     public sealed class RollGroupService : IDisposable
     {
         private static readonly Logger Logger = Logger.GetLogger<RollGroupService>();
-        private static readonly TimeSpan EmptyRefreshInterval = TimeSpan.FromSeconds(15);
-        private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(1);
 
         private readonly SparkClient _api;
         private readonly PlayerStateService _playerState;
         private readonly ProfileRepository _profiles;
         private readonly GW2TokenVerification _tokens;
         private readonly SemaphoreSlim _actionGate = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _pollWake = new SemaphoreSlim(0, 1);
+        private readonly Random _retryRandom = new Random();
+        private readonly object _pollWakeLock = new object();
         private readonly object _stateLock = new object();
 
         private CancellationTokenSource _loopCancel;
@@ -28,6 +31,7 @@ namespace rp.spark.Services
         private string _accountName = string.Empty;
         private string _lastStatus = string.Empty;
         private long _after;
+        private bool _pollingEnabled;
         private bool _disposed;
 
         public RollGroupService(SparkClient api, PlayerStateService playerState, ProfileRepository profiles, GW2TokenVerification tokens)
@@ -43,6 +47,17 @@ namespace rp.spark.Services
         public RollGroup CurrentGroup { get { lock (_stateLock) return _group; } }
         public string CurrentAccountName { get { lock (_stateLock) return _accountName; } }
         public string LastStatus { get { lock (_stateLock) return _lastStatus; } }
+        public bool PollingEnabled { get { lock (_stateLock) return _pollingEnabled; } }
+
+        public void SetPollingEnabled(bool enabled)
+        {
+            if (_disposed)
+                return;
+
+            lock (_stateLock) _pollingEnabled = enabled;
+
+            WakePollingLoop();
+        }
 
         public void Start()
         {
@@ -256,25 +271,31 @@ namespace rp.spark.Services
 
         private async Task RunAsync(CancellationToken cancellationToken)
         {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+            var failureCount = 0;
 
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    var group = CurrentGroup;
+                    var group = await WaitForPollableGroupAsync(cancellationToken).ConfigureAwait(false);
+                    var succeeded = await ListenOnceAsync(group, cancellationToken).ConfigureAwait(false);
 
-                    if (group == null)
+                    if (!PollingEnabled)
                     {
-                        await Task.Delay(EmptyRefreshInterval, cancellationToken).ConfigureAwait(false);
-                        await RefreshAsync(cancellationToken).ConfigureAwait(false);
+                        failureCount = 0;
                         continue;
                     }
 
-                    await ListenOnceAsync(group, cancellationToken).ConfigureAwait(false);
+                    if (succeeded)
+                    {
+                        failureCount = 0;
+                        continue;
+                    }
+
+                    failureCount++;
+                    await Task.Delay(GetRetryDelay(failureCount), cancellationToken).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
-                    when (cancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
@@ -283,9 +304,17 @@ namespace rp.spark.Services
                     Logger.Warn(ex, "SPARK roll group listener failed.");
                     SetStatus("Roll group updates are reconnecting.");
 
+                    if (!PollingEnabled)
+                    {
+                        failureCount = 0;
+                        continue;
+                    }
+
+                    failureCount++;
+
                     try
                     {
-                        await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(GetRetryDelay(failureCount), cancellationToken).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -295,17 +324,47 @@ namespace rp.spark.Services
             }
         }
 
-        private async Task ListenOnceAsync(RollGroup observedGroup, CancellationToken cancellationToken)
+        private async Task<RollGroup> WaitForPollableGroupAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                lock (_stateLock)
+                {
+                    if (_pollingEnabled && _group != null)
+                        return _group;
+                }
+
+                await _pollWake.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private void WakePollingLoop()
+        {
+            lock (_pollWakeLock)
+            {
+                if (_pollWake.CurrentCount == 0)
+                    _pollWake.Release();
+            }
+        }
+
+        // Adding a randomized delay so all clients won't hammer the server the same time each time
+        private TimeSpan GetRetryDelay(int failureCount)
+        {
+            var exponent = Math.Min(5, Math.Max(0, failureCount - 1));
+            var seconds = Math.Min(MaxRetryDelay.TotalSeconds, FirstRetryDelay.TotalSeconds * Math.Pow(2, exponent));
+            var jitter = 0.75 + _retryRandom.NextDouble() * 0.25;
+
+            return TimeSpan.FromSeconds(seconds * jitter);
+        }
+
+        private async Task<bool> ListenOnceAsync(RollGroup observedGroup, CancellationToken cancellationToken)
         {
             var token = await _tokens.GetTokenAsync(cancellationToken).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(token))
             {
                 SetStatus("Add a valid GW2 API key to receive group updates.");
-
-                await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
-
-                return;
+                return false;
             }
 
             long after;
@@ -313,6 +372,7 @@ namespace rp.spark.Services
             lock (_stateLock) after = _after;
 
             var result = await _api.ListenRollEventsResultAsync(
+                observedGroup.GroupId,
                 after,
                 observedGroup.Revision,
                 token,
@@ -323,26 +383,32 @@ namespace rp.spark.Services
                 if (result.StatusCode == HttpStatusCode.NotFound)
                 {
                     ClearGroupIf(observedGroup.GroupId, "The roll group is no longer available.");
-
-                    return;
+                    return true;
                 }
+
+                if (result.StatusCode == HttpStatusCode.Unauthorized)
+                    _tokens.Clear();
 
                 SetStatus(result.ErrorMessage ?? "Roll group updates are reconnecting.");
 
-                await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
+                if (result.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    SetPollingEnabled(false);
+                    return true;
+                }
 
-                return;
+                return false;
             }
 
             if (!IsCurrentGroup(observedGroup.GroupId))
-                return;
+                return true;
 
             MergeEvents(result.Value?.Events, observedGroup.GroupId);
 
-            if (result.Value?.GroupChanged == true && IsCurrentGroup(observedGroup.GroupId))
-            {
-                await RefreshAsync(cancellationToken).ConfigureAwait(false);
-            }
+            if (PollingEnabled && result.Value?.GroupChanged == true && IsCurrentGroup(observedGroup.GroupId))
+                return await RefreshAsync(cancellationToken).ConfigureAwait(false);
+
+            return true;
         }
 
         private async Task<bool> RunActionAsync(Func<Session, Task<bool>> action, CancellationToken cancellationToken)
@@ -458,6 +524,7 @@ namespace rp.spark.Services
                     .Max() ?? 0;
             }
 
+            WakePollingLoop();
             Notify();
         }
 

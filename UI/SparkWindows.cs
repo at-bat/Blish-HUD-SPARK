@@ -550,6 +550,19 @@ namespace rp.spark.UI
                 "Roll Group",
                 "rp.spark.roll-group-window",
                 new Rectangle(70, 60, 760, 610));
+
+            _rollGroupWindow.Shown += HandleRollGroupWindowShown;
+            _rollGroupWindow.Hidden += HandleRollGroupWindowHidden;
+        }
+
+        private void HandleRollGroupWindowShown(object sender, EventArgs e)
+        {
+            _rollGroups.SetPollingEnabled(true);
+        }
+
+        private void HandleRollGroupWindowHidden(object sender, EventArgs e)
+        {
+            _rollGroups.SetPollingEnabled(false);
         }
 
         private void CreateSettingsWindow()
@@ -629,6 +642,7 @@ namespace rp.spark.UI
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
 
+            _rollGroups.SetPollingEnabled(false);
             _windowBuilder.DisposeWindow(_rollGroupWindow);
             _rollGroupWindow = null;
 

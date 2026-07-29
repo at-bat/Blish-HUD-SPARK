@@ -52,7 +52,10 @@ namespace rp.spark.Services
         public async Task<string> GetTokenAsync(CancellationToken cancellationToken = default)
         {
             if (!HasRequiredPermissions())
+            {
+                Clear();
                 return string.Empty;
+            }
 
             if (TryGetFreshToken(out var cachedToken))
                 return cachedToken;
@@ -87,23 +90,23 @@ namespace rp.spark.Services
 
                     var token = subtoken?.Subtoken?.Trim() ?? string.Empty;
 
+                    if (string.IsNullOrWhiteSpace(token))
+                        return GetValidFallbackToken();
+
                     lock (_cacheLock)
                     {
                         if (cacheVersion != _cacheVersion)
                             return string.Empty;
 
                         _cachedToken = token;
-                        _expiresAt = string.IsNullOrWhiteSpace(_cachedToken)
-                            ? DateTimeOffset.MinValue
-                            : expiresAt;
-
+                        _expiresAt = expiresAt;
                         return _cachedToken;
                     }
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     Logger.Warn("Timed out while creating a GW2 API verification subtoken for SPARK.");
-                    return string.Empty;
+                    return GetValidFallbackToken();
                 }
                 catch (OperationCanceledException)
                 {
@@ -111,10 +114,9 @@ namespace rp.spark.Services
                 }
                 catch (Exception ex)
                 {
-                    Clear();
                     BlishWarnings.HttpBlocked(ex, "create a temporary GW2 API verification token");
                     Logger.Warn(ex, "Failed to create a GW2 API verification subtoken for SPARK.");
-                    return string.Empty;
+                    return GetValidFallbackToken();
                 }
                 finally
                 {
@@ -131,6 +133,17 @@ namespace rp.spark.Services
                 && _gw2ApiManager.HasPermissions(new[] { TokenPermission.Account, TokenPermission.Characters });
         }
 
+        private string GetValidFallbackToken()
+        {
+            if (!HasRequiredPermissions())
+            {
+                Clear();
+                return string.Empty;
+            }
+
+            return TryGetValidToken(out var token) ? token : string.Empty;
+        }
+
         private int GetCacheVersion()
         {
             lock (_cacheLock)
@@ -145,6 +158,21 @@ namespace rp.spark.Services
             {
                 if (!string.IsNullOrWhiteSpace(_cachedToken)
                     && DateTimeOffset.UtcNow < _expiresAt.Subtract(RefreshSkew))
+                {
+                    token = _cachedToken;
+                    return true;
+                }
+            }
+
+            token = string.Empty;
+            return false;
+        }
+
+        private bool TryGetValidToken(out string token)
+        {
+            lock (_cacheLock)
+            {
+                if (!string.IsNullOrWhiteSpace(_cachedToken) && DateTimeOffset.UtcNow < _expiresAt)
                 {
                     token = _cachedToken;
                     return true;
