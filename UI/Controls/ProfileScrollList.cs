@@ -47,6 +47,16 @@ namespace rp.spark.UI.Controls
 
         public Panel AddRow(int index, string tooltipText)
         {
+            return AddRow(index, null, tooltipText);
+        }
+
+        public Panel AddRow(int index, Tooltip tooltip)
+        {
+            return AddRow(index, tooltip, string.Empty);
+        }
+
+        private Panel AddRow(int index, Tooltip tooltip, string tooltipText)
+        {
             return new Panel
             {
                 ShowBorder = false,
@@ -56,7 +66,10 @@ namespace rp.spark.UI.Controls
                     ? new Color(0, 0, 0, 70)
                     : new Color(20, 20, 20, 70),
                 Parent = _rowsPanel,
-                BasicTooltipText = tooltipText ?? string.Empty
+                BasicTooltipText = tooltip == null
+                    ? tooltipText ?? string.Empty
+                    : null,
+                Tooltip = tooltip
             };
         }
 
@@ -129,9 +142,36 @@ namespace rp.spark.UI.Controls
                 _scrollbar.ScrollDistance = 0;
         }
 
+        public static Panel AddInteractionLayer(Container row, Tooltip tooltip, Action click, int rightInset = 0)
+        {
+            if (row == null)
+                return null;
+
+            var interactionLayer = new Panel
+            {
+                ShowBorder = false,
+                Location = Point.Zero,
+                Size = new Point(Math.Max(0, row.Width - rightInset), row.Height),
+                BackgroundColor = Color.Transparent,
+                Parent = row,
+                ZIndex = 100
+            };
+
+            WireInteraction(interactionLayer, tooltip, click);
+
+            return interactionLayer;
+        }
+
         public static void WireInteraction(Control control, string tooltipText, Action click)
         {
             control.BasicTooltipText = tooltipText ?? string.Empty;
+            control.Click += (s, e) => click?.Invoke();
+        }
+
+        public static void WireInteraction(Control control, Tooltip tooltip, Action click)
+        {
+            control.BasicTooltipText = null;
+            control.Tooltip = tooltip;
             control.Click += (s, e) => click?.Invoke();
         }
 

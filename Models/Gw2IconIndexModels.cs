@@ -13,6 +13,9 @@ namespace rp.spark.Models
         [JsonProperty("n")]
         public string Name { get; set; } = string.Empty;
 
+        [JsonProperty("q")]
+        public List<string> Aliases { get; set; } = new List<string>();
+
         [JsonProperty("d")]
         public string Description { get; set; } = string.Empty;
 

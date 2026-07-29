@@ -14,6 +14,10 @@ namespace rp.spark.UI.Views
 {
     public class ProfileViewerView : View
     {
+        private const string OfficialDeveloperAccount = "Bat.8570";
+        private const int DeveloperBadgeAssetId = 3307061;
+        private const int DeveloperBadgeSlot = 5;
+
         private readonly Func<CharacterProfile, PlayerPresence, string> _toggleBookmark;
         private readonly Func<CharacterProfile, PlayerPresence, bool> _isBookmarked;
         private readonly Func<CharacterProfile, PlayerPresence, string> _toggleBlock;
@@ -318,6 +322,14 @@ namespace rp.spark.UI.Views
                 || _presence?.IsMature == true;
         }
 
+        private bool IsOfficialDeveloper()
+        {
+            return string.Equals(
+                _presence?.AccountName?.Trim(),
+                OfficialDeveloperAccount,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
         private void BuildGlance(Container buildPanel)
         {
             var layout = _layout;
@@ -325,9 +337,6 @@ namespace rp.spark.UI.Views
                 return;
 
             var entries = GetGlanceEntries().ToList();
-
-            if (!entries.Any())
-                return;
 
             for (var i = 0; i < entries.Count; i++)
             {
@@ -344,6 +353,43 @@ namespace rp.spark.UI.Views
 
                 icon.SetAssetId(entry.AssetId);
             }
+
+            if (IsOfficialDeveloper())
+                AddDeveloperBadge(buildPanel, layout);
+        }
+
+        private static void AddDeveloperBadge(Container parent, Layout layout)
+        {
+            const int borderThickness = 2;
+
+            var bounds = layout.GlanceIconBounds(DeveloperBadgeSlot);
+            var tooltip = new Tooltip(new ProfileTooltipView(
+                "Official SPARK Developer",
+                "This account belongs to an official developer of SPARK.",
+                "At A Glance"));
+
+            var border = new Panel
+            {
+                ShowBorder = false,
+                Location = bounds.Location,
+                Size = bounds.Size,
+                Parent = parent,
+                BackgroundColor = new Color(255, 194, 55),
+                Tooltip = tooltip
+            };
+
+            var icon = new AssetIcon
+            {
+                Location = new Point(borderThickness, borderThickness),
+                Size = new Point(
+                    bounds.Width - borderThickness * 2,
+                    bounds.Height - borderThickness * 2),
+                Parent = border,
+                BackgroundColor = new Color(20, 20, 20, 180),
+                Tooltip = tooltip
+            };
+
+            icon.SetAssetId(DeveloperBadgeAssetId);
         }
 
         private void BuildStatus(Container buildPanel)
@@ -926,9 +972,13 @@ namespace rp.spark.UI.Views
 
         private string GetOtherInfoText()
         {
-            return string.IsNullOrWhiteSpace(_profile.OutOfCharacterInfo)
+            var outOfCharacterInfo = _profile.UseGlobalOutOfCharacterInfo
+                ? _presence?.OutOfCharacterInfo
+                : _profile.OutOfCharacterInfo;
+
+            return string.IsNullOrWhiteSpace(outOfCharacterInfo)
                 ? string.Empty
-                : _profile.OutOfCharacterInfo.Trim();
+                : outOfCharacterInfo.Trim();
         }
 
         private static IEnumerable<string> WrapTextLines(

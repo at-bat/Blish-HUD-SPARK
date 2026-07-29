@@ -126,6 +126,12 @@ namespace rp.spark.Services
             QueueSync();
         }
 
+        public void InvalidateProfileUpload()
+        {
+            _lastUploadedProfileId = string.Empty;
+            _lastProfileUpdatedAt = DateTime.MinValue;
+        }
+
         public void SyncSoon()
         {
             _nextSyncAttempt = DateTime.MinValue;
@@ -483,6 +489,7 @@ namespace rp.spark.Services
                 || !SameTrimmed(previous.ActiveProfileName, current.ActiveProfileName)
                 || previous.ProfileUpdatedAtTime != current.ProfileUpdatedAtTime
                 || previous.Status != current.Status
+                || !SameTrimmed(previous.KnownFor, current.KnownFor)
                 || !SameTrimmed(previous.Currently, current.Currently)
                 || !SameTrimmed(previous.OutOfCharacterInfo, current.OutOfCharacterInfo)
                 || !SameTrimmed(previous.LocationName, current.LocationName)

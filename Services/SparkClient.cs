@@ -1,5 +1,6 @@
 using Blish_HUD;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Converters;
 using rp.spark.Models;
 using rp.spark.Models.Api;
@@ -47,6 +48,7 @@ namespace rp.spark.Services
         private const int MaxResponseBodySize = 1024 * 1024;
         private const int ResponseReadBufferSize = 8192;
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan LongPollTimeout = TimeSpan.FromSeconds(30);
 
         private static readonly HttpClient SharedHttpClient = new HttpClient
         {
@@ -173,6 +175,142 @@ namespace rp.spark.Services
                 gw2Subtoken);
         }
 
+        public Task<ApiResult<RollGroupResponse>> GetCurrentRollGroupResultAsync(
+    string gw2Subtoken,
+    CancellationToken cancellationToken = default)
+        {
+            return GetAsync<RollGroupResponse>(
+                "roll-groups/current/",
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollGroupResponse>> CreateRollGroupResultAsync(
+            CreateRollGroupRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync<CreateRollGroupRequest, RollGroupResponse>(
+                "roll-groups/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollGroupResponse>> JoinRollGroupResultAsync(
+            JoinRollGroupRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync<JoinRollGroupRequest, RollGroupResponse>(
+                "roll-groups/join/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<bool>> LeaveRollGroupResultAsync(
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync(
+                "roll-groups/leave/",
+                new RollGroupActionRequest(),
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<bool>> DisbandRollGroupResultAsync(
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteAsync(
+                "roll-groups/current/",
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollGroupResponse>> UpdateRollGroupResultAsync(
+            RollGroupSettingsRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PutAsync<RollGroupSettingsRequest, RollGroupResponse>(
+                "roll-groups/current/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollGroupResponse>> UpdateRollMemberResultAsync(
+            RollMemberUpdateRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PutAsync<RollMemberUpdateRequest, RollGroupResponse>(
+                "roll-groups/member/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<bool>> KickRollGroupMemberResultAsync(
+            string accountName,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            var path = "roll-groups/members/"
+                     + $"?account={Uri.EscapeDataString(accountName ?? string.Empty)}";
+
+            return DeleteAsync(
+                path,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollEventResponse>> SubmitRollResultAsync(
+            RollRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync<RollRequest, RollEventResponse>(
+                "roll-groups/rolls/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollEventResponse>> SubmitRollHeaderResultAsync(
+            RollHeaderRequest request,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            return PostAsync<RollHeaderRequest, RollEventResponse>(
+                "roll-groups/headers/",
+                request,
+                cancellationToken,
+                gw2Subtoken);
+        }
+
+        public Task<ApiResult<RollEventListResponse>> ListenRollEventsResultAsync(
+            string groupId,
+            long after,
+            long revision,
+            string gw2Subtoken,
+            CancellationToken cancellationToken = default)
+        {
+            var path = "roll-groups/events/"
+                     + $"?groupId={Uri.EscapeDataString(groupId ?? string.Empty)}"
+                     + $"&after={Math.Max(0, after)}"
+                     + $"&revision={Math.Max(0, revision)}";
+
+            return GetAsync<RollEventListResponse>(
+                path,
+                cancellationToken,
+                gw2Subtoken,
+                LongPollTimeout);
+        }
+
         public Task<ApiResult<ProfileReportResponse>> ReportProfileResultAsync(
             ProfileReportRequest report,
             string gw2Subtoken,
@@ -188,7 +326,8 @@ namespace rp.spark.Services
         private async Task<ApiResult<T>> GetAsync<T>(
             string relativePath,
             CancellationToken cancellationToken,
-            string gw2Subtoken)
+            string gw2Subtoken,
+            TimeSpan? timeout = null)
             where T : class
         {
             if (!IsConfigured)
@@ -218,7 +357,8 @@ namespace rp.spark.Services
                                 requestToken);
                         }
                     }
-                });
+                },
+                timeout);
         }
 
         private async Task<ApiResult<bool>> PostAsync<T>(
@@ -360,6 +500,60 @@ namespace rp.spark.Services
                 });
         }
 
+        private async Task<ApiResult<TResponse>> PutAsync<TPayload, TResponse>(
+        string relativePath,
+        TPayload payload,
+        CancellationToken cancellationToken,
+        string gw2Subtoken)
+        where TResponse : class
+        {
+            if (!IsConfigured)
+                return ApiResult<TResponse>.Failure(
+                    "SPARK webserver is not configured.",
+                    failureKind: ApiFailure.NotConfigured);
+
+            if (payload == null)
+                return ApiResult<TResponse>.Failure(
+                    "SPARK request is empty.",
+                    failureKind: ApiFailure.InvalidRequest);
+
+            return await ExecuteRequestAsync<TResponse>(
+                HttpMethod.Put,
+                relativePath,
+                cancellationToken,
+                async requestToken =>
+                {
+                    var json = JsonConvert.SerializeObject(
+                        payload,
+                        Formatting.None,
+                        JsonSettings);
+
+                    using (var request = new HttpRequestMessage(
+                               HttpMethod.Put,
+                               GetUri(relativePath)))
+                    using (var content = new StringContent(
+                               json,
+                               Encoding.UTF8,
+                               "application/json"))
+                    {
+                        request.Content = content;
+                        AddSubtokenHeader(request, gw2Subtoken);
+
+                        using (var response = await SharedHttpClient.SendAsync(
+                            request,
+                            HttpCompletionOption.ResponseHeadersRead,
+                            requestToken))
+                        {
+                            return await ReadJsonResponseAsync<TResponse>(
+                                HttpMethod.Put,
+                                relativePath,
+                                response,
+                                requestToken);
+                        }
+                    }
+                });
+        }
+
         private async Task<ApiResult<bool>> DeleteAsync(
             string relativePath,
             CancellationToken cancellationToken,
@@ -399,13 +593,14 @@ namespace rp.spark.Services
             HttpMethod method,
             string relativePath,
             CancellationToken cancellationToken,
-            Func<CancellationToken, Task<ApiResult<T>>> requestAsync)
+            Func<CancellationToken, Task<ApiResult<T>>> requestAsync,
+            TimeSpan? timeout = null)
         {
             var logPath = GetEndpointPathForLog(relativePath);
 
             using (var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                requestTimeout.CancelAfter(RequestTimeout);
+                requestTimeout.CancelAfter(timeout ?? RequestTimeout);
 
                 try
                 {
@@ -683,14 +878,22 @@ namespace rp.spark.Services
 
             try
             {
-                var payload = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseBody, JsonSettings);
+                var detail = JObject.Parse(responseBody)["detail"];
+                var errors = detail as JArray;
+                string text;
 
-                if (payload == null || !payload.TryGetValue("detail", out var detail))
+                if (detail?.Type == JTokenType.String)
+                    text = detail.Value<string>();
+                else if (errors?.Count > 0)
+                    text = errors[0]?["msg"]?.Value<string>();
+                else
                     return string.Empty;
 
-                var detailText = detail?.ToString()?.Trim() ?? string.Empty;
+                text = (text ?? string.Empty)
+                    .Replace("Value error, ", string.Empty)
+                    .Trim();
 
-                return detailText.Length <= 160 ? detailText : string.Empty;
+                return text.Length <= 100 ? text : string.Empty;
             }
             catch
             {

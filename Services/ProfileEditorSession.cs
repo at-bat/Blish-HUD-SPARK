@@ -10,8 +10,10 @@ namespace rp.spark.Services
     {
         private readonly ProfileRepository _profiles;
         private readonly PlayerStateService _playerState;
+        private readonly GlobalOocInfoStore _globalOocInfo;
         private List<CharacterProfile> _availableProfiles = new List<CharacterProfile>();
         private List<ProfileImportGroup> _importGroups = new List<ProfileImportGroup>();
+        private string _globalOocInfoDraft = string.Empty;
 
         public CharacterProfile Profile { get; private set; }
         public PlayerState State { get; private set; }
@@ -31,18 +33,47 @@ namespace rp.spark.Services
 
         public string StatusText { get; private set; } = string.Empty;
 
+        public string OutOfCharacterInfo =>
+            Profile?.UseGlobalOutOfCharacterInfo == true
+                ? _globalOocInfoDraft
+                : Profile?.OutOfCharacterInfo ?? string.Empty;
+
         public event Action<string> StatusChanged;
         public event Action ProfileChanged;
         public event Action ImportsChanged;
 
-        public ProfileEditorSession(ProfileRepository profiles, PlayerStateService playerState, PlayerState initialState)
+        public ProfileEditorSession(
+            ProfileRepository profiles,
+            PlayerStateService playerState,
+            GlobalOocInfoStore globalOocInfo,
+            PlayerState initialState)
         {
             _profiles = profiles;
             _playerState = playerState;
+            _globalOocInfo = globalOocInfo;
             State = initialState ?? new PlayerState();
             Glance = new AtAGlanceEntry[ProfileLimits.MaxAtAGlanceEntries];
 
             RefreshProfiles(preferActive: true);
+        }
+
+        public void SetUseGlobalOutOfCharacterInfo(bool useGlobal)
+        {
+            if (Profile == null || Profile.UseGlobalOutOfCharacterInfo == useGlobal)
+                return;
+
+            Profile.UseGlobalOutOfCharacterInfo = useGlobal;
+            ProfileChanged?.Invoke();
+        }
+
+        public void SetOutOfCharacterInfo(string outOfCharacterInfo)
+        {
+            var value = outOfCharacterInfo?.Trim() ?? string.Empty;
+
+            if (Profile?.UseGlobalOutOfCharacterInfo == true)
+                _globalOocInfoDraft = value;
+            else if (Profile != null)
+                Profile.OutOfCharacterInfo = value;
         }
 
         public void SelectProfile(string profileId)
@@ -179,6 +210,9 @@ namespace rp.spark.Services
 
             try
             {
+                if (Profile.UseGlobalOutOfCharacterInfo)
+                    _globalOocInfo.Save(Profile.AccountName, _globalOocInfoDraft);
+
                 _profiles.Save(Profile);
                 RefreshProfiles(Profile.ProfileId);
                 SetStatus(string.IsNullOrWhiteSpace(Profile.AccountName)
@@ -259,6 +293,7 @@ namespace rp.spark.Services
 
             Profile = selectedProfile ?? CreateBlankProfile("Default");
             LoadGlanceDraft();
+            LoadGlobalOocInfoDraft();
             ProfileChanged?.Invoke();
         }
 
@@ -315,6 +350,15 @@ namespace rp.spark.Services
             profile.Profession = state.Profession?.Trim() ?? string.Empty;
             profile.Specialization = state.Specialization?.Trim() ?? string.Empty;
             profile.IsCharacterVerified = state.IsCharacterApiVerified;
+        }
+
+        private void LoadGlobalOocInfoDraft()
+        {
+            var accountName = TextUtil.FirstNonEmpty(
+                Profile?.AccountName,
+                State?.AccountName);
+
+            _globalOocInfoDraft = _globalOocInfo.Get(accountName);
         }
 
         private void LoadGlanceDraft()

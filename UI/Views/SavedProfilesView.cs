@@ -3,6 +3,7 @@ using Blish_HUD.Controls;
 using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
 using rp.spark.Models;
+using rp.spark.Services;
 using rp.spark.UI.Controls;
 using System;
 using System.Collections.Generic;
@@ -31,6 +32,7 @@ namespace rp.spark.UI.Views
         private readonly Action<Action> _watchSavedProfiles;
         private readonly Action<Action> _unwatchSavedProfiles;
         private readonly SavedProfilesMode _mode;
+        private readonly SparkSettings _settings;
         private readonly PageList _page = new PageList();
         private PageListControls _pageControls;
 
@@ -47,6 +49,7 @@ namespace rp.spark.UI.Views
             Func<IReadOnlyList<SavedProfileSummary>> getSavedProfiles,
             Action<SavedProfileSummary, Action<string>> openProfile,
             SavedProfilesMode mode,
+            SparkSettings settings,
             Func<string, bool> isBlockedAccount = null,
             Action<SavedProfileSummary> removeBookmark = null,
             Action<Action> watchSavedProfilesChanged = null,
@@ -56,6 +59,7 @@ namespace rp.spark.UI.Views
             _loadSavedProfiles = getSavedProfiles;
             _openProfile = openProfile;
             _mode = mode;
+            _settings = settings;
             _isBlockedAccount = isBlockedAccount;
             _showMatureProfiles = showMatureProfiles;
             _removeBookmark = removeBookmark;
@@ -78,6 +82,7 @@ namespace rp.spark.UI.Views
             BuildSearchControls(buildPanel);
             BuildHeader(buildPanel);
             _watchSavedProfiles?.Invoke(HandleSavedProfilesChanged);
+            WatchTooltipSettings();
 
             _profileList = new ProfileScrollList(ProfileListViewUI.BodyWidth, ProfileListViewUI.ListHeight, RowHeight)
             {
@@ -156,6 +161,71 @@ namespace rp.spark.UI.Views
             });
         }
 
+        private void WatchTooltipSettings()
+        {
+            if (_settings == null)
+                return;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged +=
+                OnTooltipLineLimitChanged;
+        }
+
+        private void UnwatchTooltipSettings()
+        {
+            if (_settings == null)
+                return;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged -=
+                OnTooltipLineLimitChanged;
+        }
+
+        private void OnTooltipVisibilityChanged(
+            object sender,
+            ValueChangedEventArgs<bool> e)
+        {
+            RebuildTooltips();
+        }
+
+        private void OnTooltipLineLimitChanged(
+            object sender,
+            ValueChangedEventArgs<int> e)
+        {
+            RebuildTooltips();
+        }
+
+        private void RebuildTooltips()
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (!_isUnloaded && _profileList != null)
+                    RefreshRows(false, false);
+            });
+        }
+
         private void RefreshRows(bool resetPage, bool resetScroll = true)
         {
             if (_isUnloaded || _profileList == null)
@@ -212,38 +282,36 @@ namespace rp.spark.UI.Views
 
         private void AddRow(SavedProfileSummary savedProfile, int index)
         {
-            var tooltipText = TooltipText(savedProfile);
-            var row = _profileList.AddRow(index, tooltipText);
+            var row = _profileList.AddRow(index, string.Empty);
+            var secondary = new Color(220, 220, 220);
 
-            // Quick fix for clickthrough on remove bookmark also opening profiles
-            // The last segment of the bookmark row is non-clickable for profile opening, not sure if there's a better way to handle this
             if (_mode == SavedProfilesMode.Bookmarks)
             {
-                MakeClickable(_profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 8, 8, 210, Color.White), savedProfile, tooltipText);
-                MakeClickable(_profileList.AddCell(row, ProfileText.SavedRace(savedProfile), 225, 8, 95, new Color(220, 220, 220)), savedProfile, tooltipText);
-                MakeClickable(_profileList.AddCell(row, ProfileText.SavedAccountName(savedProfile), 330, 8, 160, new Color(220, 220, 220)), savedProfile, tooltipText);
-                MakeClickable(_profileList.AddCell(row, GetSavedTime(savedProfile), 500, 8, 135, new Color(220, 220, 220)), savedProfile, tooltipText);
+                _profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 8, 8, 210, Color.White);
+                _profileList.AddCell(row, ProfileText.SavedRace(savedProfile), 225, 8, 95, secondary);
+                _profileList.AddCell(row, ProfileText.SavedAccountName(savedProfile), 330, 8, 160, secondary);
+                _profileList.AddCell(row, GetSavedTime(savedProfile), 500, 8, 135, secondary);
 
                 AddRemoveButton(row, savedProfile);
-                return;
+            }
+            else
+            {
+                AddBookmarkMarker(row, savedProfile);
+
+                _profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 30, 8, 210, Color.White);
+                _profileList.AddCell(row, ProfileText.SavedRace(savedProfile), 250, 8, 110, secondary);
+                _profileList.AddCell(row, ProfileText.SavedAccountName(savedProfile), 370, 8, 170, secondary);
+                _profileList.AddCell(row, GetSavedTime(savedProfile), 550, 8, 205, secondary);
             }
 
-            MakeClickable(row, savedProfile, tooltipText);
-
-            AddBookmarkMarker(row, savedProfile, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileText.SavedCharacterName(savedProfile), 30, 8, 210, Color.White), savedProfile, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileText.SavedRace(savedProfile), 250, 8, 110, new Color(220, 220, 220)), savedProfile, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileText.SavedAccountName(savedProfile), 370, 8, 170, new Color(220, 220, 220)), savedProfile, tooltipText);
-            MakeClickable(_profileList.AddCell(row, GetSavedTime(savedProfile), 550, 8, 205, new Color(220, 220, 220)), savedProfile, tooltipText);
+            ProfileScrollList.AddInteractionLayer(row, MakeTooltip(savedProfile), 
+                () => _openProfile?.Invoke(savedProfile, ShowStatusOverride), _mode == SavedProfilesMode.Bookmarks ? 110 : 0);
         }
 
-        private void AddBookmarkMarker(Container row, SavedProfileSummary savedProfile, string tooltipText)
+        private static void AddBookmarkMarker(Container row, SavedProfileSummary savedProfile)
         {
-            if (savedProfile?.IsBookmarked != true)
-                return;
-
-            var marker = ProfileListViewUI.AddBookmarkMarker(row);
-            MakeClickable(marker, savedProfile, tooltipText);
+            if (savedProfile?.IsBookmarked == true)
+                ProfileListViewUI.AddBookmarkMarker(row);
         }
 
         private void AddRemoveButton(Container row, SavedProfileSummary savedProfile)
@@ -253,7 +321,8 @@ namespace rp.spark.UI.Views
                 Text = "Remove",
                 Location = new Point(650, 5),
                 Size = new Point(90, 30),
-                Parent = row
+                Parent = row,
+                ZIndex = 101
             };
 
             removeButton.Click += (s, e) =>
@@ -386,33 +455,45 @@ namespace rp.spark.UI.Views
                 : "No recent profiles match this search.";
         }
 
-        private string TooltipText(SavedProfileSummary savedProfile)
+        private Tooltip MakeTooltip(SavedProfileSummary savedProfile)
         {
-            var lines = new List<string>
-            {
+            var showKnownFor =
+                _settings?.ShowKnownForInProfileTooltips.Value ?? true;
+
+            var showCurrently =
+                _settings?.ShowCurrentlyInProfileTooltips.Value ?? true;
+
+            var showOutOfCharacter =
+                _settings?.ShowOocInfoInProfileTooltips.Value ?? true;
+
+            var trimLongTooltips =
+                _settings?.TrimLongProfileTooltips.Value ?? true;
+
+            var maximumLinesPerSection =
+                _settings?.ProfileTooltipLinesPerSection.Value ?? 12;
+
+            var savedTimeLabel = _mode == SavedProfilesMode.Bookmarks
+                ? $"Bookmarked: {ProfileText.FormatShortTime(savedProfile.BookmarkedAt ?? savedProfile.CachedAt, "-")}"
+                : $"Viewed: {ProfileText.FormatShortTime(savedProfile.CachedAt, "-")}";
+
+            return new Tooltip(new ProfilePresenceTooltipView(
                 ProfileText.SavedCharacterName(savedProfile),
                 ProfileText.SavedCharacterDetails(savedProfile),
-                $"Account: {ProfileText.SavedAccountName(savedProfile)}",
-                $"Status: {GetCachedStatusText(savedProfile)}",
-                $"Location: {GetCachedLocationText(savedProfile)}",
-                _mode == SavedProfilesMode.Bookmarks
-                    ? $"Bookmarked: {ProfileText.FormatShortTime(savedProfile.BookmarkedAt ?? savedProfile.CachedAt, "-")}"
-                    : $"Viewed: {ProfileText.FormatShortTime(savedProfile.CachedAt, "-")}"
-            };
-
-            if (!string.IsNullOrWhiteSpace(savedProfile.Currently))
-            {
-                lines.Add("----------------");
-                lines.Add($"Currently: {savedProfile.Currently.Trim()}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(savedProfile.OutOfCharacterInfo))
-            {
-                lines.Add("----------------");
-                lines.Add(savedProfile.OutOfCharacterInfo.Trim());
-            }
-
-            return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+                GetCachedStatusText(savedProfile),
+                GetCachedLocationText(savedProfile),
+                savedProfile?.KnownFor,
+                savedProfile?.Currently,
+                savedProfile?.OutOfCharacterInfo,
+                showKnownFor,
+                showCurrently,
+                showOutOfCharacter,
+                trimLongTooltips,
+                maximumLinesPerSection,
+                new[]
+                {
+            $"Account: {ProfileText.SavedAccountName(savedProfile)}",
+            savedTimeLabel
+                }));
         }
 
         private string GetSavedTime(SavedProfileSummary savedProfile)
@@ -448,6 +529,7 @@ namespace rp.spark.UI.Views
         protected override void Unload()
         {
             _isUnloaded = true;
+            UnwatchTooltipSettings();
             _unwatchSavedProfiles?.Invoke(HandleSavedProfilesChanged);
 
             _discoveryFilters?.Dispose();

@@ -27,6 +27,11 @@ namespace rp.spark.Services
         private const string NearbyWindowLocationKey = "NearbyWindowLocation";
         private const string NearbyWindowLockKey = "NearbyWindowLock";
         private const string ShowCornerIconKey = "ShowCornerIcon";
+        private const string ShowKnownForInProfileTooltipsKey = "ShowKnownForInProfileTooltips";
+        private const string ShowCurrentlyInProfileTooltipsKey = "ShowCurrentlyInProfileTooltips";
+        private const string ShowOocInfoInProfileTooltipsKey = "ShowOocInfoInProfileTooltips";
+        private const string TrimLongProfileTooltipsKey = "TrimLongProfileTooltips";
+        private const string ProfileTooltipLinesPerSectionKey = "ProfileTooltipLinesPerSection";
 
         private static readonly Regex AccountNameRegex = new Regex(@"^[^.\r\n]+\.\d{4}$", RegexOptions.Compiled);
 
@@ -47,6 +52,11 @@ namespace rp.spark.Services
         public SettingEntry<string> NearbyWindowLocation { get; }
         public SettingEntry<bool> NearbyWindowLock { get; }
         public SettingEntry<bool> ShowCornerIcon { get; }
+        public SettingEntry<bool> ShowKnownForInProfileTooltips { get; }
+        public SettingEntry<bool> ShowCurrentlyInProfileTooltips { get; }
+        public SettingEntry<bool> ShowOocInfoInProfileTooltips { get; }
+        public SettingEntry<bool> TrimLongProfileTooltips { get; }
+        public SettingEntry<int> ProfileTooltipLinesPerSection { get; }
 
         public SparkSettings(SettingCollection settings)
         {
@@ -147,6 +157,36 @@ namespace rp.spark.Services
                 true,
                 () => "Show corner icon",
                 () => "Shows the SPARK shortcut menu in the Blish HUD corner icon area.");
+
+            ShowKnownForInProfileTooltips = UiSettings.DefineSetting(
+                ShowKnownForInProfileTooltipsKey,
+                true,
+                () => "Show Known For in profile tooltips",
+                () => "Shows the Known For section when it is available.");
+
+            ShowCurrentlyInProfileTooltips = UiSettings.DefineSetting(
+                ShowCurrentlyInProfileTooltipsKey,
+                true,
+                () => "Show Currently in profile tooltips",
+                () => "Shows the Currently section when it is available.");
+
+            ShowOocInfoInProfileTooltips = UiSettings.DefineSetting(
+                ShowOocInfoInProfileTooltipsKey,
+                true,
+                () => "Show OOC info in profile tooltips",
+                () => "Shows the Out of Character section when it is available.");
+
+            TrimLongProfileTooltips = UiSettings.DefineSetting(
+                TrimLongProfileTooltipsKey,
+                true,
+                () => "Trim long profile tooltips",
+                () => "Limits each enabled profile-tooltip section to the configured number of wrapped lines.");
+
+            ProfileTooltipLinesPerSection = UiSettings.DefineSetting(
+                ProfileTooltipLinesPerSectionKey,
+                12,
+                () => "Profile tooltip lines per section",
+                () => "The maximum number of wrapped lines shown for each enabled profile-tooltip section when trimming is enabled.");
         }
 
         // Local filtering mirrors server block behaviour so cached profile lists stay filtered if server isn't available.
@@ -243,6 +283,26 @@ namespace rp.spark.Services
         {
             return !string.IsNullOrWhiteSpace(accountName)
                 && AccountNameRegex.IsMatch(accountName.Trim());
+        }
+
+        public static int ProfileTooltipLimit(int value)
+        {
+            switch (value)
+            {
+                case 2:
+                case 4:
+                case 6:
+                case 8:
+                case 10:
+                case 12:
+                case 14:
+                case 16:
+                case 18:
+                case 20:
+                    return value;
+                default:
+                    return 12;
+            }
         }
     }
 }

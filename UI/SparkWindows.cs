@@ -25,11 +25,13 @@ namespace rp.spark.UI
         private readonly ProfileCache _profileCache;
         private readonly ProfileNotes _notes;
         private readonly PlayerStateService _playerState;
+        private readonly GlobalOocInfoStore _globalOocInfo;
         private readonly IconIndexService _iconIndexService;
         private readonly SparkSettings _settings;
         private readonly ProfileLoader _profileLoader;
         private readonly ProfileActions _profileActions;
         private readonly NearbyPresenceService _nearbyPresenceService;
+        private readonly RollGroupService _rollGroups;
         private readonly Action _requestServerSync;
         private readonly Action<bool> _setNearbySharing;
         private TabbedWindow2 _settingsWindow;
@@ -44,6 +46,7 @@ namespace rp.spark.UI
         private SparkCompactWindow _nearbyWindow;
         private StandardWindow _aboutWindow;
         private StandardWindow _blocklistWindow;
+        private StandardWindow _rollGroupWindow;
         private CharacterProfile _viewedProfile;
         private PlayerPresence _viewedPresence;
 
@@ -53,11 +56,13 @@ namespace rp.spark.UI
             ProfileCache profileCache,
             ProfileNotes notes,
             PlayerStateService playerState,
+            GlobalOocInfoStore globalOocInfo,
             IconIndexService iconIndexService,
             SparkSettings settings,
             ProfileLoader profileLoader,
             ProfileActions profileActions,
             NearbyPresenceService nearbyPresenceService,
+            RollGroupService rollGroups,
             Action requestServerSync,
             Action<bool> setNearbySharing)
         {
@@ -66,11 +71,13 @@ namespace rp.spark.UI
             _profileCache = profileCache;
             _notes = notes;
             _playerState = playerState;
+            _globalOocInfo = globalOocInfo;
             _iconIndexService = iconIndexService;
             _settings = settings;
             _profileLoader = profileLoader;
             _profileActions = profileActions;
             _nearbyPresenceService = nearbyPresenceService;
+            _rollGroups = rollGroups;
             _requestServerSync = requestServerSync;
             _setNearbySharing = setNearbySharing;
         }
@@ -122,7 +129,7 @@ namespace rp.spark.UI
                 return;
             }
 
-            _profileEditorSession = new ProfileEditorSession(_profileRepository, _playerState, state);
+            _profileEditorSession = new ProfileEditorSession(_profileRepository, _playerState, _globalOocInfo, state);
             CreateProfileWindow();
             _profileWindow.Show();
         }
@@ -151,7 +158,8 @@ namespace rp.spark.UI
                 _profileActions.WatchSavedProfiles,
                 _profileActions.UnwatchSavedProfiles,
                 () => _settings.AutoRefreshOnlineProfiles.Value,
-                value => _settings.AutoRefreshOnlineProfiles.Value = value));
+                value => _settings.AutoRefreshOnlineProfiles.Value = value,
+                _settings));
         }
 
         public void OpenNearby()
@@ -217,6 +225,23 @@ namespace rp.spark.UI
                 _profileActions.UnblockAccount,
                 _profileActions.WatchBlockedAccounts,
                 _profileActions.UnwatchBlockedAccounts));
+        }
+
+        public void OpenRollGroup()
+        {
+            if (!CanShowGameplayWindow())
+                return;
+
+            if (_rollGroupWindow != null && _rollGroupWindow.Visible)
+            {
+                _rollGroupWindow.BringWindowToFront();
+                return;
+            }
+
+            if (_rollGroupWindow == null)
+                CreateRollGroupWindow();
+
+            _rollGroupWindow.Show(new RollGroupView(_rollGroups));
         }
 
         public void OpenSettings()
@@ -408,6 +433,7 @@ namespace rp.spark.UI
                     _profileCache.ListRecent,
                     OpenSavedProfile,
                     SavedProfilesMode.Recent,
+                    _settings,
                     _settings.IsBlockedAccount,
                     null,
                     _profileActions.WatchSavedProfiles,
@@ -422,6 +448,7 @@ namespace rp.spark.UI
                     _profileCache.ListBookmarked,
                     OpenSavedProfile,
                     SavedProfilesMode.Bookmarks,
+                    _settings,
                     _settings.IsBlockedAccount,
                     _profileActions.RemoveBookmark,
                     _profileActions.WatchSavedProfiles,
@@ -517,6 +544,27 @@ namespace rp.spark.UI
                 new Rectangle(70, 60, 760, 610));
         }
 
+        private void CreateRollGroupWindow()
+        {
+            _rollGroupWindow = _windowBuilder.MakeWindow(
+                "Roll Group",
+                "rp.spark.roll-group-window",
+                new Rectangle(70, 60, 760, 610));
+
+            _rollGroupWindow.Shown += HandleRollGroupWindowShown;
+            _rollGroupWindow.Hidden += HandleRollGroupWindowHidden;
+        }
+
+        private void HandleRollGroupWindowShown(object sender, EventArgs e)
+        {
+            _rollGroups.SetPollingEnabled(true);
+        }
+
+        private void HandleRollGroupWindowHidden(object sender, EventArgs e)
+        {
+            _rollGroups.SetPollingEnabled(false);
+        }
+
         private void CreateSettingsWindow()
         {
             _settingsWindow = _windowBuilder.MakeTabbedWindow("Settings", "rp.spark.settings-window");
@@ -593,6 +641,10 @@ namespace rp.spark.UI
 
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
+
+            _rollGroups.SetPollingEnabled(false);
+            _windowBuilder.DisposeWindow(_rollGroupWindow);
+            _rollGroupWindow = null;
 
             _nearbyWindow?.Dispose();
             _nearbyWindow = null;

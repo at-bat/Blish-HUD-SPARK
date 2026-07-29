@@ -3,6 +3,7 @@ using Blish_HUD.Controls;
 using Blish_HUD.Graphics.UI;
 using Microsoft.Xna.Framework;
 using rp.spark.Models;
+using rp.spark.Services;
 using rp.spark.UI.Controls;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,7 @@ namespace rp.spark.UI.Views
         private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(15);
         private readonly Func<bool> _isAutoRefreshEnabled;
         private readonly Action<bool> _setAutoRefreshEnabled;
+        private readonly SparkSettings _settings;
 
         private readonly PageList _page = new PageList();
         private PageListControls _pageControls;
@@ -56,7 +58,8 @@ namespace rp.spark.UI.Views
             Action<Action> watchBookmarksChanged = null,
             Action<Action> unwatchBookmarksChanged = null,
             Func<bool> isAutoRefreshEnabled = null,
-            Action<bool> setAutoRefreshEnabled = null)
+            Action<bool> setAutoRefreshEnabled = null,
+            SparkSettings settings = null)
         {
             _loadRows = getPresenceRows;
             _loadCachedRows = getCachedPresenceRows;
@@ -66,11 +69,13 @@ namespace rp.spark.UI.Views
             _unwatchBookmarks = unwatchBookmarksChanged;
             _isAutoRefreshEnabled = isAutoRefreshEnabled;
             _setAutoRefreshEnabled = setAutoRefreshEnabled;
+            _settings = settings;
         }
 
         protected override void Build(Container buildPanel)
         {
             _isUnloaded = false;
+            WatchTooltipSettings();
 
             ProfileListViewUI.AddTitle(buildPanel, "Online Profiles", 300);
             var refreshButton = ProfileListViewUI.AddRefreshButton(buildPanel);
@@ -440,31 +445,31 @@ namespace rp.spark.UI.Views
 
         private void AddRow(PlayerPresence presence, int index)
         {
-            var tooltipText = TooltipText(presence);
-            var row = _profileList.AddRow(index, tooltipText);
+            var row = _profileList.AddRow(index, string.Empty);
+            var secondary = new Color(220, 220, 220);
 
-            MakeClickable(row, presence, tooltipText);
+            AddBookmarkMarker(row, presence);
 
-            AddBookmarkMarker(row, presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, presence.VisibleName(), 30, 7, 163, Color.White), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileText.PresenceRace(presence), 200, 7, 95, new Color(220, 220, 220)), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, presence.AccountName, 305, 7, 140, new Color(220, 220, 220)), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, ProfileStatusColors.Get(presence.Status)), presence, tooltipText);
-            MakeClickable(_profileList.AddCell(row, ProfileText.PresenceLocation(presence), 570, 7, 180, new Color(220, 220, 220)), presence, tooltipText);
+            _profileList.AddCell(row, presence.VisibleName(), 30, 7, 210, Color.White);
+            _profileList.AddCell(row, ProfileText.PresenceRace(presence), 250, 7, 90, secondary);
+            _profileList.AddCell(row, presence.AccountName, 350, 7, 95, secondary);
+            _profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, ProfileStatusColors.Get(presence.Status));
+            _profileList.AddCell(row, ProfileText.PresenceLocation(presence), 570, 7, 180, secondary);
+
+            ProfileScrollList.AddInteractionLayer(
+                row,
+                MakeTooltip(presence),
+                () => _openProfile?.Invoke(presence));
         }
 
-        private void AddBookmarkMarker(Container row, PlayerPresence presence, string tooltipText)
+        private void AddBookmarkMarker(
+            Container row,
+            PlayerPresence presence)
         {
             if (_isBookmarked?.Invoke(presence) != true)
                 return;
 
-            var marker = ProfileListViewUI.AddBookmarkMarker(row);
-            MakeClickable(marker, presence, tooltipText);
-        }
-
-        private void MakeClickable(Control control, PlayerPresence presence, string tooltipText)
-        {
-            ProfileScrollList.WireInteraction(control, tooltipText, () => _openProfile?.Invoke(presence));
+            ProfileListViewUI.AddBookmarkMarker(row);
         }
 
         private bool MatchesSearch(PlayerPresence presence)
@@ -551,34 +556,100 @@ namespace rp.spark.UI.Views
                 : "No online profiles match this search.";
         }
 
-        private static string TooltipText(PlayerPresence presence)
+        private Tooltip MakeTooltip(PlayerPresence presence)
         {
-            var lines = new List<string>
-            {
+            var showKnownFor =  _settings?.ShowKnownForInProfileTooltips.Value ?? true;
+
+            var showCurrently = _settings?.ShowCurrentlyInProfileTooltips.Value ?? true;
+
+            var showOutOfCharacter = _settings?.ShowOocInfoInProfileTooltips.Value ?? true;
+
+            var trimLongTooltips = _settings?.TrimLongProfileTooltips.Value ?? true;
+
+            var maximumLinesPerSection = _settings?.ProfileTooltipLinesPerSection.Value ?? 12;
+
+            return new Tooltip(new ProfilePresenceTooltipView(
                 presence.VisibleName(),
                 ProfileText.PresenceCharacterDetails(presence),
-                $"Status: {ProfileLabels.StatusLabel(presence.Status)}",
-                $"Location: {ProfileText.PresenceLocation(presence)}"
-            };
+                ProfileLabels.StatusLabel(presence.Status),
+                ProfileText.PresenceLocation(presence),
+                presence.KnownFor,
+                presence.Currently,
+                presence.OutOfCharacterInfo,
+                showKnownFor,
+                showCurrently,
+                showOutOfCharacter,
+                trimLongTooltips,
+                maximumLinesPerSection));
+        }
 
-            if (!string.IsNullOrWhiteSpace(presence.Currently))
+        private void WatchTooltipSettings()
+        {
+            if (_settings == null)
+                return;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged +=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged +=
+                OnTooltipLineLimitChanged;
+        }
+
+        private void UnwatchTooltipSettings()
+        {
+            if (_settings == null)
+                return;
+
+            _settings.ShowKnownForInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowCurrentlyInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ShowOocInfoInProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.TrimLongProfileTooltips.SettingChanged -=
+                OnTooltipVisibilityChanged;
+
+            _settings.ProfileTooltipLinesPerSection.SettingChanged -=
+                OnTooltipLineLimitChanged;
+        }
+
+        private void OnTooltipVisibilityChanged(object sender, ValueChangedEventArgs<bool> e)
+        {
+            QueueTooltipRefresh();
+        }
+
+        private void OnTooltipLineLimitChanged(object sender, ValueChangedEventArgs<int> e)
+        {
+            QueueTooltipRefresh();
+        }
+
+        private void QueueTooltipRefresh()
+        {
+            SparkUiThread.Queue(() =>
             {
-                lines.Add("----------------");
-                lines.Add($"Currently: {presence.Currently.Trim()}");
-            }
+                if (_isUnloaded || _profileList == null)
+                    return;
 
-            if (!string.IsNullOrWhiteSpace(presence.OutOfCharacterInfo))
-            {
-                lines.Add("----------------");
-                lines.Add(presence.OutOfCharacterInfo.Trim());
-            }
-
-            return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+                RefreshVisibleRows(false);
+            });
         }
 
         protected override void Unload()
         {
             _isUnloaded = true;
+            UnwatchTooltipSettings();
             _unwatchBookmarks?.Invoke(HandleBookmarksChanged);
             StopRefresh();
 

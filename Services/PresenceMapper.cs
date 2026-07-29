@@ -24,10 +24,10 @@ namespace rp.spark.Services
                 CustomRace = Clean(presence.CustomRace),
                 Profession = Clean(presence.Profession),
                 CustomProfession = Clean(presence.CustomProfession),
+                KnownFor = Clean(presence.KnownFor),
                 Currently = Clean(presence.Currently),
                 OutOfCharacterInfo = Clean(presence.OutOfCharacterInfo),
                 DiscoveryTags = ProfileDiscoveryMapper.Normalize(presence.DiscoveryTags),
-                KnownFor = "Not loading fully.",
                 Description = "If you see this, something didn't load right or the SPARK webserver is down possibly."
             };
         }
@@ -56,6 +56,9 @@ namespace rp.spark.Services
 
             if (target.Experience == ProfileExperience.Hidden)
                 target.Experience = source.Experience;
+
+            if (string.IsNullOrWhiteSpace(target.KnownFor))
+                target.KnownFor = Clean(source.KnownFor);
 
             target.DiscoveryTags = ProfileDiscoveryMapper.Merge(target.DiscoveryTags, source.DiscoveryTags);
         }
@@ -96,6 +99,9 @@ namespace rp.spark.Services
             if (string.IsNullOrWhiteSpace(presence.CustomProfession))
                 presence.CustomProfession = Clean(profile.CustomProfession);
 
+            if (string.IsNullOrWhiteSpace(presence.KnownFor))
+                presence.KnownFor = Clean(profile.KnownFor);
+
             if (string.IsNullOrWhiteSpace(presence.Currently))
                 presence.Currently = Clean(profile.Currently);
 
@@ -135,6 +141,9 @@ namespace rp.spark.Services
 
             if (string.IsNullOrWhiteSpace(profile.CustomProfession))
                 profile.CustomProfession = Clean(presence.CustomProfession);
+
+            if (string.IsNullOrWhiteSpace(profile.KnownFor))
+                profile.KnownFor = Clean(presence.KnownFor);
 
             profile.DiscoveryTags = ProfileDiscoveryMapper.Merge(profile.DiscoveryTags, presence.DiscoveryTags);
         }
@@ -193,6 +202,7 @@ namespace rp.spark.Services
                 IsMature = presence.IsMature,
                 Experience = presence.Experience,
                 ProfileUpdatedAtTime = presence.ProfileUpdatedAtTime,
+                KnownFor = Clean(presence.KnownFor),
                 Region = presence.Region,
                 IsVerified = presence.IsVerified,
                 HasActiveProfile = presence.HasActiveProfile,

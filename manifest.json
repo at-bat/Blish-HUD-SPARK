@@ -1,11 +1,11 @@
 {
   "name": "Simple Profile And Roleplay Kit",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "namespace": "rp.spark",
   "package": "SPARK.dll",
   "manifest_version": 1,
 
-  "description": "SPARK is an RP module that allows you to create character profiles for roleplaying, advertise your profiles and RP status to others, and view other player's RP profiles.",
+  "description": "SPARK is an RP module that allows you to create character profiles for roleplaying, advertise your profiles and RP status to others, roll dice, and view other player's RP profiles.",
   "dependencies": {
     "bh.blishhud": ">=1.3.0"
   },

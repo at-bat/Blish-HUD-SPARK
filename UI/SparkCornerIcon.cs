@@ -9,6 +9,7 @@ using rp.spark.UI.Controls;
 using rp.spark.UI.Views;
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 
 namespace rp.spark.UI
 {
@@ -25,11 +26,16 @@ namespace rp.spark.UI
         private readonly Action _openProfileManager;
         private readonly Action _openOnlineList;
         private readonly Action _openNearby;
+        private readonly Action _openRollGroup;
         private readonly Action _openSavedProfiles;
         private readonly Action _openBlocklist;
         private readonly Action _openSettings;
         private readonly Action _requestServerSync;
         private readonly Action<bool> _setNearbySharing;
+        private readonly Func<ServerSyncStatus> _getServerSyncStatus;
+        private readonly Action<Action<ServerSyncStatus>> _watchServerSyncStatus;
+        private readonly Action<Action<ServerSyncStatus>> _unwatchServerSyncStatus;
+        private readonly Func<string> _getImportantNotice;
 
         private CornerIcon _cornerIcon;
         private ContextMenuStrip _menu;
@@ -37,8 +43,11 @@ namespace rp.spark.UI
         private ContextMenuStripItem _profileEditorItem;
         private ContextMenuStripItem _onlineListItem;
         private ContextMenuStripItem _nearbyPlayersItem;
+        private ContextMenuStripItem _rollGroupItem;
         private ContextMenuStripItem _savedProfilesItem;
         private ContextMenuStripItem _statusMenuItem;
+        private ContextMenuColours _readinessMenuItem;
+        private ContextMenuColours _serverStatusMenuItem;
         private readonly Dictionary<RPStatus, ContextMenuStripItem> _statusMenuItems = new Dictionary<RPStatus, ContextMenuStripItem>();
         private bool _isSyncingStatusMenu;
         private bool _isDisposed;
@@ -50,22 +59,34 @@ namespace rp.spark.UI
             Action openProfileManager,
             Action openOnlineList,
             Action openNearby,
+            Action openRollGroup,
             Action openSavedProfiles,
             Action openBlocklist,
             Action openSettings,
             Action requestServerSync,
-            Action<bool> setNearbySharing)
+            Action<bool> setNearbySharing,
+            Func<ServerSyncStatus> getServerSyncStatus,
+            Func<string> getImportantNotice,
+            Action<Action<ServerSyncStatus>> watchServerSyncStatus,
+            Action<Action<ServerSyncStatus>> unwatchServerSyncStatus)
         {
             _settings = settings;
             _openMyProfile = openMyProfile;
             _openProfileManager = openProfileManager;
             _openOnlineList = openOnlineList;
             _openNearby = openNearby;
+            _openRollGroup = openRollGroup;
             _openSavedProfiles = openSavedProfiles;
             _openBlocklist = openBlocklist;
             _openSettings = openSettings;
             _requestServerSync = requestServerSync;
             _setNearbySharing = setNearbySharing;
+            _getServerSyncStatus = getServerSyncStatus;
+            _getImportantNotice = getImportantNotice;
+            _watchServerSyncStatus = watchServerSyncStatus;
+            _unwatchServerSyncStatus = unwatchServerSyncStatus;
+
+            _watchServerSyncStatus?.Invoke(OnServerStatusChanged);
 
             var iconTexture = contentsManager.GetTexture(SparkServiceConfig.CornerIconFilename);
             var hoverTexture = contentsManager.GetTexture(SparkServiceConfig.CornerIconHoverFilename, iconTexture);
@@ -127,11 +148,15 @@ namespace rp.spark.UI
 
             _onlineListItem = AddMenuItem(menu, "Online List", _openOnlineList);
             _nearbyPlayersItem = AddMenuItem(menu, "Nearby Players", _openNearby);
+            _rollGroupItem = AddMenuItem(menu, "Dice Roll Groups", _openRollGroup);
             _savedProfilesItem = AddMenuItem(menu, "Saved Profiles", _openSavedProfiles);
+
+            AddSectionHeader(menu, "SPARK Status");
+            AddSparkStatusItems(menu);
 
             AddSectionHeader(menu, "Config");
 
-            AddMenuItem(menu, "Settings", _openSettings);
+            AddMenuItem(menu, "Options", _openSettings);
             AddMenuItem(menu, "Manage Blocks", _openBlocklist);
             AddPrivacySubmenu(menu);
 
@@ -147,6 +172,7 @@ namespace rp.spark.UI
             width = Math.Max(width, MenuItemWidth("My Profile"));
             width = Math.Max(width, MenuItemWidth("Profile Editor"));
             width = Math.Max(width, MenuItemWidth("Nearby Players"));
+            width = Math.Max(width, MenuItemWidth("Dice Roll Groups"));
             width = Math.Max(width, MenuItemWidth("Saved Profiles"));
             width = Math.Max(width, MenuItemWidth("Manage Blocks"));
 
@@ -154,6 +180,8 @@ namespace rp.spark.UI
                 width = Math.Max(width, MenuItemWidth($"Status: {label}"));
 
             width = Math.Max(width, MenuItemWidth($"Status: {CurrentStatusLabel()}"));
+            width = Math.Max(width, MenuItemWidth("SPARK needs attention"));
+            width = Math.Max(width, MenuItemWidth("Server: SPARK webserver unavailable"));
 
             return width;
         }
@@ -179,6 +207,56 @@ namespace rp.spark.UI
         private static void AddSectionHeader(ContextMenuStrip menu, string text)
         {
             menu.AddMenuItem(new ContextMenuHeader(text));
+        }
+
+        private void AddSparkStatusItems(ContextMenuStrip menu)
+        {
+            _readinessMenuItem = new ContextMenuColours(
+                "SPARK ready",
+                new Color(140, 220, 140));
+
+            _serverStatusMenuItem = new ContextMenuColours(
+                "Server: Disconnected",
+                SparkViewUI.SecondaryTextColor);
+
+            _readinessMenuItem.Click += (s, e) => _openSettings?.Invoke();
+            _serverStatusMenuItem.Click += (s, e) => _openSettings?.Invoke();
+
+            menu.AddMenuItem(_readinessMenuItem);
+            menu.AddMenuItem(_serverStatusMenuItem);
+
+            RefreshSparkStatusItems();
+        }
+
+        private void OnServerStatusChanged(ServerSyncStatus status)
+        {
+            SparkUiThread.Queue(() =>
+            {
+                if (_isDisposed || _menu == null)
+                    return;
+
+                RefreshSparkStatusItems();
+            });
+        }
+
+        private void RefreshSparkStatusItems()
+        {
+            if (_readinessMenuItem == null || _serverStatusMenuItem == null)
+                return;
+
+            var display = SparkStatusDisplay.Create(
+                _getImportantNotice,
+                _getServerSyncStatus);
+
+            _readinessMenuItem.Text = display.ReadinessText;
+            _readinessMenuItem.TextColor = display.ReadinessColor;
+            _readinessMenuItem.BasicTooltipText =
+                display.ReadinessTooltip;
+
+            _serverStatusMenuItem.Text = display.ServerText;
+            _serverStatusMenuItem.TextColor = display.ServerColor;
+            _serverStatusMenuItem.BasicTooltipText =
+                display.ServerTooltip;
         }
 
         private void AddPrivacySubmenu(ContextMenuStrip menu)
@@ -376,6 +454,7 @@ namespace rp.spark.UI
             SetMenuItemState(_myProfileItem, enabled, tooltip);
             SetMenuItemState(_profileEditorItem, enabled, tooltip);
             SetMenuItemState(_onlineListItem, enabled, tooltip);
+            SetMenuItemState(_rollGroupItem, enabled, tooltip);
             SetMenuItemState(_nearbyPlayersItem, enabled, tooltip);
             SetMenuItemState(_savedProfilesItem, enabled, tooltip);
         }
@@ -391,9 +470,7 @@ namespace rp.spark.UI
                     return;
 
                 RefreshMenuState();
-
-                if (_menu.Visible)
-                    _menu.Hide();
+                RefreshSparkStatusItems();
             });
         }
 
@@ -430,6 +507,7 @@ namespace rp.spark.UI
         private void OnCornerIconClick(object sender, MouseEventArgs e)
         {
             RefreshMenuState();
+            RefreshSparkStatusItems();
             _menu?.Show(_cornerIcon);
         }
 
@@ -455,6 +533,8 @@ namespace rp.spark.UI
             _nearbyPlayersItem = null;
             _savedProfilesItem = null;
             _statusMenuItem = null;
+            _readinessMenuItem = null;
+            _serverStatusMenuItem = null;
             _statusMenuItems.Clear();
         }
 
@@ -466,6 +546,7 @@ namespace rp.spark.UI
             _isDisposed = true;
             _settings.ShowCornerIcon.SettingChanged -= OnShowCornerIconChanged;
             _settings.CurrentStatus.SettingChanged -= OnCurrentStatusChanged;
+            _unwatchServerSyncStatus?.Invoke(OnServerStatusChanged);
 
             Clear();
 
