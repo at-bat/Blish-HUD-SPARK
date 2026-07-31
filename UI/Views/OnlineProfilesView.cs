@@ -450,9 +450,9 @@ namespace rp.spark.UI.Views
 
             AddBookmarkMarker(row, presence);
 
-            _profileList.AddCell(row, presence.VisibleName(), 30, 7, 210, Color.White);
-            _profileList.AddCell(row, ProfileText.PresenceRace(presence), 250, 7, 90, secondary);
-            _profileList.AddCell(row, presence.AccountName, 350, 7, 95, secondary);
+            _profileList.AddCell(row, presence.VisibleName(), 30, 7, 163, Color.White);
+            _profileList.AddCell(row, ProfileText.PresenceRace(presence), 200, 7, 90, secondary);
+            _profileList.AddCell(row, presence.AccountName, 305, 7, 95, secondary);
             _profileList.AddCell(row, ProfileLabels.StatusLabel(presence.Status), 455, 7, 105, ProfileStatusColors.Get(presence.Status));
             _profileList.AddCell(row, ProfileText.PresenceLocation(presence), 570, 7, 180, secondary);
 
