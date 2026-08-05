@@ -16,6 +16,7 @@ namespace rp.spark.UI
         private const int CurrentInfoIcon = 440023;
         private const int RecentlySeenIcon = 156680;
         private const int BookmarkIcon = 156722;
+        private const int ChatSplitterIcon = 2338896;
 
         private static readonly Point NearbyWindowSize = new Point(640, 350);
         private static readonly Point NearbyWindowDefaultLocation = new Point(40, 240);
@@ -37,6 +38,7 @@ namespace rp.spark.UI
         private TabbedWindow2 _settingsWindow;
 
         private ProfileEditorSession _profileEditorSession;
+        private ChatSplitterSession _chatSplitterSession;
         private TabbedWindow2 _profileWindow;
         private TabbedWindow2 _savedProfilesWindow;
         private TabbedWindow2 _profileViewerWindow;
@@ -47,6 +49,7 @@ namespace rp.spark.UI
         private StandardWindow _aboutWindow;
         private StandardWindow _blocklistWindow;
         private StandardWindow _rollGroupWindow;
+        private TabbedWindow2 _chatSplitterWindow;
         private CharacterProfile _viewedProfile;
         private PlayerPresence _viewedPresence;
 
@@ -244,6 +247,25 @@ namespace rp.spark.UI
             _rollGroupWindow.Show(new RollGroupView(_rollGroups));
         }
 
+        public void OpenChatSplitter()
+        {
+            if (!CanShowGameplayWindow())
+                return;
+
+            if (_chatSplitterWindow != null
+                && _chatSplitterWindow.Visible)
+            {
+                _chatSplitterWindow.BringWindowToFront();
+                return;
+            }
+
+            _chatSplitterSession =
+                new ChatSplitterSession();
+
+            CreateChatSplitterWindow();
+            _chatSplitterWindow.Show();
+        }
+
         public void OpenSettings()
         {
             if (_settingsWindow != null && _settingsWindow.Visible)
@@ -383,6 +405,34 @@ namespace rp.spark.UI
                 "Online Profiles",
                 "rp.spark.online-list-window",
                 new Rectangle(96, 22, 783, 654));
+        }
+
+        private void CreateChatSplitterWindow()
+        {
+            _windowBuilder.DisposeWindow(_chatSplitterWindow);
+
+            _chatSplitterWindow =
+                _windowBuilder.MakeTabbedWindow(
+                    "Chat Splitter",
+                    "rp.spark.chat-splitter-window");
+
+            var session = _chatSplitterSession
+                ?? (_chatSplitterSession =
+                    new ChatSplitterSession());
+
+            _chatSplitterWindow.Tabs.Add(new Tab(
+                _windowBuilder.IconFromAsset(
+                    ChatSplitterIcon),
+                () => new ChatSplitterView(session),
+                "Splitter",
+                100));
+
+            _chatSplitterWindow.Tabs.Add(new Tab(
+                _windowBuilder.IconFromAsset(
+                    ProfilePrefsIcon),
+                () => new ChatSplitterSettingsView(),
+                "Settings",
+                110));
         }
 
         private void CreateNearbyWindow()
@@ -641,6 +691,10 @@ namespace rp.spark.UI
 
             _windowBuilder.DisposeWindow(_onlineListWindow);
             _onlineListWindow = null;
+
+            _windowBuilder.DisposeWindow(_chatSplitterWindow);
+            _chatSplitterWindow = null;
+            _chatSplitterSession = null;
 
             _rollGroups.SetPollingEnabled(false);
             _windowBuilder.DisposeWindow(_rollGroupWindow);

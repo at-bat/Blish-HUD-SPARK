@@ -24,6 +24,7 @@ namespace rp.spark.UI
         private readonly bool _disposeHoverIcon;
         private readonly Action _openMyProfile;
         private readonly Action _openProfileManager;
+        private readonly Action _openChatSplitter;
         private readonly Action _openOnlineList;
         private readonly Action _openNearby;
         private readonly Action _openRollGroup;
@@ -41,6 +42,7 @@ namespace rp.spark.UI
         private ContextMenuStrip _menu;
         private ContextMenuStripItem _myProfileItem;
         private ContextMenuStripItem _profileEditorItem;
+        private ContextMenuStripItem _chatSplitterItem;
         private ContextMenuStripItem _onlineListItem;
         private ContextMenuStripItem _nearbyPlayersItem;
         private ContextMenuStripItem _rollGroupItem;
@@ -57,6 +59,7 @@ namespace rp.spark.UI
             ContentsManager contentsManager,
             Action openMyProfile,
             Action openProfileManager,
+            Action openChatSplitter,
             Action openOnlineList,
             Action openNearby,
             Action openRollGroup,
@@ -73,6 +76,7 @@ namespace rp.spark.UI
             _settings = settings;
             _openMyProfile = openMyProfile;
             _openProfileManager = openProfileManager;
+            _openChatSplitter = openChatSplitter;
             _openOnlineList = openOnlineList;
             _openNearby = openNearby;
             _openRollGroup = openRollGroup;
@@ -143,6 +147,7 @@ namespace rp.spark.UI
             AddStatusSubmenu(menu);
             _myProfileItem = AddMenuItem(menu, "My Profile", _openMyProfile);
             _profileEditorItem = AddMenuItem(menu, "Profile Editor", _openProfileManager);
+            _chatSplitterItem = AddMenuItem(menu, "Chat Splitter", _openChatSplitter);
 
             AddSectionHeader(menu, "Players");
 
@@ -171,6 +176,7 @@ namespace rp.spark.UI
 
             width = Math.Max(width, MenuItemWidth("My Profile"));
             width = Math.Max(width, MenuItemWidth("Profile Editor"));
+            width = Math.Max(width, MenuItemWidth("Chat Splitter"));
             width = Math.Max(width, MenuItemWidth("Nearby Players"));
             width = Math.Max(width, MenuItemWidth("Dice Roll Groups"));
             width = Math.Max(width, MenuItemWidth("Saved Profiles"));
@@ -453,6 +459,7 @@ namespace rp.spark.UI
 
             SetMenuItemState(_myProfileItem, enabled, tooltip);
             SetMenuItemState(_profileEditorItem, enabled, tooltip);
+            SetMenuItemState(_chatSplitterItem, enabled, tooltip);
             SetMenuItemState(_onlineListItem, enabled, tooltip);
             SetMenuItemState(_rollGroupItem, enabled, tooltip);
             SetMenuItemState(_nearbyPlayersItem, enabled, tooltip);
@@ -499,9 +506,9 @@ namespace rp.spark.UI
         private string DisabledMenuTooltip()
         {
             if (ShouldHideForGameUi())
-                return "SPARK profile tools are unavailable while the map or game UI is open.";
+                return "SPARK tools are unavailable while the map or game UI is open.";
 
-            return "SPARK profile tools are unavailable during loading screens or character select.";
+            return "SPARK tools are unavailable during loading screens or character select.";
         }
 
         private void OnCornerIconClick(object sender, MouseEventArgs e)
@@ -529,6 +536,7 @@ namespace rp.spark.UI
             _menu = null;
             _myProfileItem = null;
             _profileEditorItem = null;
+            _chatSplitterItem = null;
             _onlineListItem = null;
             _nearbyPlayersItem = null;
             _savedProfilesItem = null;

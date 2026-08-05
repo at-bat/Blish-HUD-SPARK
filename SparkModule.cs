@@ -163,6 +163,7 @@ namespace rp.spark
                 this.ContentsManager,
                 _windows.OpenMyProfile,
                 _windows.OpenProfileManager,
+                _windows.OpenChatSplitter,
                 _windows.OpenOnlineList,
                 _windows.OpenNearby,
                 _windows.OpenRollGroup,
