@@ -29,56 +29,43 @@ namespace rp.spark.UI.Views
         private const int ControlHeight = 32;
 
         private readonly ChatSplitterSession _session;
+        private readonly ChatSplitterSettings _settings;
 
         private SparkMultiline _responseInput;
         private FlowPanel _resultsShell;
         private Label _status;
         private int _resultsContentWidth;
 
-        public ChatSplitterView(
-            ChatSplitterSession session)
+        public ChatSplitterView(ChatSplitterSession session, ChatSplitterSettings settings)
         {
-            _session = session
-                ?? throw new ArgumentNullException(nameof(session));
+            _session = session ?? throw new ArgumentNullException(nameof(session));
+
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         }
 
         protected override void Build(Container buildPanel)
         {
             var contentSize = buildPanel.ContentRegion.Size;
-            var contentWidth = Math.Max(
-                0,
-                contentSize.X - ContentPadding * 2);
+            var contentWidth = Math.Max(0, contentSize.X - ContentPadding * 2);
 
-            var sectionContentWidth = Math.Max(
-                0,
-                contentWidth - SectionPadding * 2 - 12);
+            var sectionContentWidth = Math.Max(0, contentWidth - SectionPadding * 2 - 12);
 
             BuildHeader(buildPanel, contentWidth);
 
-            BuildEditor(
-                buildPanel,
-                contentWidth,
-                sectionContentWidth);
+            BuildEditor(buildPanel, contentWidth, sectionContentWidth);
 
-            BuildResults(
-                buildPanel,
-                contentSize,
-                contentWidth,
-                sectionContentWidth);
+            BuildResults(buildPanel, contentSize, contentWidth, sectionContentWidth);
 
-            RenderEmptyState(
-                "Enter a response above and select 'Split Message'.");
+            RenderEmptyState("Enter a response above and select 'Split Message'.");
 
             SetStatus("Ready.");
         }
 
-        private static void BuildHeader(
-            Container parent,
-            int contentWidth)
+        private static void BuildHeader(Container parent, int contentWidth)
         {
             new Label
             {
-                Text = "Write a response and turn it into individually copyable messages that fit into GW2's chat box.",
+                Text = "Write a response and split it into GW2-sized messages. Write '/split' on its own line to force a new message early.",
                 Location = new Point(ContentPadding, 16),
                 Size = new Point(contentWidth, 38),
                 Font = GameService.Content.DefaultFont14,
@@ -88,10 +75,7 @@ namespace rp.spark.UI.Views
             };
         }
 
-        private void BuildEditor(
-            Container parent,
-            int contentWidth,
-            int sectionContentWidth)
+        private void BuildEditor(Container parent, int contentWidth, int sectionContentWidth)
         {
             var editorShell = new FlowPanel
             {
@@ -100,9 +84,7 @@ namespace rp.spark.UI.Views
                 Size = new Point(contentWidth, EditorHeight),
                 FlowDirection = ControlFlowDirection.SingleTopToBottom,
                 ControlPadding = new Vector2(0, 6),
-                OuterControlPadding = new Vector2(
-                    SectionPadding,
-                    SectionPadding),
+                OuterControlPadding = new Vector2(SectionPadding, SectionPadding),
                 ShowBorder = true
             };
 
@@ -126,8 +108,7 @@ namespace rp.spark.UI.Views
 
             _responseInput.TextChanged += (s, e) =>
             {
-                _session.SourceText =
-                    _responseInput.Text;
+                _session.SourceText = _responseInput.Text;
             };
 
             var controls = SparkFormLayout.AddRow(
@@ -163,11 +144,9 @@ namespace rp.spark.UI.Views
                 GameService.Content.DefaultFont14,
                 SparkViewUI.SecondaryTextColor);
 
-            generateButton.Click += (s, e) =>
-                GenerateChunks();
+            generateButton.Click += (s, e) => GenerateChunks();
 
-            clearButton.Click += (s, e) =>
-                ClearEditor();
+            clearButton.Click += (s, e) => ClearEditor();
         }
 
         private void BuildResults(
@@ -179,9 +158,7 @@ namespace rp.spark.UI.Views
             new Label
             {
                 Text = "Split Messages",
-                Location = new Point(
-                    ContentPadding,
-                    ResultsHeadingTop),
+                Location = new Point(ContentPadding, ResultsHeadingTop),
                 Size = new Point(contentWidth, 28),
                 Font = GameService.Content.DefaultFont16,
                 TextColor = Color.White,
@@ -189,50 +166,41 @@ namespace rp.spark.UI.Views
                 Parent = parent
             };
 
-            var resultsHeight = Math.Max(
-                0,
-                contentSize.Y - ResultsTop - ContentPadding);
+            var resultsHeight = Math.Max(0, contentSize.Y - ResultsTop - ContentPadding);
 
             _resultsContentWidth = sectionContentWidth;
 
             _resultsShell = new FlowPanel
             {
                 Parent = parent,
-                Location = new Point(
-                    ContentPadding,
-                    ResultsTop),
-                Size = new Point(
-                    contentWidth,
-                    resultsHeight),
+                Location = new Point(ContentPadding, ResultsTop),
+                Size = new Point(contentWidth, resultsHeight),
                 CanScroll = true,
-                FlowDirection =
-                    ControlFlowDirection.SingleTopToBottom,
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
                 ControlPadding = new Vector2(0, 8),
-                OuterControlPadding = new Vector2(
-                    SectionPadding,
-                    SectionPadding),
+                OuterControlPadding = new Vector2(SectionPadding, SectionPadding),
                 ShowBorder = true
             };
         }
 
         private void GenerateChunks()
         {
-            _session.SourceText =
-                _responseInput?.Text ?? string.Empty;
+            _session.SourceText = _responseInput?.Text ?? string.Empty;
 
-            var chunks = ChatSplitter.Split(
-                _session.SourceText);
+            var options = new ChatSplitterOptions
+            {
+                BreakOnBlankLines = _settings.BreakOnBlankLines.Value
+            };
+
+            var chunks = ChatSplitter.Split(_session.SourceText, options);
 
             if (chunks.Count == 0)
             {
                 _session.ClearGeneratedChunks();
 
-                RenderEmptyState(
-                    "No messages were generated.");
+                RenderEmptyState("No messages were generated.");
 
-                SetStatus(
-                    "Enter a response before generating.",
-                    true);
+                SetStatus("Enter a response before generating.", true);
 
                 return;
             }
@@ -240,14 +208,12 @@ namespace rp.spark.UI.Views
             _session.SetGeneratedChunks(chunks);
             RenderResults(_session.GeneratedChunks);
 
-            SetStatus(
-                chunks.Count == 1
+            SetStatus(chunks.Count == 1
                     ? "Generated 1 message."
                     : $"Generated {chunks.Count} messages.");
         }
 
-        private void RenderResults(
-            IReadOnlyList<string> chunks)
+        private void RenderResults(IReadOnlyList<string> chunks)
         {
             ClearResults();
 
@@ -260,15 +226,10 @@ namespace rp.spark.UI.Views
             }
         }
 
-        private void AddChunkCard(
-            string chunk,
-            int number,
-            int total)
+        private void AddChunkCard(string chunk, int number, int total)
         {
             var cardWidth = _resultsContentWidth;
-            var innerWidth = Math.Max(
-                0,
-                cardWidth - CardPadding * 2);
+            var innerWidth = Math.Max(0, cardWidth - CardPadding * 2);
 
             var card = new FlowPanel
             {
@@ -276,12 +237,9 @@ namespace rp.spark.UI.Views
                 Width = cardWidth,
                 HeightSizingMode = SizingMode.AutoSize,
                 AutoSizePadding = new Point(0, CardPadding),
-                FlowDirection =
-                    ControlFlowDirection.SingleTopToBottom,
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
                 ControlPadding = new Vector2(0, 6),
-                OuterControlPadding = new Vector2(
-                    CardPadding,
-                    CardPadding),
+                OuterControlPadding = new Vector2(CardPadding, CardPadding),
                 ShowBorder = true
             };
 
@@ -292,9 +250,7 @@ namespace rp.spark.UI.Views
                 0);
 
             var countWidth = 100;
-            var titleWidth = Math.Max(
-                0,
-                innerWidth - countWidth);
+            var titleWidth = Math.Max(0, innerWidth - countWidth);
 
             SparkFormLayout.AddLabel(
                 header,
@@ -313,8 +269,7 @@ namespace rp.spark.UI.Views
                 GameService.Content.DefaultFont14,
                 SparkViewUI.SecondaryTextColor);
 
-            characterCount.HorizontalAlignment =
-                HorizontalAlignment.Right;
+            characterCount.HorizontalAlignment = HorizontalAlignment.Right;
 
             var chunkLabel = SparkFormLayout.AddLabel(
                 card,
@@ -351,9 +306,7 @@ namespace rp.spark.UI.Views
             if (_responseInput != null)
                 _responseInput.Text = string.Empty;
 
-            RenderEmptyState(
-                "Enter a response above and select Generate.");
-
+            RenderEmptyState("Enter a response above and select Generate.");
             SetStatus("Cleared.");
         }
 
@@ -362,8 +315,7 @@ namespace rp.spark.UI.Views
             if (_resultsShell == null)
                 return;
 
-            foreach (var child in
-                     _resultsShell.Children.ToArray())
+            foreach (var child in _resultsShell.Children.ToArray())
             {
                 child.Dispose();
             }
@@ -371,9 +323,7 @@ namespace rp.spark.UI.Views
             _resultsShell.VerticalScrollOffset = 0;
         }
 
-        private void SetStatus(
-            string text,
-            bool warning = false)
+        private void SetStatus(string text, bool warning = false)
         {
             if (_status == null)
                 return;

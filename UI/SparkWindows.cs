@@ -423,14 +423,17 @@ namespace rp.spark.UI
             _chatSplitterWindow.Tabs.Add(new Tab(
                 _windowBuilder.IconFromAsset(
                     ChatSplitterIcon),
-                () => new ChatSplitterView(session),
+                () => new ChatSplitterView(
+                    session,
+                    _settings.ChatSplitter),
                 "Splitter",
                 100));
 
             _chatSplitterWindow.Tabs.Add(new Tab(
                 _windowBuilder.IconFromAsset(
                     ProfilePrefsIcon),
-                () => new ChatSplitterSettingsView(),
+                () => new ChatSplitterSettingsView(
+                    _settings.ChatSplitter),
                 "Settings",
                 110));
         }

@@ -40,6 +40,7 @@ namespace rp.spark.Services
         public SettingEntry<bool> ShowMatureProfiles { get; }
         public SettingCollection PrivacySettings { get; }
         public SettingCollection UiSettings { get; }
+        internal ChatSplitterSettings ChatSplitter { get; }
         public SettingEntry<bool> BroadcastProfile { get; }
         public SettingEntry<bool> HideLocation { get; }
         public SettingEntry<bool> AutoHideGameUi { get; }
@@ -85,6 +86,8 @@ namespace rp.spark.Services
                 UiSettingsKey,
                 true,
                 () => "Interface");
+
+            ChatSplitter = new ChatSplitterSettings(settings);
 
             BroadcastProfile = SharingSettings.DefineSetting(
                 BroadcastProfileKey,

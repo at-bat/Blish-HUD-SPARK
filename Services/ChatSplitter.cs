@@ -7,64 +7,88 @@ namespace rp.spark.Services
     internal static class ChatSplitter
     {
         public const int DefaultMaxLength = 199;
+        public const string ManualBreak = "/split";
 
-        public static IReadOnlyList<string> Split(
-            string input,
-            int maxLength = DefaultMaxLength)
+        public static IReadOnlyList<string> Split(string input, ChatSplitterOptions options = null)
         {
-            if (maxLength <= 0)
+            var splitOptions = options ?? new ChatSplitterOptions();
+
+            if (splitOptions.MaxLength <= 0)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(maxLength),
-                    "Maximum length must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(options), "Maximum length must be positive.");
             }
 
-            var normalized = NormalizeWhitespace(input);
             var chunks = new List<string>();
 
-            if (normalized.Length == 0)
-                return chunks;
-
-            var remaining = normalized;
-
-            while (remaining.Length > maxLength)
+            foreach (var segment in ParseSegments(input, splitOptions.BreakOnBlankLines))
             {
-                var searchStart = Math.Min(
-                    maxLength,
-                    remaining.Length - 1);
-
-                var splitAt = remaining.LastIndexOf(
-                    ' ',
-                    searchStart);
-
-                if (splitAt > 0)
-                {
-                    chunks.Add(remaining.Substring(0, splitAt));
-                    remaining = remaining
-                        .Substring(splitAt + 1)
-                        .TrimStart();
-
-                    continue;
-                }
-
-                // No whitespace was available, so the current word itself must be split
-                var hardSplitLength = GetSafeHardSplitLength(
-                    remaining,
-                    maxLength);
-
-                chunks.Add(remaining.Substring(0, hardSplitLength));
-                remaining = remaining
-                    .Substring(hardSplitLength)
-                    .TrimStart();
+                SplitSegment(segment, splitOptions.MaxLength, chunks);
             }
-
-            if (remaining.Length > 0)
-                chunks.Add(remaining);
 
             return chunks;
         }
 
-        private static string NormalizeWhitespace(string input)
+        private static IReadOnlyList<string> ParseSegments(string input, bool breakOnBlankLines)
+        {
+            var segments = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(input))
+                return segments;
+
+            var normalizedLineEndings = input
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+
+            var lines = normalizedLineEndings.Split('\n');
+            var currentSegment = new StringBuilder();
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                var isBlankLine = trimmedLine.Length == 0;
+                var isManualBreak = string.Equals(trimmedLine, ManualBreak, StringComparison.OrdinalIgnoreCase);
+
+                if (isManualBreak)
+                {
+                    AddSegment(segments, currentSegment);
+                    continue;
+                }
+
+                if (isBlankLine)
+                {
+                    if (breakOnBlankLines)
+                    {
+                        AddSegment(segments, currentSegment);
+                    }
+
+                    continue;
+                }
+
+                var normalizedLine = NormalizeInlineWhitespace(line);
+
+                if (normalizedLine.Length == 0)
+                    continue;
+
+                if (currentSegment.Length > 0)
+                    currentSegment.Append(' ');
+
+                currentSegment.Append(normalizedLine);
+            }
+
+            AddSegment(segments, currentSegment);
+            return segments;
+        }
+
+        private static void AddSegment(ICollection<string> segments, StringBuilder currentSegment)
+        {
+            if (currentSegment.Length == 0)
+                return;
+
+            segments.Add(currentSegment.ToString());
+            currentSegment.Clear();
+        }
+
+        private static string NormalizeInlineWhitespace(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
                 return string.Empty;
@@ -77,6 +101,7 @@ namespace rp.spark.Services
                 if (char.IsWhiteSpace(character))
                 {
                     hasPendingSpace = normalized.Length > 0;
+
                     continue;
                 }
 
@@ -92,21 +117,29 @@ namespace rp.spark.Services
             return normalized.ToString();
         }
 
-        private static int GetSafeHardSplitLength(
-            string text,
-            int maxLength)
+        private static void SplitSegment(string segment, int maxLength, ICollection<string> chunks)
         {
-            var splitLength = Math.Min(maxLength, text.Length);
+            var remaining = segment ?? string.Empty;
 
-            if (splitLength > 1
-                && splitLength < text.Length
-                && char.IsHighSurrogate(text[splitLength - 1])
-                && char.IsLowSurrogate(text[splitLength]))
+            while (remaining.Length > maxLength)
             {
-                splitLength--;
+                var searchStart = Math.Min(maxLength, remaining.Length - 1);
+
+                var splitAt = remaining.LastIndexOf(' ', searchStart);
+
+                if (splitAt > 0)
+                {
+                    chunks.Add(remaining.Substring(0, splitAt));
+                    remaining = remaining.Substring(splitAt + 1).TrimStart();
+                    continue;
+                }
+
+                chunks.Add(remaining.Substring(0, maxLength));
+                remaining = remaining.Substring(maxLength).TrimStart();
             }
 
-            return Math.Max(1, splitLength);
+            if (remaining.Length > 0)
+                chunks.Add(remaining);
         }
     }
 }

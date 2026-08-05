@@ -8,8 +8,7 @@ namespace rp.spark.Services
     internal sealed class ChatSplitterSession
     {
         private string _sourceText = string.Empty;
-        private IReadOnlyList<string> _generatedChunks =
-            Array.Empty<string>();
+        private IReadOnlyList<string> _generatedChunks = Array.Empty<string>();
 
         public string SourceText
         {
@@ -17,11 +16,9 @@ namespace rp.spark.Services
             set => _sourceText = value ?? string.Empty;
         }
 
-        public IReadOnlyList<string> GeneratedChunks =>
-            _generatedChunks;
+        public IReadOnlyList<string> GeneratedChunks => _generatedChunks;
 
-        public void SetGeneratedChunks(
-            IEnumerable<string> chunks)
+        public void SetGeneratedChunks(IEnumerable<string> chunks)
         {
             _generatedChunks = chunks == null
                 ? Array.Empty<string>()
