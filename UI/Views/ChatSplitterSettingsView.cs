@@ -57,6 +57,7 @@ namespace rp.spark.UI.Views
             };
 
             BuildMessageBreakSettings(contentStack, contentWidth);
+            BuildChatCommandSettings(contentStack, contentWidth);
         }
 
         private void BuildMessageBreakSettings(FlowPanel parent, int contentWidth)
@@ -94,7 +95,7 @@ namespace rp.spark.UI.Views
                     innerWidth,
                     30);
 
-            blankLinesCheckbox.BasicTooltipText = "When disabled, blank lines are treated as spaces instead of splitting the message forcibly.";
+            blankLinesCheckbox.BasicTooltipText = "When enabled, a blank line starts a new message. When disabled, blank lines are treated as spaces. /split always starts a new message.";
 
             blankLinesCheckbox.CheckedChanged += (s, e) =>
             {
@@ -103,6 +104,58 @@ namespace rp.spark.UI.Views
 
                 _settings.BreakOnBlankLines.Value = blankLinesCheckbox.Checked;
             };
+        }
+
+        private void BuildChatCommandSettings(FlowPanel parent, int contentWidth)
+        {
+            var innerWidth = Math.Max(0, contentWidth - SectionPadding * 2);
+
+            var section = new FlowPanel
+            {
+                Parent = parent,
+                Width = contentWidth,
+                HeightSizingMode = SizingMode.AutoSize,
+                AutoSizePadding = new Point(0, 12),
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
+                ControlPadding = new Vector2(0, 8),
+                OuterControlPadding = new Vector2(SectionPadding, SectionPadding),
+                ShowBorder = true
+            };
+
+            new Label
+            {
+                Text = "Chat Commands",
+                Width = innerWidth,
+                Height = 28,
+                Font = GameService.Content.DefaultFont16,
+                TextColor = Color.White,
+                StrokeText = true,
+                Parent = section
+            };
+
+            var shortenCheckbox = SparkFormLayout.AddCheckbox(
+                section,
+                "Shorten recognized chat commands",
+                _settings.ShortenChatCommands.Value,
+                innerWidth,
+                30);
+
+            shortenCheckbox.BasicTooltipText = "Changes chat prefixes to shorter versions in messages. For example, /me becomes /e and /party becomes /p. Disable this to keep the command exactly as typed.";
+
+            shortenCheckbox.CheckedChanged += (s, e) =>
+                _settings.ShortenChatCommands.Value = shortenCheckbox.Checked;
+
+            var repeatCheckbox = SparkFormLayout.AddCheckbox(
+                section,
+                "Repeat command on every message",
+                _settings.RepeatChatCommand.Value,
+                innerWidth,
+                30);
+
+            repeatCheckbox.BasicTooltipText = "The first message always includes the detected starting command. When enabled, every later message also includes it. When disabled, later messages use whichever chat channel is currently selected in GW2.";
+
+            repeatCheckbox.CheckedChanged += (s, e) =>
+                _settings.RepeatChatCommand.Value = repeatCheckbox.Checked;
         }
     }
 }

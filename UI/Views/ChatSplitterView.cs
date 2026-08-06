@@ -56,9 +56,19 @@ namespace rp.spark.UI.Views
 
             BuildResults(buildPanel, contentSize, contentWidth, sectionContentWidth);
 
-            RenderEmptyState("Enter a response above and select 'Split Message'.");
+            if (_session.GeneratedChunks.Count > 0)
+            {
+                RenderResults(_session.GeneratedChunks);
 
-            SetStatus("Ready.");
+                SetStatus(_session.GeneratedChunks.Count == 1
+                    ? "Generated 1 message."
+                    : $"Generated {_session.GeneratedChunks.Count} messages.");
+            }
+            else
+            {
+                RenderEmptyState("Enter a response above and select 'Split Message'.");
+                SetStatus("Ready.");
+            }
         }
 
         private static void BuildHeader(Container parent, int contentWidth)
@@ -189,19 +199,28 @@ namespace rp.spark.UI.Views
 
             var options = new ChatSplitterOptions
             {
-                BreakOnBlankLines = _settings.BreakOnBlankLines.Value
+                BreakOnBlankLines = _settings.BreakOnBlankLines.Value,
+                ShortenChatCommands = _settings.ShortenChatCommands.Value,
+                RepeatChatCommand = _settings.RepeatChatCommand.Value
             };
 
-            var chunks = ChatSplitter.Split(_session.SourceText, options);
+            if (!ChatSplitter.TrySplit(
+                _session.SourceText,
+                options,
+                out var chunks,
+                out var error))
+            {
+                _session.ClearGeneratedChunks();
+                RenderEmptyState(error);
+                SetStatus("Check the starting chat command.", true);
+                return;
+            }
 
             if (chunks.Count == 0)
             {
                 _session.ClearGeneratedChunks();
-
                 RenderEmptyState("No messages were generated.");
-
                 SetStatus("Enter a response before generating.", true);
-
                 return;
             }
 
@@ -209,8 +228,8 @@ namespace rp.spark.UI.Views
             RenderResults(_session.GeneratedChunks);
 
             SetStatus(chunks.Count == 1
-                    ? "Generated 1 message."
-                    : $"Generated {chunks.Count} messages.");
+                ? "Generated 1 message."
+                : $"Generated {chunks.Count} messages.");
         }
 
         private void RenderResults(IReadOnlyList<string> chunks)
@@ -306,7 +325,7 @@ namespace rp.spark.UI.Views
             if (_responseInput != null)
                 _responseInput.Text = string.Empty;
 
-            RenderEmptyState("Enter a response above and select Generate.");
+            RenderEmptyState("Enter a response above and select 'Split Message'.");
             SetStatus("Cleared.");
         }
 
