@@ -58,6 +58,7 @@ namespace rp.spark.UI.Views
 
             BuildMessageBreakSettings(contentStack, contentWidth);
             BuildChatCommandSettings(contentStack, contentWidth);
+            BuildContinuationSettings(contentStack, contentWidth);
         }
 
         private void BuildMessageBreakSettings(FlowPanel parent, int contentWidth)
@@ -157,5 +158,172 @@ namespace rp.spark.UI.Views
             repeatCheckbox.CheckedChanged += (s, e) =>
                 _settings.RepeatChatCommand.Value = repeatCheckbox.Checked;
         }
+
+        private void BuildContinuationSettings(FlowPanel parent, int contentWidth)
+        {
+            const int markerWidth = 80;
+            const int rowHeight = 35;
+            const int rowGap = 10;
+
+            var innerWidth = Math.Max(0, contentWidth - SectionPadding * 2);
+            var labelWidth = Math.Max(0, innerWidth - markerWidth - rowGap);
+
+            var section = new FlowPanel
+            {
+                Parent = parent,
+                Width = contentWidth,
+                HeightSizingMode = SizingMode.AutoSize,
+                AutoSizePadding = new Point(0, 12),
+                FlowDirection = ControlFlowDirection.SingleTopToBottom,
+                ControlPadding = new Vector2(0, 8),
+                OuterControlPadding = new Vector2(SectionPadding, SectionPadding),
+                ShowBorder = true
+            };
+
+            new Label
+            {
+                Text = "Continuation Markers",
+                Width = innerWidth,
+                Height = 28,
+                Font = GameService.Content.DefaultFont16,
+                TextColor = Color.White,
+                StrokeText = true,
+                Parent = section
+            };
+
+            var useMarkersCheckbox = SparkFormLayout.AddCheckbox(
+                section,
+                "Use continuation markers",
+                _settings.UseMarkers.Value,
+                innerWidth,
+                30);
+
+            useMarkersCheckbox.BasicTooltipText = "Adds the end marker to every message that continues into another generated message. The final message is left unmarked.";
+
+            var endMarkerRow = SparkFormLayout.AddRow(
+                section,
+                innerWidth,
+                rowHeight,
+                rowGap);
+
+            SparkFormLayout.AddLabel(
+                endMarkerRow,
+                "End marker",
+                labelWidth,
+                rowHeight,
+                GameService.Content.DefaultFont14,
+                SparkViewUI.SecondaryTextColor);
+
+            var endMarkerBox = SparkFormLayout.AddTextBox(
+                endMarkerRow,
+                _settings.EndMarker.Value,
+                ">",
+                markerWidth,
+                rowHeight,
+                3);
+
+            endMarkerBox.BasicTooltipText = "Enter 1 to 3 characters. Spaces are added automatically. Whitespace and / cannot be used.";
+
+            var markStartsCheckbox = SparkFormLayout.AddCheckbox(
+                section,
+                "Mark the start of continued messages",
+                _settings.UseStartMarkers.Value,
+                innerWidth,
+                30);
+
+            markStartsCheckbox.BasicTooltipText = "Adds the start marker to every generated message after the first. When a chat command is repeated, the marker appears after it.";
+
+            var startMarkerRow = SparkFormLayout.AddRow(
+                section,
+                innerWidth,
+                rowHeight,
+                rowGap);
+
+            SparkFormLayout.AddLabel(
+                startMarkerRow,
+                "Start marker",
+                labelWidth,
+                rowHeight,
+                GameService.Content.DefaultFont14,
+                SparkViewUI.SecondaryTextColor);
+
+            var startMarkerBox = SparkFormLayout.AddTextBox(
+                startMarkerRow,
+                _settings.StartMarker.Value,
+                ">",
+                markerWidth,
+                rowHeight,
+                3);
+
+            startMarkerBox.BasicTooltipText = "Enter 1 to 3 characters. This marker appears at the beginning of messages. Whitespace and / cannot be used.";
+
+            void updateEnabledStates()
+            {
+                endMarkerBox.Enabled = useMarkersCheckbox.Checked;
+                markStartsCheckbox.Enabled = useMarkersCheckbox.Checked;
+                startMarkerBox.Enabled = useMarkersCheckbox.Checked && markStartsCheckbox.Checked;
+            }
+
+            useMarkersCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.UseMarkers.Value = useMarkersCheckbox.Checked;
+
+                if (useMarkersCheckbox.Checked && string.IsNullOrEmpty(endMarkerBox.Text))
+                    endMarkerBox.Text = ">";
+
+                updateEnabledStates();
+            };
+
+            markStartsCheckbox.CheckedChanged += (s, e) =>
+            {
+                _settings.UseStartMarkers.Value = markStartsCheckbox.Checked;
+
+                if (markStartsCheckbox.Checked && string.IsNullOrEmpty(startMarkerBox.Text))
+                    startMarkerBox.Text = ">";
+
+                updateEnabledStates();
+            };
+
+            endMarkerBox.TextChanged += (s, e) =>
+            {
+                var marker = CleanMarker(endMarkerBox.Text);
+
+                if (endMarkerBox.Text != marker)
+                    endMarkerBox.Text = marker;
+
+                _settings.EndMarker.Value = marker;
+            };
+
+            startMarkerBox.TextChanged += (s, e) =>
+            {
+                var marker = CleanMarker(startMarkerBox.Text);
+
+                if (startMarkerBox.Text != marker)
+                    startMarkerBox.Text = marker;
+
+                _settings.StartMarker.Value = marker;
+            };
+
+            updateEnabledStates();
+        }
+
+        private static string CleanMarker(string value)
+        {
+            var marker = string.Empty;
+
+            foreach (var character in value ?? string.Empty)
+            {
+                if (char.IsWhiteSpace(character) || character == '/')
+                    continue;
+
+                marker += character;
+
+                if (marker.Length == 3)
+                    break;
+            }
+
+            return marker;
+        }
     }
+
 }

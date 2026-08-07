@@ -7,6 +7,7 @@ using rp.spark.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace rp.spark.UI.Views
 {
@@ -14,7 +15,7 @@ namespace rp.spark.UI.Views
     {
         private const int ContentPadding = 12;
         private const int SectionPadding = 12;
-        private const int CardPadding = 10;
+        private const int CardPadding = 8;
 
         private const int EditorTop = 58;
         private const int EditorHeight = 236;
@@ -30,6 +31,7 @@ namespace rp.spark.UI.Views
 
         private readonly ChatSplitterSession _session;
         private readonly ChatSplitterSettings _settings;
+        private readonly List<StandardButton> _copyButtons = new List<StandardButton>();
 
         private SparkMultiline _responseInput;
         private FlowPanel _resultsShell;
@@ -119,6 +121,7 @@ namespace rp.spark.UI.Views
             _responseInput.TextChanged += (s, e) =>
             {
                 _session.SourceText = _responseInput.Text;
+                ResetCopyFeedback();
             };
 
             var controls = SparkFormLayout.AddRow(
@@ -187,8 +190,8 @@ namespace rp.spark.UI.Views
                 Size = new Point(contentWidth, resultsHeight),
                 CanScroll = true,
                 FlowDirection = ControlFlowDirection.SingleTopToBottom,
-                ControlPadding = new Vector2(0, 8),
-                OuterControlPadding = new Vector2(SectionPadding, SectionPadding),
+                ControlPadding = new Vector2(0, 3),
+                OuterControlPadding = new Vector2(SectionPadding, 6),
                 ShowBorder = true
             };
         }
@@ -201,7 +204,11 @@ namespace rp.spark.UI.Views
             {
                 BreakOnBlankLines = _settings.BreakOnBlankLines.Value,
                 ShortenChatCommands = _settings.ShortenChatCommands.Value,
-                RepeatChatCommand = _settings.RepeatChatCommand.Value
+                RepeatChatCommand = _settings.RepeatChatCommand.Value,
+                UseMarkers = _settings.UseMarkers.Value,
+                EndMarker = _settings.EndMarker.Value,
+                UseStartMarkers = _settings.UseStartMarkers.Value,
+                StartMarker = _settings.StartMarker.Value
             };
 
             if (!ChatSplitter.TrySplit(
@@ -212,7 +219,7 @@ namespace rp.spark.UI.Views
             {
                 _session.ClearGeneratedChunks();
                 RenderEmptyState(error);
-                SetStatus("Check the starting chat command.", true);
+                SetStatus("Check the response or splitter settings.", true);
                 return;
             }
 
@@ -247,6 +254,11 @@ namespace rp.spark.UI.Views
 
         private void AddChunkCard(string chunk, int number, int total)
         {
+            const int headerHeight = 28;
+            const int headerGap = 6;
+            const int countWidth = 72;
+            const int copyButtonWidth = 94;
+
             var cardWidth = _resultsContentWidth;
             var innerWidth = Math.Max(0, cardWidth - CardPadding * 2);
 
@@ -255,27 +267,34 @@ namespace rp.spark.UI.Views
                 Parent = _resultsShell,
                 Width = cardWidth,
                 HeightSizingMode = SizingMode.AutoSize,
-                AutoSizePadding = new Point(0, CardPadding),
+                AutoSizePadding = new Point(0, 6),
                 FlowDirection = ControlFlowDirection.SingleTopToBottom,
-                ControlPadding = new Vector2(0, 6),
-                OuterControlPadding = new Vector2(CardPadding, CardPadding),
-                ShowBorder = true
+                ControlPadding = new Vector2(0, 2),
+                OuterControlPadding = new Vector2(CardPadding, 6),
+                ShowBorder = false,
+                BackgroundColor = number % 2 == 1
+                    ? new Color(0, 0, 0, 65)
+                    : new Color(20, 20, 20, 55)
             };
 
             var header = SparkFormLayout.AddRow(
                 card,
                 innerWidth,
-                24,
-                0);
+                headerHeight,
+                headerGap);
 
-            var countWidth = 100;
-            var titleWidth = Math.Max(0, innerWidth - countWidth);
+            var titleWidth = Math.Max(
+                0,
+                innerWidth -
+                countWidth -
+                copyButtonWidth -
+                headerGap * 2);
 
             SparkFormLayout.AddLabel(
                 header,
                 $"Message {number} of {total}",
                 titleWidth,
-                24,
+                headerHeight,
                 GameService.Content.DefaultFont14,
                 Color.White,
                 true);
@@ -284,22 +303,83 @@ namespace rp.spark.UI.Views
                 header,
                 $"{chunk.Length}/{ChatSplitter.DefaultMaxLength}",
                 countWidth,
-                24,
+                headerHeight,
                 GameService.Content.DefaultFont14,
                 SparkViewUI.SecondaryTextColor);
 
             characterCount.HorizontalAlignment = HorizontalAlignment.Right;
 
+            var copyCount = _session.GetCopyCount(number - 1);
+
+            var copyButton = SparkFormLayout.AddButton(
+                header,
+                copyCount > 0 ? $"Copied ({copyCount})" : "Copy",
+                copyButtonWidth,
+                26);
+
+            _copyButtons.Add(copyButton);
+
+            copyButton.Click += async (s, e) =>
+                await CopyChunkAsync(copyButton, chunk, number - 1);
+
             var chunkLabel = SparkFormLayout.AddLabel(
                 card,
                 chunk,
                 innerWidth,
-                25,
+                24,
                 GameService.Content.DefaultFont14,
                 SparkViewUI.SecondaryTextColor);
 
             chunkLabel.WrapText = true;
             chunkLabel.AutoSizeHeight = true;
+        }
+
+        private async Task CopyChunkAsync(
+            StandardButton copyButton,
+            string chunk,
+            int chunkIndex)
+        {
+            bool copied;
+
+            try
+            {
+                copied = await ClipboardUtil.WindowsClipboardService
+                    .SetTextAsync(chunk ?? string.Empty);
+            }
+            catch
+            {
+                copied = false;
+            }
+
+            SparkUiThread.Queue(() =>
+            {
+                if (!copied)
+                {
+                    if (copyButton.Parent != null)
+                        SetStatus("Couldn't copy that message right now.", true);
+
+                    return;
+                }
+
+                var copyCount = _session.IncrementCopyCount(chunkIndex);
+
+                if (copyButton.Parent == null)
+                    return;
+
+                copyButton.Text = $"Copied ({copyCount})";
+                SetStatus($"Copied message {chunkIndex + 1}.");
+            });
+        }
+
+        private void ResetCopyFeedback()
+        {
+            _session.ResetCopyCounts();
+
+            foreach (var copyButton in _copyButtons)
+            {
+                if (copyButton.Parent != null)
+                    copyButton.Text = "Copy";
+            }
         }
 
         private void RenderEmptyState(string message)
@@ -333,6 +413,8 @@ namespace rp.spark.UI.Views
         {
             if (_resultsShell == null)
                 return;
+
+            _copyButtons.Clear();
 
             foreach (var child in _resultsShell.Children.ToArray())
             {

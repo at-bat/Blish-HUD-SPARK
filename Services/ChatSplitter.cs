@@ -8,6 +8,7 @@ namespace rp.spark.Services
     {
         public const int DefaultMaxLength = 199;
         public const string ManualBreak = "/split";
+        private const int MaxMarkerLength = 3;
 
         private static readonly Dictionary<string, string> ChatCommands = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -50,20 +51,41 @@ namespace rp.spark.Services
                 return false;
             }
 
-            if (command.Length + 1 >= splitOptions.MaxLength)
+            if (!TryGetMarkers(splitOptions, out var endMarker, out var startMarker, out error))
             {
                 chunks = generatedChunks;
-                error = "The maximum message length is too short for the selected chat command.";
                 return false;
             }
 
-            foreach (var segment in segments)
+            var reservedLength = command.Length > 0
+                ? command.Length + 1
+                : 0;
+
+            if (splitOptions.UseMarkers)
+                reservedLength += endMarker.Length + 1;
+
+            if (splitOptions.UseMarkers &&
+                splitOptions.UseStartMarkers)
+            {
+                reservedLength += startMarker.Length + 1;
+            }
+
+            if (reservedLength >= splitOptions.MaxLength)
+            {
+                chunks = generatedChunks;
+                error = "The maximum message length is too short for the selected command and continuation markers.";
+                return false;
+            }
+
+            for (var index = 0; index < segments.Count; index++)
             {
                 SplitSegment(
-                    segment,
-                    splitOptions.MaxLength,
+                    segments[index],
+                    index < segments.Count - 1,
                     command,
-                    splitOptions.RepeatChatCommand,
+                    endMarker,
+                    startMarker,
+                    splitOptions,
                     generatedChunks);
             }
 
@@ -102,6 +124,56 @@ namespace rp.spark.Services
                 segments.RemoveAt(0);
             else
                 segments[0] = remainingText;
+
+            return true;
+        }
+
+        private static bool TryGetMarkers(ChatSplitterOptions options, out string endMarker, out string startMarker, out string error)
+        {
+            endMarker = (options.EndMarker ?? string.Empty).Trim();
+            startMarker = (options.StartMarker ?? string.Empty).Trim();
+            error = string.Empty;
+
+            if (!options.UseMarkers)
+            {
+                endMarker = string.Empty;
+                startMarker = string.Empty;
+                return true;
+            }
+
+            if (!IsValidMarker(endMarker))
+            {
+                error = "The end marker must contain 1 to 3 characters and cannot contain spaces or /.";
+                return false;
+            }
+
+            if (!options.UseStartMarkers)
+            {
+                startMarker = string.Empty;
+                return true;
+            }
+
+            if (!IsValidMarker(startMarker))
+            {
+                error = "The start marker must contain 1 to 3 characters and cannot contain spaces or /.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsValidMarker(string marker)
+        {
+            if (string.IsNullOrEmpty(marker) || marker.Length > MaxMarkerLength || marker.IndexOf('/') >= 0)
+            {
+                return false;
+            }
+
+            foreach (var character in marker)
+            {
+                if (char.IsWhiteSpace(character))
+                    return false;
+            }
 
             return true;
         }
@@ -194,24 +266,35 @@ namespace rp.spark.Services
 
         private static void SplitSegment(
             string segment,
-            int maxLength,
+            bool hasLaterSegments,
             string command,
-            bool repeatCommand,
+            string endMarker,
+            string startMarker,
+            ChatSplitterOptions options,
             ICollection<string> chunks)
         {
             var remaining = segment ?? string.Empty;
 
             while (remaining.Length > 0)
             {
-                var prefix = command.Length > 0 && (repeatCommand || chunks.Count == 0)
+                var beginning = command.Length > 0 && (options.RepeatChatCommand || chunks.Count == 0)
                     ? command + " "
                     : string.Empty;
 
-                var bodyLimit = maxLength - prefix.Length;
+                if (options.UseMarkers && options.UseStartMarkers && chunks.Count > 0)
+                {
+                    beginning += startMarker + " ";
+                }
+
+                var finalBodyLimit = options.MaxLength - beginning.Length;
+                var hasMore = hasLaterSegments || remaining.Length > finalBodyLimit;
+                var ending = options.UseMarkers && hasMore ? " " + endMarker : string.Empty;
+
+                var bodyLimit = finalBodyLimit - ending.Length;
 
                 if (remaining.Length <= bodyLimit)
                 {
-                    chunks.Add(prefix + remaining);
+                    chunks.Add(beginning + remaining + ending);
                     return;
                 }
 
@@ -220,12 +303,13 @@ namespace rp.spark.Services
 
                 if (splitAt > 0)
                 {
-                    chunks.Add(prefix + remaining.Substring(0, splitAt));
+                    chunks.Add(beginning + remaining.Substring(0, splitAt) + ending);
                     remaining = remaining.Substring(splitAt + 1).TrimStart();
                     continue;
                 }
 
-                chunks.Add(prefix + remaining.Substring(0, bodyLimit));
+                chunks.Add(beginning + remaining.Substring(0, bodyLimit) + ending);
+
                 remaining = remaining.Substring(bodyLimit).TrimStart();
             }
         }
