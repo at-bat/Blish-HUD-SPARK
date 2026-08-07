@@ -170,6 +170,7 @@ namespace rp.spark
                 _windows.OpenSavedProfiles,
                 _windows.OpenBlocklist,
                 _windows.OpenSettings,
+                _windows.OpenAbout,
                 RefreshPresenceSoon,
                 SetNearbySharing,
                 GetServerSyncStatus,
@@ -237,27 +238,11 @@ namespace rp.spark
             EnsurePlayerStateLoad();
 
             return new SparkSettingsView(
-                _windows.OpenProfileManager,
-                _windows.OpenMyProfile,
-                _windows.OpenOnlineList,
-                _windows.OpenNearby,
-                _windows.OpenSavedProfiles,
-                _windows.OpenAbout,
-                _windows.OpenSettings,
-                _windows.OpenBlocklist,
-                WaitForPlayerStateAsync,
-                GetPlayerStateMessage,
-                ReloadPlayerState,
-                _sparkSettings,
+                _cornerIcon.ShowMenu,
                 GetServerSyncStatus,
                 WatchServerSyncStatus,
                 UnwatchServerSyncStatus,
-                RefreshPresenceSoon,
-                GetImportantSettingsNotice,
-                _windows.ShouldHideGameplayWindows,
-                _profileActions.WatchBlockedAccounts,
-                _profileActions.UnwatchBlockedAccounts,
-                _windows.HandleMaturePreferenceChanged);
+                GetImportantSettingsNotice);
         }
 
         private void GlobalOocInfoChanged(string accountName)
