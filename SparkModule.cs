@@ -236,13 +236,7 @@ namespace rp.spark
         public override IView GetSettingsView()
         {
             EnsurePlayerStateLoad();
-
-            return new SparkSettingsView(
-                _cornerIcon.ShowMenu,
-                GetServerSyncStatus,
-                WatchServerSyncStatus,
-                UnwatchServerSyncStatus,
-                GetImportantSettingsNotice);
+            return new SparkSettingsView(_cornerIcon.ShowMenu);
         }
 
         private void GlobalOocInfoChanged(string accountName)

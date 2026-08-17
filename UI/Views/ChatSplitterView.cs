@@ -49,22 +49,20 @@ namespace rp.spark.UI.Views
         {
             var contentSize = buildPanel.ContentRegion.Size;
             var contentWidth = Math.Max(0, contentSize.X - ContentPadding * 2);
-
             var sectionContentWidth = Math.Max(0, contentWidth - SectionPadding * 2 - 12);
 
             BuildHeader(buildPanel, contentWidth);
-
             BuildEditor(buildPanel, contentWidth, sectionContentWidth);
-
             BuildResults(buildPanel, contentSize, contentWidth, sectionContentWidth);
 
             if (_session.GeneratedChunks.Count > 0)
             {
                 RenderResults(_session.GeneratedChunks);
 
-                SetStatus(_session.GeneratedChunks.Count == 1
-                    ? "Generated 1 message."
-                    : $"Generated {_session.GeneratedChunks.Count} messages.");
+                if (_session.NeedsUpdate)
+                    SetStatus("Press Split Message again to update the messages.", true);
+                else
+                    SetGeneratedStatus();
             }
             else
             {
@@ -122,6 +120,11 @@ namespace rp.spark.UI.Views
             {
                 _session.SourceText = _responseInput.Text;
                 ResetCopyFeedback();
+
+                if (_session.NeedsUpdate)
+                    SetStatus("Press Split Message again to update the messages.", true);
+                else if (_session.GeneratedChunks.Count > 0)
+                    SetGeneratedStatus();
             };
 
             var controls = SparkFormLayout.AddRow(
@@ -231,12 +234,15 @@ namespace rp.spark.UI.Views
                 return;
             }
 
-            _session.SetGeneratedChunks(chunks);
+            _session.SetGeneratedChunks(chunks, _session.SourceText);
             RenderResults(_session.GeneratedChunks);
+            SetGeneratedStatus();
+        }
 
-            SetStatus(chunks.Count == 1
-                ? "Generated 1 message."
-                : $"Generated {chunks.Count} messages.");
+        private void SetGeneratedStatus()
+        {
+            var count = _session.GeneratedChunks.Count;
+            SetStatus(count == 1 ? "Generated 1 message." : $"Generated {count} messages.");
         }
 
         private void RenderResults(IReadOnlyList<string> chunks)

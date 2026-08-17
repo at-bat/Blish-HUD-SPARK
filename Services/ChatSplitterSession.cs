@@ -4,10 +4,11 @@ using System.Linq;
 
 namespace rp.spark.Services
 {
-    // Because we don't want to lose what the player might have typed when swapping back and forth between sessions we retrain this only when the window is open and tabs are swapped.
+    // Keep the draft and generated messages while the user switches between tabs.
     internal sealed class ChatSplitterSession
     {
         private string _sourceText = string.Empty;
+        private string _lastSplitText = string.Empty;
         private IReadOnlyList<string> _generatedChunks = Array.Empty<string>();
         private int[] _copyCounts = Array.Empty<int>();
 
@@ -18,6 +19,7 @@ namespace rp.spark.Services
         }
 
         public IReadOnlyList<string> GeneratedChunks => _generatedChunks;
+        public bool NeedsUpdate => _generatedChunks.Count > 0 && !string.Equals(_sourceText, _lastSplitText, StringComparison.Ordinal);
 
         public int GetCopyCount(int index)
         {
@@ -39,7 +41,7 @@ namespace rp.spark.Services
             Array.Clear(_copyCounts, 0, _copyCounts.Length);
         }
 
-        public void SetGeneratedChunks(IEnumerable<string> chunks)
+        public void SetGeneratedChunks(IEnumerable<string> chunks, string sourceText)
         {
             _generatedChunks = chunks == null
                 ? Array.Empty<string>()
@@ -47,12 +49,14 @@ namespace rp.spark.Services
                     .Select(chunk => chunk ?? string.Empty)
                     .ToArray();
 
+            _lastSplitText = sourceText ?? string.Empty;
             _copyCounts = new int[_generatedChunks.Count];
         }
 
         public void ClearGeneratedChunks()
         {
             _generatedChunks = Array.Empty<string>();
+            _lastSplitText = string.Empty;
             _copyCounts = Array.Empty<int>();
         }
 

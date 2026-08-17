@@ -244,12 +244,8 @@ namespace rp.spark.UI
                 "Server: Disconnected",
                 SparkViewUI.SecondaryTextColor);
 
-            _readinessMenuItem.Click += (s, e) => _openSettings?.Invoke();
-            _serverStatusMenuItem.Click += (s, e) => _openSettings?.Invoke();
-
             menu.AddMenuItem(_readinessMenuItem);
             menu.AddMenuItem(_serverStatusMenuItem);
-
             RefreshSparkStatusItems();
         }
 
